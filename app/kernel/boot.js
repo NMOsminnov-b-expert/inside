@@ -201,8 +201,9 @@ async function onRoute(route) {
   }
 
   if (route.name === 'osmotr') {
-    // Осмотры (осмотрщики) — приложение «Осмотр» (PWA) во всю область.
-    if (current && current.kind === 'osmotr') return;
+    // Осмотры (осмотрщики) — веб-страница осмотрщика во всю область; экраны —
+    // запросом адреса (?v=…), смена экрана — без перемонтирования.
+    if (current && current.kind === 'osmotr') { current.instance.onRoute(route); return; }
     unmount();
     resetShellSlots();
     const scope = createScope(contentRoot());

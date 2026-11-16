@@ -1,0 +1,187 @@
+# -*- coding: utf-8 -*-
+"""
+Веб-страница осмотрщика (pages/osmotr/osmotr.js) — перенос приложения «Осмотр»
+в веб, этап 1 (16.11.2026): «Сегодня», «Выезды», поиск, меню, входящие, объект
+и документы для выезда. Образец вида — мобильный вид стенда E•state.
+
+Что ловит сценарий:
+  * отбор по типам объектов (недвижимое, транспорт, оборудование) в «Выездах»
+    не сходится с назначенными объектами или не отбирает; на «Сегодня» он есть
+    (его там быть не должно — 16.11.2026);
+  * плитка «осмотреть сегодня» и «Просрочено» считают не те назначения;
+  * «К осмотру / Осмотрено / Все» — не те строки;
+  * какой-то из назначенных объектов не открывается (сведения участка по
+    Кадастру, ТС, описи — 16.11.2026 падал объект со сведениями участка);
+  * в объекте нет ЕНИ, состояния, вкладки документов, документ с файлом не
+    открывается во всю страницу;
+  * осмотрщику видны данные карточки ЦОД (класс, площадь по документам,
+    конструктив, износ) — решение 16.11.2026 «Осмотрщик видит СЛИШКОМ много»;
+  * поиск ищет не по своим выездам;
+  * пункты меню «Недвижимое / Транспорт / Оборудование» ведут не к спискам
+    назначенного к осмотру;
+  * «Входящие» не снимают значок новых;
+  * прежний адрес #/insp не открывает страницу; на 360 и 400 пикселях страница
+    прокручивается вбок; на широком экране колонка шире 480.
+"""
+from harness import use_cadastre_fixture
+
+NAME = 'страница осмотрщика (веб)'
+
+TOUCHES = (
+    'app/pages/osmotr/*', 'app/pages/inspection/tasks.js', 'app/kernel/inspections.js', 'app/kernel/inspectionResults.js',
+    'app/kernel/session.js', 'app/kernel/router.js', 'app/kernel/boot.js', 'app/kernel/mapgl.js',
+)
+
+DATA = "await import('./app/pages/osmotr/data.js')"
+OBJS = """async () => { const d = %s; const s = (await import('./app/kernel/session.js')).session.state;
+  return d.myObjects(s.person).map((o) => ({ id: o.id, entity: o.entity, state: o.state, removed: o.removed, plannedAt: o.plannedAt,
+    title: o.title, eni: o.eni, docs: o.docs.length, inv: (o.inventories || []).length, returned: (o.returned || []).length })); }""" % DATA
+
+
+def iso(days=0):
+    import datetime
+    return (datetime.date.today() + datetime.timedelta(days=days)).isoformat()
+
+
+def run(t):
+    pg = t.page
+    use_cadastre_fixture(pg)
+    pg.set_viewport_size({'width': 400, 'height': 860})
+    t.open('#/osmotr', wait='.om-app[data-v="today"]')
+
+    # --- данные: просроченный выезд (вчерашняя дата у открытого назначения) ---
+    late = pg.evaluate("""async (day) => {
+      const k = await import('./app/kernel/inspections.js');
+      const s = (await import('./app/kernel/session.js')).session.state;
+      const a = k.assignmentsOfPerson(s.person).find((x) => x.state !== 'done');
+      if (!a) return null;
+      k.takeForDay(a.id, day); k.changed();
+      return a.typeId + '|' + a.ocId;
+    }""", iso(-1))
+    t.ck(late, 'у осмотрщика нет ни одного открытого назначения — сценарию не на чем проверять')
+    pg.wait_for_timeout(500)
+    objs = pg.evaluate(OBJS)
+    t.ck(len(objs) > 0, 'назначенных объектов нет')
+
+    # --- главная: без отбора по типам (16.11.2026: «На экране сегодня их по идее не будет») ---
+    t.ck(pg.locator('.om-segs').count() == 0, 'на «Сегодня» есть отбор по типам — он только там, где видны объекты')
+    today_open = [o for o in objs if o['plannedAt'] == iso() and o['state'] != 'done' and not o['removed']]
+    t.ck(pg.locator('.om-tile b').inner_text().strip() == str(len(today_open)),
+         'плитка «осмотреть сегодня»: %s, ожидалось %d' % (pg.locator('.om-tile b').inner_text(), len(today_open)))
+    t.ck(pg.locator('.om-row', has_text='Просрочено').count() == 1, 'на главной нет «Просрочено» при просроченном выезде')
+    t.ck(pg.locator('.om-row', has_text='Все мои объекты').locator('.om-n').inner_text().strip() == str(len(objs)), '«Все мои объекты» — не все назначенные')
+
+    # --- выезды: отбор по типам ---
+    t.open('#/osmotr?v=trips&s=all', wait='.om-app[data-v="trips"]')
+    def chip_n(label):
+        txt = pg.locator('.om-segs .om-seg', has_text=label).first.inner_text()
+        return int(''.join(ch for ch in txt.split()[-1] if ch.isdigit()) or 0)
+    t.ck(chip_n('Все') == len(objs), '«Все» в отборе: %s, назначено объектов %d' % (chip_n('Все'), len(objs)))
+    real = [o for o in objs if o['entity'] == 'real']
+    veh = [o for o in objs if o['entity'] == 'vehicle']
+    inv = [o for o in objs if o['entity'] == 'inventory' or o['inv']]
+    t.ck(chip_n('Недвижимое') == len(real), '«Недвижимое»: %d, ожидалось %d' % (chip_n('Недвижимое'), len(real)))
+    t.ck(chip_n('Транспорт') == len(veh), '«Транспорт»: %d, ожидалось %d' % (chip_n('Транспорт'), len(veh)))
+    t.ck(chip_n('Оборудование') == len(inv), '«Оборудование» (описи и механизмы): %d, ожидалось %d' % (chip_n('Оборудование'), len(inv)))
+    pg.locator('.om-segs .om-seg', has_text='Транспорт').click()
+    t.ck(t.wait_until("() => /[?&]f=vehicle/.test(location.hash) && document.querySelector('.om-seg.on')?.textContent.includes('Транспорт')"),
+         'отбор «Транспорт» не включился')
+    open_veh = [o for o in veh if o['state'] != 'done' and not o['removed']]
+    t.ck(pg.locator('.om-obj').count() == len(open_veh), '«Транспорт» к осмотру: %d строк, ожидалось %d' % (pg.locator('.om-obj').count(), len(open_veh)))
+
+    # --- «Просрочено» → выезды с отбором ---
+    t.open('#/osmotr', wait='.om-app[data-v="today"]')
+    pg.locator('.om-row', has_text='Просрочено').click()
+    t.ck(t.wait_until("() => /s=late/.test(location.hash) && document.querySelectorAll('.om-obj').length > 0"), '«Просрочено» не открыло выезды с отбором')
+    hrefs = pg.eval_on_selector_all('.om-obj', 'els => els.map((e) => decodeURIComponent(e.getAttribute("href")))')
+    t.ck(any(late in h for h in hrefs), 'просроченный объект %s не в списке «Просрочено»' % late)
+
+    # --- выезды: К осмотру / Осмотрено / Все ---
+    t.open('#/osmotr?v=trips', wait='.om-app[data-v="trips"]')
+    n_open = pg.locator('.om-obj').count()
+    t.ck(n_open == len([o for o in objs if o['state'] != 'done' and not o['removed']]), '«К осмотру»: %d строк' % n_open)
+    pg.locator('.om-tab3', has_text='Осмотрено').click()
+    t.wait_until("() => document.querySelector('.om-tab3.on')?.textContent.startsWith('Осмотрено')")
+    chips = pg.eval_on_selector_all('.om-obj .om-chip', 'els => els.map((e) => e.textContent)')
+    t.ck(all(c == 'Закончен' for c in chips), '«Осмотрено»: не только законченные: %s' % sorted(set(chips)))
+    pg.locator('.om-tab3', has_text='Все').click()
+    t.wait_until("() => document.querySelector('.om-tab3.on')?.textContent.startsWith('Все')")
+    t.ck(pg.locator('.om-obj').count() == len(objs), '«Все»: %d строк из %d' % (pg.locator('.om-obj').count(), len(objs)))
+
+    # --- объект: шапка, ЕНИ, без данных карточки ЦОД; документы ---
+    with_docs = next((o for o in objs if o['docs'] and o['state'] != 'done'), None) or next((o for o in objs if o['docs']), None)
+    t.ck(with_docs, 'нет объекта с документами для выезда')
+    if with_docs:
+        pg.evaluate("(id) => { location.hash = '#/osmotr?v=obj&id=' + encodeURIComponent(id); }", with_docs['id'])
+        t.wait_for('.om-app[data-v="obj"] .om-title')
+        t.ck(pg.locator('.om-title').inner_text().strip() == with_docs['title'], 'заголовок объекта не адрес/название')
+        if with_docs['eni']:
+            t.ck(pg.locator('.om-eni').count() == 1, 'в объекте нет ЕНИ')
+        t.ck(pg.locator('.om-idrow .om-chip').count() == 1, 'в объекте нет состояния')
+        body = pg.locator('.om-scr').inner_text()
+        for word in ('Класс', 'По техпаспорту', 'По ПУД', 'Конструктив', 'Износ'):
+            t.ck(word not in body, 'осмотрщику видно «%s» — данные карточки ЦОД (решение 16.11.2026)' % word)
+        t.ck(pg.locator('.om-objtabs .om-btab').count() == 2, 'у объекта нет вкладок «Задача» и «Документы»')
+        pg.locator('.om-objtabs .om-btab', has_text='Документы').click()
+        t.wait_until("() => document.querySelector('.om-objtabs .om-btab.on')?.textContent.includes('Документы')")
+        t.ck(pg.locator('.om-scr .om-group .om-row').count() == with_docs['docs'], 'документов в списке не %d' % with_docs['docs'])
+        # Документ с файлом — открывается во всю страницу. Демо-документам файл придаём сами.
+        pg.evaluate("""async (id) => {
+          const [typeId, ocId] = id.split('|');
+          const rec = (await import('./app/pages/inspection/tasks.js')).loadTask(typeId, ocId);
+          const d = (rec.docs || [])[0] || (rec.oi || []).flatMap((o) => o.docs || [])[0];
+          d.file = { name: 'план.png', mime: 'image/png', dataUrl: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==' };
+          (await import('./app/kernel/inspections.js')).changed();
+        }""", with_docs['id'])
+        t.wait_until("() => !!document.querySelector('.om-scr a.om-row[href*=\"v=doc\"]')")
+        pg.locator('.om-scr a.om-row[href*="v=doc"]').first.click()
+        t.ck(t.wait_until("() => /v=doc/.test(location.hash) && !!document.querySelector('.om-docimg, .om-docview')"), 'документ с файлом не открылся')
+        t.ck(pg.locator('.om-bnav').count() == 0, 'у документа осталась нижняя панель разделов')
+        pg.locator('.om-back').click()
+        t.ck(t.wait_until("() => /v=obj/.test(location.hash) && /tab=docs/.test(location.hash)"), '«Назад» из документа — не к документам объекта')
+
+    # --- каждый назначенный объект открывается (все виды: с участком по Кадастру и без, ТС, описи) ---
+    bad = []
+    for o in objs:
+        pg.evaluate("(id) => { location.hash = '#/osmotr?v=obj&id=' + encodeURIComponent(id); }", o['id'])
+        if not t.wait_until("(id) => document.querySelector('.om-app[data-v=obj] .om-title') && decodeURIComponent(location.hash).includes(id)", o['id'], timeout=4000):
+            bad.append(o['id'])
+    t.ck(not bad, 'не открылись объекты: %s' % bad[:5])
+
+    # --- поиск по своим выездам ---
+    t.open('#/osmotr?v=search', wait='.om-app[data-v="search"]')
+    eni_obj = next((o for o in objs if o['eni']), None)
+    if eni_obj:
+        pg.fill('[data-search] input', eni_obj['eni'][:9])
+        t.ck(t.wait_until("(id) => [...document.querySelectorAll('.om-obj')].some((a) => decodeURIComponent(a.getAttribute('href')).includes(id))", eni_obj['id']),
+             'поиск по ЕНИ не нашёл свой объект')
+        t.ck(pg.evaluate("() => document.activeElement && document.activeElement.matches('[data-search] input')"), 'поле поиска теряет фокус при вводе')
+    pg.fill('[data-search] input', 'нетакогоадреса')
+    t.ck(t.wait_until("() => document.querySelectorAll('.om-obj').length === 0"), 'поиск нашёл несуществующее')
+
+    # --- меню: списки назначенного к осмотру по типам ---
+    t.open('#/osmotr?v=menu', wait='.om-app[data-v="menu"]')
+    pg.locator('.om-row', has_text='Недвижимое').click()
+    t.ck(t.wait_until("() => /v=trips/.test(location.hash) && /f=real/.test(location.hash)"), '«Недвижимое» в меню ведёт не к списку назначенного')
+    t.ck(t.wait_until("() => document.querySelector('.om-h1')?.textContent.trim() === 'Недвижимое'"), 'заголовок списка не «Недвижимое»')
+
+    # --- входящие снимают значок новых ---
+    t.open('#/osmotr', wait='.om-app[data-v="today"]')
+    had = pg.locator('.om-top .om-badge').count()
+    t.open('#/osmotr?v=notes', wait='.om-app[data-v="notes"]')
+    t.open('#/osmotr', wait='.om-app[data-v="today"]')
+    if had:
+        t.ck(pg.locator('.om-top .om-badge').count() == 0, 'после «Входящих» значок новых не снят')
+
+    # --- прежний адрес и ширины ---
+    pg.evaluate("() => { location.hash = '#/insp'; }")
+    t.ck(t.wait_until("() => !!document.querySelector('.om-app[data-v=\"today\"]')"), '#/insp не открыл страницу осмотрщика')
+    for w in (360, 400):
+        pg.set_viewport_size({'width': w, 'height': 800})
+        for route in ('#/osmotr', '#/osmotr?v=trips&s=all', '#/osmotr?v=menu'):
+            t.open(route, wait='.om-app')
+            over = pg.evaluate("() => { const s = document.querySelector('.om-scr'); return s.scrollWidth - s.clientWidth; }")
+            t.ck(over <= 0, '%s на %d px прокручивается вбок на %d px' % (route, w, over))
+    pg.set_viewport_size({'width': 1600, 'height': 900})
+    t.open('#/osmotr', wait='.om-app')
+    t.ck(pg.evaluate("() => document.querySelector('.om-app').getBoundingClientRect().width") <= 480, 'на широком экране колонка шире 480')

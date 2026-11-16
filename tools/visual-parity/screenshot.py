@@ -55,6 +55,8 @@ def main():
             pg = b.new_page(viewport={'width': args.width, 'height': args.height})
             pg.on('pageerror', lambda e: errs.append('PAGEERROR: ' + str(e)))
             pg.on('console', lambda m: errs.append('CONSOLE: ' + m.text) if m.type == 'error' else None)
+            # Какой файл не нашёлся: в тексте консоли «Failed to load resource» адреса нет.
+            pg.on('response', lambda r: errs.append('HTTP %d: %s' % (r.status, r.url)) if r.status >= 400 else None)
 
             url = f'http://127.0.0.1:{PORT}/app.html{args.route}'
             print('navigating to:', url)

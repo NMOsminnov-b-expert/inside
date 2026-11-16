@@ -258,9 +258,9 @@ def run(t):
     pg.keyboard.press('Escape')
     t.ck(t.wait_until("() => document.querySelector('[data-nav=\"insp\"]').hidden"), 'осмотрщику виден пункт «Осмотры (регионалы)»')
     pg.click('[data-nav="insp-field"]')
-    # С 03.11.2026 — приложение «Осмотр» (PWA) на странице #/osmotr.
-    t.ck(t.wait_until("() => location.hash === '#/osmotr' && !!document.querySelector('.om-frame, .om-none')"),
-         '«Осмотры (осмотрщики)» открыли не приложение «Осмотр»: %s' % pg.evaluate('location.hash'))
+    # С 16.11.2026 — веб-страница осмотрщика (#/osmotr, главная «Сегодня»).
+    t.ck(t.wait_until("() => location.hash === '#/osmotr' && !!document.querySelector('.om-app[data-v=\"today\"]')"),
+         '«Осмотры (осмотрщики)» открыли не страницу осмотрщика: %s' % pg.evaluate('location.hash'))
 
     # --- поля ввода одного вида ---------------------------------------------------------
     # Замечание пользователя 12.10.2026 «стили боксов для ввода данных разные» и «у
@@ -434,6 +434,6 @@ def run(t):
     pg.select_option('[data-ip-region]', '')
 
     t.ck(pg.locator('a[href^="#/insp"]').count() == 0, 'в карточке осталась ссылка на прежний экран осмотрщика (убран 16.11.2026)')
-    # Прежний адрес экрана осмотрщика ведёт на страницу приложения «Осмотр».
+    # Прежний адрес экрана осмотрщика ведёт на страницу осмотрщика.
     pg.evaluate("(w) => { location.hash = '#/insp?as=' + encodeURIComponent(w); }", who)
-    t.ck(t.wait_until("() => !!document.querySelector('.om-frame, .om-none')"), 'адрес #/insp не открыл страницу приложения «Осмотр»')
+    t.ck(t.wait_until("() => !!document.querySelector('.om-app')"), 'адрес #/insp не открыл страницу осмотрщика')

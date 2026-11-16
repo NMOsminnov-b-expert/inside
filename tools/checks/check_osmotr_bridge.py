@@ -51,7 +51,8 @@ KR = "await import('./app/kernel/inspectionResults.js')"
 def run(t):
     pg = t.page
     use_cadastre_fixture(pg)  # записанные ответы Кадастра: сведения участка по демо-ЕНИ
-    t.open('#/osmotr', wait='.om-frame, .om-none')
+    # Приложение в рамке — экран «Приложение «Осмотр»» страницы осмотрщика (#/osmotr?v=app, с 16.11.2026).
+    t.open('#/osmotr?v=app', wait='.om-frame, .om-none')
     if not t.ck(pg.locator('.om-frame').count() == 1, 'на странице осмотрщиков нет рамки приложения (нет сборки app/vendor/osmotr?)'):
         return
 

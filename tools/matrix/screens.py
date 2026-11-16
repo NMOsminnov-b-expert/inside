@@ -64,11 +64,19 @@ _add('Сканы с осмотров · Ждёт разбора', 'osmotry', 'rm
 _add('Сканы с осмотров · Принято', 'osmotry', 'rm', '#/scans?state=accepted', '.sc-main', _SCANS_TOUCH)
 _add('Сканы с осмотров · Возвращено', 'osmotry', 'rm', '#/scans?state=returned', '.sc-main', _SCANS_TOUCH)
 
-# Осмотрщик — приложение «Осмотр» в рамке страницы (03.11.2026). Прежний экран
-# осмотрщика #/insp с разделами «Сегодня», «Задачи», «Запросы», «Уведомления»,
-# описью и осмотром ТС убран 16.11.2026; экраны приложения проверяются в его
-# репозитории, мост — check_osmotr_bridge.py.
-_add('Осмотрщик · Приложение «Осмотр»', 'osmotry', 'insp', '#/osmotr', '.om-frame, .om-none',
+# Осмотрщик — веб-страница осмотрщика (перенос приложения «Осмотр» в веб,
+# 16.11.2026; образец вида — мобильный вид стенда). Приложение в рамке — пока
+# перенос не закончен, экраном «Приложение «Осмотр»»; мост — check_osmotr_bridge.py.
+_OM_TOUCH = ('app/pages/osmotr/', 'app/kernel/router.js', 'app/kernel/inspections.js', 'app/pages/inspection/tasks.js')
+_add('Осмотрщик · Сегодня', 'osmotry', 'insp', '#/osmotr', '.om-app[data-v="today"]', _OM_TOUCH)
+_add('Осмотрщик · Выезды · Недвижимое', 'osmotry', 'insp', '#/osmotr?v=trips&f=real', '.om-app[data-v="trips"]', _OM_TOUCH)
+_add('Осмотрщик · Выезды · К осмотру', 'osmotry', 'insp', '#/osmotr?v=trips', '.om-app[data-v="trips"]', _OM_TOUCH)
+_add('Осмотрщик · Выезды · Все', 'osmotry', 'insp', '#/osmotr?v=trips&s=all', '.om-app[data-v="trips"]', _OM_TOUCH)
+_add('Осмотрщик · Выезды · Оборудование', 'osmotry', 'insp', '#/osmotr?v=trips&f=inv', '.om-app[data-v="trips"]', _OM_TOUCH)
+_add('Осмотрщик · Поиск', 'osmotry', 'insp', '#/osmotr?v=search&q=' + quote('Бишкек'), '.om-app[data-v="search"]', _OM_TOUCH)
+_add('Осмотрщик · Меню', 'osmotry', 'insp', '#/osmotr?v=menu', '.om-app[data-v="menu"]', _OM_TOUCH)
+_add('Осмотрщик · Входящие', 'osmotry', 'insp', '#/osmotr?v=notes', '.om-app[data-v="notes"]', _OM_TOUCH)
+_add('Осмотрщик · Приложение «Осмотр»', 'osmotry', 'insp', '#/osmotr?v=app', '.om-frame, .om-none',
      ('app/pages/osmotr/', 'app/vendor/osmotr.json', 'app/kernel/router.js'))
 
 # Аналитика · Земли по айыл аймакам (04.11.2026): Дарек и Кадастр — записанными
