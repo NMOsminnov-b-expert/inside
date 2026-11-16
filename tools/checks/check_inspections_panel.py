@@ -436,6 +436,6 @@ def run(t):
     t.ck(pg.locator('a[href^="#/insp?as="]').count() == 0, 'в карточке осталась кнопка «Экран осмотрщика» (убрана 14.10.2026)')
     pg.evaluate("(w) => { location.hash = '#/insp?as=' + encodeURIComponent(w); }", who)
     t.ck(t.wait_until("() => location.hash.startsWith('#/insp?')"), 'адрес #/insp?as= не открыл экран осмотрщика')
-    t.wait_until("async (w) => (await import('./app/pages/inspector/tasks.js')).currentInspector() === w", who)
-    shown = pg.evaluate("async () => (await import('./app/pages/inspector/tasks.js')).currentInspector()")
+    t.wait_until("async (w) => (await import('./app/pages/inspection/tasks.js')).currentInspector() === w", who)
+    shown = pg.evaluate("async () => (await import('./app/pages/inspection/tasks.js')).currentInspector()")
     t.ck(shown == who, 'экран осмотрщика открыт не от того человека: %s вместо %s' % (shown, who))

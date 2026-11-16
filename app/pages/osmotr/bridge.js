@@ -36,9 +36,9 @@ import { geoByEni, centerOf, featuresInBox, dashed } from '../../kernel/cadastre
 import { PARCEL_FIELDS, BUILD_FIELDS, buildsOfParcel, parcelRows } from '../../kernel/cadastreTip.js';
 import { scheduleSave } from '../../kernel/persist.js';
 import { institutionChain } from '../../kernel/contacts.js';
-import { loadTask, ownOis, oiLabel } from '../inspector/tasks.js';
+import { loadTask, ownOis, oiLabel } from '../inspection/tasks.js';
 import { gpsOfObject } from '../inspections/route.js';
-import { applyEntries, markDeleted } from '../inspector/archiveImport.js';
+import { applyEntries, markDeleted } from '../inspection/archiveImport.js';
 
 const SOURCE = 'приложение «Осмотр»';
 const INSPECTING = new Set(['insp', 'any', 'admin']);

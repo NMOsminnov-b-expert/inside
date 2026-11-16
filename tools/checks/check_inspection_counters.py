@@ -12,7 +12,7 @@
 """
 NAME = 'счётчики ТС и оценка после осмотра'
 
-TOUCHES = ('app/pages/inspector/results.js', 'app/pages/ocMenu/slices.js', 'app/kernel/inspections.js')
+TOUCHES = ('app/pages/inspection/results.js', 'app/pages/ocMenu/slices.js', 'app/kernel/inspections.js')
 
 K = "await import('./app/kernel/inspections.js')"
 SET = """async ([m, h]) => { const IR = await import('./app/kernel/inspectionResults.js'); const F = await import('./app/kernel/fieldSchema.js');
@@ -41,7 +41,7 @@ def run(t):
       t.records.setStatus(s.id, 'Готов к оценке');
       const f = S.filterForSlice(S.sliceDefs('estate').find((d) => d.key === 'my-appr'), 'Оценщик Проверка');
       const inSlice = t.records.queryRecords({ filter: f, offset: 0, limit: 1000 }).rows.some((x) => x.id === s.id);
-      const oi = (await import('./app/pages/inspector/tasks.js')).ownOis(rec)[0];
+      const oi = (await import('./app/pages/inspection/tasks.js')).ownOis(rec)[0];
       K.returnOis('civil', s.id, [oi.id], 'Нет снимков кровли');
       return { inSlice, status: t.records.loadRecord(s.id).status }; }""" % K)
     t.ck(st['inSlice'], 'объект «Готов к оценке» с принятым осмотром не в «Мне оценить»')

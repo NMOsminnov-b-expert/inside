@@ -21,8 +21,8 @@
 NAME = 'результаты осмотра у ЦОД'
 
 TOUCHES = (
-    'app/pages/inspector/results.js', 'app/pages/inspector/results.css', 'app/pages/inspector/tasks.js',
-    'app/pages/inspector/form.js', 'app/kernel/inspectionTab.js', 'app/kernel/ocHead.js',
+    'app/pages/inspection/results.js', 'app/pages/inspection/results.css', 'app/pages/inspection/tasks.js',
+    'app/pages/inspection/form.js', 'app/kernel/inspectionTab.js', 'app/kernel/ocHead.js',
     'app/kernel/inspections.js', 'app/kernel/inspectionResults.js', 'app/kernel/scanQueue.js', 'app/kernel/registryRows.js',
     'app/modules/*/card/ocCard.view.js', 'app/modules/*/card/ocCard.ctrl.js', 'app/modules/*/index.js',
     'app/modules/*/data/query.js', 'app/modules/vehicle/view.js', 'app/modules/mechanisms/view.js',
@@ -203,7 +203,7 @@ def run(t):
     # ОЦ «Механизмы и оборудование»: все единицы отмечены «Найдено» в значениях
     # осмотра — ОИ «механизмы» осмотрен по описи без «Осмотр закончен», ход виден
     # во вкладке «Результаты осмотра».
-    mech = pg.evaluate("""async () => { const R = await import('./app/kernel/registry.js'); const T = await import('./app/pages/inspector/tasks.js');
+    mech = pg.evaluate("""async () => { const R = await import('./app/kernel/registry.js'); const T = await import('./app/pages/inspection/tasks.js');
       const t = R.getType('mechanisms'); const rec = (t.records.allRecords() || []).find((r) => r.mech && (r.mech.mechanisms || []).length > 1);
       if (!rec) return null; const oi = T.ownOis(rec).find((o) => o.card === 'mech'); return [rec.id, oi.id, oi.mechanisms.map((u) => u.id)]; }""")
     if t.ck(mech, 'нет ОЦ «Механизмы» с несколькими единицами'):
@@ -211,7 +211,7 @@ def run(t):
         pg.evaluate("""async ([oc, oid, units]) => { const IR = await import('./app/kernel/inspectionResults.js'); const F = await import('./app/kernel/fieldSchema.js');
           const v = IR.valuesOf('mechanisms', oc, oid); units.forEach((u, i) => F.setValue(v, 'u.' + u + '.found', i === 0 ? 'Не найдено' : 'Найдено'));
           F.setValue(v, 'u.' + units[1] + '.state', 'Нерабочее'); IR.saveResults(); }""", [oc, oid, units])
-        pr = pg.evaluate("""async ([oc, oid]) => { const IR = await import('./app/kernel/inspectionResults.js'); const T = await import('./app/pages/inspector/tasks.js');
+        pr = pg.evaluate("""async ([oc, oid]) => { const IR = await import('./app/kernel/inspectionResults.js'); const T = await import('./app/pages/inspection/tasks.js');
           const R = await import('./app/kernel/registry.js'); const rec = R.getType('mechanisms').records.loadRecord(oc);
           const oi = T.ownOis(rec).find((o) => o.id === oid); return T.mechProgress(oi, IR.peekResults('mechanisms', oc).assets[oid]); }""", [oc, oid])
         t.ck(pr['total'] == len(units) and pr['seen'] == len(units) - 1 and pr['missing'] == 1 and pr['broken'] == 1 and pr['done'],

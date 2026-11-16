@@ -40,7 +40,7 @@ import { importArchive } from './archiveImport.js';
 import { sections, setNetsRec } from './form.js';
 import { oiLabel, ownOis, mechProgress } from './tasks.js';
 
-ensureStyle('./app/pages/inspector/results.css');
+ensureStyle('./app/pages/inspection/results.css');
 
 const OBJ = '__obj';
 // «Осмотрен» — шаг шкалы ОЦ после приёмки всех ОИ (kernel/inspections.js).

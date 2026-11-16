@@ -24,9 +24,9 @@ import cadastre_fixture as cf
 NAME = 'мост E•state — приложение «Осмотр»'
 
 TOUCHES = (
-    'app/pages/osmotr/*', 'app/pages/inspector/archiveImport.js', 'app/pages/inspector/tasks.js',
+    'app/pages/osmotr/*', 'app/pages/inspection/archiveImport.js', 'app/pages/inspection/tasks.js',
     'app/kernel/inspections.js', 'app/kernel/inspectionResults.js', 'app/kernel/session.js',
-    'app/kernel/cadastreGeo.js', 'app/kernel/cadastreTip.js', 'app/pages/inspector/results.js', 'app/kernel/viewer/photo.js',
+    'app/kernel/cadastreGeo.js', 'app/kernel/cadastreTip.js', 'app/pages/inspection/results.js', 'app/kernel/viewer/photo.js',
 )
 
 # Запрос из окна рамки — так его шлёт приложение (glue.js, osmotrWeb.estate.ask).
@@ -144,7 +144,7 @@ def run(t):
 
     # --- разбор присланного (аудит приложения 03.11.2026, пп. 13, 29, 30) ---
     imp = pg.evaluate("""async ([ty, oc, oiId]) => {
-      const A = await import('./app/pages/inspector/archiveImport.js'); const R = await import('./app/kernel/registry.js');
+      const A = await import('./app/pages/inspection/archiveImport.js'); const R = await import('./app/kernel/registry.js');
       const K = await import('./app/kernel/inspectionResults.js'); const X = await import('./app/kernel/xlsx.js');
       const rec = R.getType(ty).records.loadRecord(oc);
       const blob = (t, type) => async () => new Blob([t], { type });

@@ -32,7 +32,7 @@ import {
   othersOiCount,
   newFoundTs, foundTsKinds, foundTsCounts, foundTsEmpty, setFoundTs, addFoundTs, dropFoundTsDraft,
   scansOf, addScan, replaceScan, retakesOf, removeScan, myInventories, voicesOf, addVoice, removeVoice, oiLabel, dayTrips, saveResults, markDone, isDoneByMe,
-} from './tasks.js';
+} from '../inspection/tasks.js';
 import { allAssignments, assignmentById, isLive, takeForDay, skipDay, unskipDay, setDayOrder, planOf, startWork, finishWork } from '../../kernel/inspections.js';
 import { planModel, planHTML, planListHTML, planMarks, planMatch, PLAN_STEP, planPoints, taskPoints, planMapHTML, planPickHTML, PLAN_POINT_KINDS } from './plan.js';
 import { reportOf, saveReport, dayReport, reportTime, profileOf, eventsOf, poaDaysLeft, allCadRequests, cadRequest, cadSummary, cadKindLabel, cadFileName, answerCadRow, CAD_RESULTS } from '../../kernel/inspections.js';
@@ -40,9 +40,9 @@ import { codeByName } from '../../kernel/institutions.js';
 import { bindContacts, institutionChain } from '../../kernel/contacts.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { sortedTypes, netsLandOf } from '../../kernel/registry.js';
-import { allFields, sections, mismatchHint, setNetsRec, NETS_KEYS } from './form.js';
+import { allFields, sections, mismatchHint, setNetsRec, NETS_KEYS } from '../inspection/form.js';
 // Вкладка «Результаты осмотра» карточки ОЦ регистрируется в ядре при загрузке.
-import './results.js';
+import '../inspection/results.js';
 import { docsForOi, docPages, kindOfDoc, viewerHTML, bindViewer } from './docViewer.js';
 import { dayRoute, gpsOfObject } from '../inspections/route.js';
 import { summaries } from '../inspections/model.js';

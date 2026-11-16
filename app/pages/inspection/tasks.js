@@ -382,7 +382,7 @@ const selfMech = (rec) => (rec && rec.mech && !(rec.oi || []).length
   ? [{ ...rec.mech, id: SELF_MECH, card: 'mech', docs: rec.mech.docs || [], ocSelf: true }] : []);
 const selfOis = (rec) => [...selfTs(rec), ...selfMech(rec)];
 // Все учтённые ОИ записи с ТС-ОЦ «ts» и механизмами-ОЦ «mech» — без отбора по
-// осмотрщику (вкладка «Результаты осмотра» карточки, pages/inspector/results.js).
+// осмотрщику (вкладка «Результаты осмотра» карточки, pages/inspection/results.js).
 export const ownOis = (rec) => [...((rec && rec.oi) || []), ...selfOis(rec)];
 
 // Ход осмотра механизмов по описи — по отметкам единиц (поля осмотра

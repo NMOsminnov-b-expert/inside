@@ -33,7 +33,7 @@ INSP = 'Айдай'
 FILL = """async ([ty, id, who]) => {
   const R = await import('./app/kernel/registry.js'); const K = await import('./app/kernel/inspections.js');
   const I = await import('./app/kernel/inspectionResults.js'); const S = await import('./app/kernel/fieldSchema.js');
-  const F = await import('./app/pages/inspector/form.js'); const T = await import('./app/pages/inspector/tasks.js');
+  const F = await import('./app/pages/inspection/form.js'); const T = await import('./app/pages/inspection/tasks.js');
   const rec = R.getType(ty).records.loadRecord(id);
   K.assign({ typeId: ty, ocId: id, person: who });
   const out = [];
@@ -55,7 +55,7 @@ FILL = """async ([ty, id, who]) => {
 
 # По каждому типу ОЦ — записи, покрывающие все виды ОИ этого типа.
 PICK = """async () => {
-  const R = await import('./app/kernel/registry.js'); const T = await import('./app/pages/inspector/tasks.js');
+  const R = await import('./app/kernel/registry.js'); const T = await import('./app/pages/inspection/tasks.js');
   const K = await import('./app/kernel/inspections.js');
   const out = [];
   for (const t of R.sortedTypes()) {

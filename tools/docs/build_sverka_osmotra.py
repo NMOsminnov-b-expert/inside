@@ -60,11 +60,11 @@ def card_attr(path):
 
 # Форма осмотра — из кода экрана.
 INSPECT = r"""async (pairs) => {
-  const F = await import('./app/pages/inspector/form.js');
+  const F = await import('./app/pages/inspection/form.js');
   const R = await import('./app/kernel/registry.js');
   // Запись — как её читает экран осмотрщика (loadTask: вид литеры по правилу
   // карточки), а не напрямую.
-  const T = await import('./app/pages/inspector/tasks.js');
+  const T = await import('./app/pages/inspection/tasks.js');
   const str = (v) => (v == null ? '' : String(v));
   const out = [];
   for (const [typeId, ocId] of pairs) {

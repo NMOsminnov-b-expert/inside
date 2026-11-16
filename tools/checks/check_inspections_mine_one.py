@@ -13,7 +13,7 @@
 NAME = 'мои осмотры — по назначениям'
 
 TOUCHES = ('app/pages/ocMenu/slices.js', 'app/kernel/inspections.js', 'app/kernel/inspectionTab.js',
-           'app/pages/inspector/results.js', 'app/modules/*/card/parties.view.js', 'app/modules/vehicle/parties.view.js',
+           'app/pages/inspection/results.js', 'app/modules/*/card/parties.view.js', 'app/modules/vehicle/parties.view.js',
            'app/modules/mechanisms/parties.view.js')
 
 K = "await import('./app/kernel/inspections.js')"

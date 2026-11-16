@@ -68,7 +68,7 @@ def choose(pg, selector, payload):
 
 # Размеры и «двухцветность» страниц скана — по их blob-ссылкам, в самом браузере.
 PAGES = """async ([ty, oc, id]) => {
-  const T = await import('./app/pages/inspector/tasks.js');
+  const T = await import('./app/pages/inspection/tasks.js');
   const s = T.scansOf(ty, oc).find((x) => x.id === id);
   const out = [];
   for (const p of s.pages) {
@@ -224,7 +224,7 @@ def run(t):
     pg.select_option('[data-scan-oi]', 'oi-cv1-b')
     pg.click('[data-scan-save]')
     t.wait_until("() => /Съёмка проверка/.test(document.querySelector('.ins-scans')?.innerText || '')")
-    sc = pg.evaluate("""async ([ty, oc]) => (await import('./app/pages/inspector/tasks.js')).scansOf(ty, oc)
+    sc = pg.evaluate("""async ([ty, oc]) => (await import('./app/pages/inspection/tasks.js')).scansOf(ty, oc)
       .filter((s) => s.title === 'Съёмка проверка').map((s) => [s.id, s.oiId, s.pages.length, s.source, s.status])""", [TYPE, OC])
     if not t.ck(len(sc) == 1 and sc[0][1:] == ['oi-cv1-b', 2, 'осмотр', 'ждёт ЦОД'], 'скан сохранился не так: %s' % sc):
         return
@@ -243,19 +243,19 @@ def run(t):
     no_hscroll(t, 'после отправки, 390')
 
     # --- 3. Отмена не плодит сканов ------------------------------------------------------
-    n_before = pg.evaluate("async ([ty, oc]) => (await import('./app/pages/inspector/tasks.js')).scansOf(ty, oc).length", [TYPE, OC])
+    n_before = pg.evaluate("async ([ty, oc]) => (await import('./app/pages/inspection/tasks.js')).scansOf(ty, oc).length", [TYPE, OC])
     pg.click('[data-scan-add]')
     t.wait_for('[data-sced-files]')
     choose(pg, '[data-sced-files]', files((50, 50)))
     t.wait_for('[data-sced-h="0"]')
     pg.click('[data-scan-cancel]')
     t.wait_for('[data-scan-add]')
-    n_after = pg.evaluate("async ([ty, oc]) => (await import('./app/pages/inspector/tasks.js')).scansOf(ty, oc).length", [TYPE, OC])
+    n_after = pg.evaluate("async ([ty, oc]) => (await import('./app/pages/inspection/tasks.js')).scansOf(ty, oc).length", [TYPE, OC])
     t.ck(n_after == n_before and pg.locator('[data-sced]').count() == 0, '«Отмена» оставила скан или редактор')
 
     # --- 4. Пересъёмка возвращённого ----------------------------------------------------------
-    old = pg.evaluate("""async ([ty, oc]) => { const s = (await import('./app/pages/inspector/tasks.js')).scansOf(ty, oc).find((x) => x.retake);
-      return { id: s.id, title: s.title, pages: s.pages.map((p) => p.id), n: (await import('./app/pages/inspector/tasks.js')).scansOf(ty, oc).length }; }""", [TYPE, OC])
+    old = pg.evaluate("""async ([ty, oc]) => { const s = (await import('./app/pages/inspection/tasks.js')).scansOf(ty, oc).find((x) => x.retake);
+      return { id: s.id, title: s.title, pages: s.pages.map((p) => p.id), n: (await import('./app/pages/inspection/tasks.js')).scansOf(ty, oc).length }; }""", [TYPE, OC])
     t.ck(old['title'] == 'Договор аренды', 'возвращённый скан не «Договор аренды»: %s' % old)
     pg.click('[data-scan-retake="%s"]' % old['id'])
     t.wait_for('[data-sced-files]')
@@ -267,7 +267,7 @@ def run(t):
     t.ck(pg.locator('[data-scan-title]').count() == 0, 'в пересъёмке спрашивают название заново')
     pg.click('[data-scan-save]')
     t.wait_until("() => !document.querySelector('.ins-scans .is-retake')")
-    now = pg.evaluate("""async ([ty, oc, id]) => { const T = await import('./app/pages/inspector/tasks.js');
+    now = pg.evaluate("""async ([ty, oc, id]) => { const T = await import('./app/pages/inspection/tasks.js');
       const s = T.scansOf(ty, oc).find((x) => x.id === id);
       return { n: T.scansOf(ty, oc).length, retake: !!s.retake, review: !!s.review, pages: s.pages.length, ids: s.pages.map((p) => p.id), status: s.status, retakes: T.retakesOf(ty, oc).length }; }""", [TYPE, OC, old['id']])
     t.ck(now['n'] == old['n'], 'пересъёмка плодит скан: было %d, стало %d' % (old['n'], now['n']))

@@ -20,7 +20,7 @@ import { ENI_REGIONS } from '../../kernel/fmt.js';
 import { tripsOfDay, stateLabel, isOverdue, EVENT_LABELS, objectContents } from './model.js';
 import { inventoryById, progressOf, partLabel } from '../../kernel/inventories.js';
 import { peekResults } from '../../kernel/inspectionResults.js';
-import { ownOis, mechProgress, oiLabel as taskOiLabel } from '../inspector/tasks.js';
+import { ownOis, mechProgress, oiLabel as taskOiLabel } from '../inspection/tasks.js';
 
 const WD = ['воскресенье', 'понедельник', 'вторник', 'среда', 'четверг', 'пятница', 'суббота'];
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');

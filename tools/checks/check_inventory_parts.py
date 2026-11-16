@@ -24,7 +24,7 @@ def run(t):
     pg = t.page
     t.open('#/inspections?s=assign&t=queue', wait='[data-ip-row]')
     key = pg.evaluate("""async () => { const I = await import('./app/kernel/inventories.js'); const R = await import('./app/kernel/registry.js');
-      const T = await import('./app/pages/inspector/tasks.js');
+      const T = await import('./app/pages/inspection/tasks.js');
       for (const tr of document.querySelectorAll('tr[data-ip-row][data-cov="none"]')) { const [ty, oc] = tr.dataset.ipRow.split('|');
         const rec = R.getType(ty).records.loadRecord(oc); if (rec && I.inventoriesForRecord(rec).length && T.ownOis(rec).length > 1) return tr.dataset.ipRow; } return null; }""")
     if not t.ck(key, 'в очереди нет объекта с описью учреждения'):
@@ -34,7 +34,7 @@ def run(t):
       return I.inventoriesForRecord(R.getType(ty).records.loadRecord(oc))[0].id; }""", [ty, oc])
     # Опись уже у другого осмотрщика — приоритет 2.
     # Бакыт — на один ОИ, чтобы объект остался в очереди со свободными ОИ.
-    pg.evaluate("""async ([ty, oc, inv]) => { const R = await import('./app/kernel/registry.js'); const T = await import('./app/pages/inspector/tasks.js');
+    pg.evaluate("""async ([ty, oc, inv]) => { const R = await import('./app/kernel/registry.js'); const T = await import('./app/pages/inspection/tasks.js');
       const ois = T.ownOis(R.getType(ty).records.loadRecord(oc));
       return (%s).assign({ typeId: ty, ocId: oc, person: 'Бакыт', oiIds: ois.length > 1 ? [ois[0].id] : [], inventories: [inv], invParts: { [inv]: { by: 'priority', values: ['2'] } } }); }""" % K, [ty, oc, inv])
     t.open('#/inspections?s=assign&t=queue', wait='[data-ip-row]')

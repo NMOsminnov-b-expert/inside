@@ -55,7 +55,7 @@ def pdf(pages):
     return out
 
 
-SCANS = "([ty, oc]) => import('./app/pages/inspector/tasks.js').then((T) => T.scansOf(ty, oc).map((s) => ({ id: s.id, title: s.title, pages: s.pages.length, types: s.pages.map((p) => p.type) })))"
+SCANS = "([ty, oc]) => import('./app/pages/inspection/tasks.js').then((T) => T.scansOf(ty, oc).map((s) => ({ id: s.id, title: s.title, pages: s.pages.length, types: s.pages.map((p) => p.type) })))"
 
 
 def run(t):
@@ -103,14 +103,14 @@ def run(t):
     pg.fill('[data-att-name="1"]', 'Свидетельство')
     pg.click('[data-att-ok]')
     t.ck(t.wait_until("() => !document.querySelector('.modal.vattach')"), 'окно не закрылось после «Отправить»')
-    t.wait_until("async ([ty, oc, n]) => (await import('./app/pages/inspector/tasks.js')).scansOf(ty, oc).length === n", [TYPE, OC, before + 2], 15000)
+    t.wait_until("async ([ty, oc, n]) => (await import('./app/pages/inspection/tasks.js')).scansOf(ty, oc).length === n", [TYPE, OC, before + 2], 15000)
     scans = pg.evaluate(SCANS, [TYPE, OC])
     act = [s for s in scans if s['title'] == 'Акт обмера']
     sv = [s for s in scans if s['title'] == 'Свидетельство']
     t.ck(len(scans) == before + 2, 'два файла не стали двумя сканами: %d → %d' % (before, len(scans)))
     t.ck(act and act[0]['pages'] == 3 and set(act[0]['types']) == {'image/jpeg'}, 'скан из PDF не на 3 страницы-картинки: %s' % act)
     t.ck(sv and sv[0]['pages'] == 1, 'снимок не стал сканом в 1 страницу: %s' % sv)
-    meta = pg.evaluate("""async ([ty, oc]) => (await import('./app/pages/inspector/tasks.js')).scansOf(ty, oc)
+    meta = pg.evaluate("""async ([ty, oc]) => (await import('./app/pages/inspection/tasks.js')).scansOf(ty, oc)
       .filter((s) => ['Акт обмера', 'Свидетельство'].includes(s.title)).map((s) => ({ t: s.title, type: s.docType || '', oi: s.oiId || '' }))""", [TYPE, OC])
     by = {m['t']: m for m in meta}
     t.ck(by.get('Акт обмера', {}).get('type') == t0, 'вид документа из окна не сохранился в скане: %s' % meta)
@@ -140,7 +140,7 @@ def run(t):
     pg.click('[data-doc-close]')
     pg.click('[data-scan-save]')
     t.ck(t.wait_until("() => !document.querySelector('[data-scan-save]')"), 'пересъёмка файлом не отправилась')
-    ret = pg.evaluate("""async ([ty, oc]) => (await import('./app/pages/inspector/tasks.js')).scansOf(ty, oc)
+    ret = pg.evaluate("""async ([ty, oc]) => (await import('./app/pages/inspection/tasks.js')).scansOf(ty, oc)
       .filter((s) => s.title === 'Договор аренды').map((s) => ({ pages: s.pages.length, retake: !!s.retake }))""", [TYPE, OC])
     t.ck(ret == [{'pages': 2, 'retake': False}], 'загрузка файлом не заменила страницы возвращённого скана: %s' % ret)
 

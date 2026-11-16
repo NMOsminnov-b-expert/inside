@@ -67,7 +67,7 @@ GEO = """(() => {
   try { Object.defineProperty(navigator, 'geolocation', { configurable: true, get: () => geo }); } catch (e) {}
 })()"""
 
-T = "await import('./app/pages/inspector/tasks.js')"
+T = "await import('./app/pages/inspection/tasks.js')"
 KI = "await import('./app/kernel/inspections.js')"
 
 

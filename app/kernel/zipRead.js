@@ -1,5 +1,5 @@
 // Чтение ZIP-архива в браузере — для импорта архива приложения «Осмотр»
-// (pages/inspector/archiveImport.js). Без библиотек: центральный каталог
+// (pages/inspection/archiveImport.js). Без библиотек: центральный каталог
 // архива читается по спецификации ZIP (APPNOTE), сжатые записи
 // распаковываются DecompressionStream('deflate-raw') браузера.
 //

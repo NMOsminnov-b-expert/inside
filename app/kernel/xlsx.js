@@ -73,7 +73,7 @@ export async function readXlsx(file) {
 }
 
 // Строки первого листа книги — массивами значений (чтение; импорт контактов
-// из архива приложения «Осмотр», pages/inspector/archiveImport.js).
+// из архива приложения «Осмотр», pages/inspection/archiveImport.js).
 export async function xlsxRows(buf) {
   const X = await load();
   const wb = X.read(buf, { type: 'array' });

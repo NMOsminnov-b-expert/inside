@@ -10,7 +10,7 @@ import {
   workdayOf, absenceOn, profileOf, profileNames, absenceLabel, deadlineOf, stallOf,
   dayReport, reportTime, activitiesOn, activityKind, planOf, allCadRequests,
 } from '../../kernel/inspections.js';
-import { inspectorsInData, oiLabel, READY_STATUS, inQueueStatus, loadTask } from '../inspector/tasks.js';
+import { inspectorsInData, oiLabel, READY_STATUS, inQueueStatus, loadTask } from '../inspection/tasks.js';
 import { institutionChain } from '../../kernel/contacts.js';
 import { inventoriesForRecord, progressOf } from '../../kernel/inventories.js';
 import { hasResults } from '../../kernel/inspectionResults.js';

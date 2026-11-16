@@ -50,8 +50,8 @@ COLLECT = """async () => {
   const n = await import('./app/pages/inspections/notify.js');
   const st = await import('./app/pages/inspections/statsData.js');
   const r = await import('./app/pages/inspections/route.js');
-  const t = await import('./app/pages/inspector/tasks.js');
-  const f = await import('./app/pages/inspector/form.js');
+  const t = await import('./app/pages/inspection/tasks.js');
+  const f = await import('./app/pages/inspection/form.js');
   const v = await import('./app/pages/inspector/views.js');
   const lab = (x) => (typeof x.label === 'string' ? x.label : typeof x.title === 'string' ? x.title : String(x));
   const STUB = { building: { card: 'building' }, apartment: { card: 'apartment' }, land: { card: 'land' },

@@ -16,12 +16,12 @@
 """
 NAME = 'статус от осмотра'
 
-TOUCHES = ('app/kernel/inspections.js', 'app/pages/inspector/results.js', 'app/pages/inspector/tasks.js',
+TOUCHES = ('app/kernel/inspections.js', 'app/pages/inspection/results.js', 'app/pages/inspection/tasks.js',
            'app/pages/inspections/model.js', 'app/kernel/oiStage.js', 'app/kernel/status/flow.view.js', 'app/kernel/ocHead.js',
            'app/kernel/inspectionTab.js', 'app/kernel/cards.css')
 
 K = "await import('./app/kernel/inspections.js')"
-PICK = """async () => { const R = await import('./app/kernel/registry.js'); const K = %s; const T = await import('./app/pages/inspector/tasks.js');
+PICK = """async () => { const R = await import('./app/kernel/registry.js'); const K = %s; const T = await import('./app/pages/inspection/tasks.js');
   const t = R.getType('civil'); const rows = t.records.queryRecords({ filter: { status: ['Удостоверен по документам'] }, offset: 0, limit: 400 }).rows;
   for (const s of rows) { if (K.assignmentsOf('civil', s.id, { live: false }).length) continue;
     const ois = T.ownOis(t.records.loadRecord(s.id)); if (ois.length >= 2) return [s.id, ois[0].id, ois[1].id]; }

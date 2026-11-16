@@ -13,7 +13,7 @@
 """
 NAME = 'назначения на осмотр'
 
-TOUCHES = ('app/kernel/inspections.js', 'app/pages/inspector/tasks.js', 'app/pages/ocMenu/ocMenu.js',
+TOUCHES = ('app/kernel/inspections.js', 'app/pages/inspection/tasks.js', 'app/pages/ocMenu/ocMenu.js',
            'app/pages/ocMenu/state.js', 'app/kernel/session.js', 'app/kernel/persist.js')
 
 INSP = "async () => await import('./app/kernel/inspections.js')"
@@ -66,7 +66,7 @@ def run(t):
     if t.ck(other, 'не нашлось записи с ОИ'):
         tasks = pg.evaluate("""async ([typeId, ocId, oiId]) => { const m = await import('./app/kernel/inspections.js');
           m.assign({ typeId, ocId, person: 'Проверочный О.', oiIds: [oiId] });
-          const t = await import('./app/pages/inspector/tasks.js'); t.setInspector('Проверочный О.');
+          const t = await import('./app/pages/inspection/tasks.js'); t.setInspector('Проверочный О.');
           return t.myTasks().map((x) => x.ocId); }""", other)
         t.ck(other[1] in tasks, 'осмотрщик не видит задачу, назначенную на ОИ: %s' % tasks)
 

@@ -17,8 +17,8 @@ import { fmtPlace } from '../../kernel/geoHere.js';
 import {
   sectionHTML, requiredLeft, filledCount, sectionProgress,
 } from '../../kernel/fieldSchema.js';
-import { PHOTO_CATS, photoCatsOf, PHOTO_LIMIT, READY_STATUS, oiLabel, FOUND_CATS, foundCat, UNSORTED } from './tasks.js';
-import { sections, allFields, mismatchHint } from './form.js';
+import { PHOTO_CATS, photoCatsOf, PHOTO_LIMIT, READY_STATUS, oiLabel, FOUND_CATS, foundCat, UNSORTED } from '../inspection/tasks.js';
+import { sections, allFields, mismatchHint } from '../inspection/form.js';
 
 // --- значки ---------------------------------------------------------------
 //

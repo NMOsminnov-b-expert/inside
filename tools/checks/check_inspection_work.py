@@ -31,7 +31,7 @@ PHONE = {'width': 390, 'height': 844}
 K = 'Карабекова Анара Тариеловна'
 D = 'Айдай'
 A = 'Абдылдаев Айсултан Марсович'
-T = "await import('./app/pages/inspector/tasks.js')"
+T = "await import('./app/pages/inspection/tasks.js')"
 KI = "await import('./app/kernel/inspections.js')"
 
 

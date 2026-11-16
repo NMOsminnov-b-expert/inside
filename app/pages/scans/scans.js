@@ -25,7 +25,7 @@ import { toast } from '../../kernel/toast.js';
 import {
   scanQueue, scanCounts, acceptScan, returnScan, rejectScan, editAccepted, moveScan, SCAN_SOURCES, SCAN_STATES, scanStateLabel,
 } from '../../kernel/scanQueue.js';
-import { oiLabel } from '../inspector/tasks.js';
+import { oiLabel } from '../inspection/tasks.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { pageViewerHTML, bindPageViewer, bindPageViewerKeys } from '../../kernel/viewer/pageViewer.js';
 import { persistSizes } from '../../kernel/viewState.js';
