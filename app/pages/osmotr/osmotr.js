@@ -15,7 +15,8 @@
 //
 // Экраны — адресом #/osmotr?v=…: today (главная «Сегодня»), trips («Выезды»,
 // &f — отбор по типам: real, vehicle, inv; &s — open, done, all, back, late), search, menu, notes, obj (&id —
-// «typeId|ocId», &tab — task, docs), doc (&id, &doc — документ), app —
+// «typeId|ocId», &tab — task, docs), doc (&id, &doc — документ), oi (&id, &oi — объект имущества: разделы
+// осмотра), sec (&id, &oi, &s — раздел: поля осмотра), app —
 // приложение «Осмотр» в рамке (пока перенос не закончен).
 //
 // Прежний экран осмотрщика (#/insp, pages/inspector) убран 16.11.2026; его
@@ -28,8 +29,11 @@ import { esc } from '../../kernel/dom.js';
 import { foldSearch, fmtEni } from '../../kernel/fmt.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
-import { resultsOf } from '../../kernel/inspectionResults.js';
-import { loadTask } from '../inspection/tasks.js';
+import { resultsOf, valuesOf, saveResults } from '../../kernel/inspectionResults.js';
+import { startWork } from '../../kernel/inspections.js';
+import { getValue, setValue, sectionProgress } from '../../kernel/fieldSchema.js';
+import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, FOUND_CATS } from '../inspection/tasks.js';
+import { sections, setNetsRec, mismatchHint } from '../inspection/form.js';
 import { connectBridge } from './bridge.js';
 import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay } from './data.js';
 import { notesOf, markRead } from './feed.js';
@@ -84,6 +88,9 @@ const I = {
   layers: '<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5"/>',
   alert: '<path d="M12 4 2 20h20zM12 10v4M12 17h.01"/>',
   app: '<path d="M7 2h10v20H7zM11 18h2"/>',
+  camera: '<path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/>',
+  photo: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
+  trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
 };
 const ico = (k, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k] || ''}</svg>`;
 // Значок — по типу ОЦ, как в приложении (EstateUi.kt, typeIcon): участок — слои карты.
@@ -251,6 +258,7 @@ function taskBlock(o, rec) {
     </section>
     ${o.docs.length ? `<a class="om-card om-row om-doclink" href="${href({ v: 'obj', id: o.id, tab: 'docs' })}"><span class="om-row-ico om-t-blue">${ico('docs')}</span><span class="om-row-tx"><b>Документы для выезда</b><small>${esc(o.docs.slice(0, 3).map((d) => d.type || d.name).join(', '))}${o.docs.length > 3 ? '…' : ''}</small></span><b class="om-n">${o.docs.length}</b>${ico('chev', 18)}</a>` : ''}
     ${(o.ois || []).length ? `<section class="om-card om-comp"><h2 class="om-card-h">Состав объекта</h2>${o.ois.map((x) => oiRow(o, x, facade[x.id])).join('')}</section>` : ''}
+    ${foundBlock(o)}
     ${(o.inventories || []).length ? `<section class="om-card om-comp"><h2 class="om-card-h">Описи</h2>${o.inventories.map((x) => `<div class="om-oi"><span class="om-sq om-t-amber">${ico('inv', 18)}</span><span class="om-row-tx"><b>${esc(x.title)}</b><small>позиций: ${x.count}</small></span></div>`).join('')}</section>` : ''}`;
 }
 
@@ -264,15 +272,208 @@ function parcelBlock(o) {
     ${rows.length ? `<dl class="om-dl">${rows.map((r) => `<dt>${esc(r.label)}</dt><dd>${esc(r.value)}</dd>`).join('')}</dl>` : ''}</details>`;
 }
 
-// Буква литеры — в квадрате (как на стенде), у участка — значок.
-function oiRow(o, x0, photo) {
-  // Подпись без повтора («Квартира · Квартира» — вид и наименование совпали).
-  const x = { ...x0, label: [...new Set(String(x0.label || '').split(' · '))].join(' · ') };
-  const m = /^Литера\s+(\S+)/.exec(x.label || '');
-  const sq = m ? `<span class="om-sq om-t-blue">${esc(m[1])}</span>` : `<span class="om-sq om-t-teal">${ico(x.kind === 'land' ? 'layers' : x.kind === 'vehicle' ? 'vehicle' : 'real', 18)}</span>`;
-  const sub = [x.oiType && !String(x.label || '').startsWith(x.oiType) ? x.oiType : '', x.eni ? fmtEni(x.eni) || x.eni : '', x.review === 'returned' ? 'на доосмотр' + (x.reason ? ': ' + x.reason : '') : ''].filter(Boolean).join(' · ');
-  return `<div class="om-oi">${sq}<span class="om-row-tx"><b>${esc(m ? (x.label.replace(/^Литера\s+\S+\s*·?\s*/, '') || x.label) : x.label)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</span>
-    ${photo ? `<img class="om-facade" src="${esc(photo.dataUrl)}" alt="Фасад с прошлого осмотра" title="Фасад с прошлого осмотра${photo.at ? ', ' + esc(String(photo.at).slice(0, 10)) : ''}" loading="lazy">` : ''}</div>`;
+// Подпись ОИ без повтора («Квартира · Квартира» — вид и наименование совпали);
+// буква литеры — в квадрате (как на стенде), у участка и прочих — значок.
+const oiName = (x0) => [...new Set(String(x0.label || '').split(' · '))].join(' · ');
+function oiHead(x0, size = '') {
+  const label = oiName(x0);
+  const m = /^Литера\s+(\S+)/.exec(label);
+  return {
+    sq: m ? `<span class="om-sq om-t-blue ${size}">${esc(m[1])}</span>` : `<span class="om-sq om-t-teal ${size}">${ico(x0.kind === 'land' ? 'layers' : x0.kind === 'vehicle' ? 'vehicle' : 'real', 18)}</span>`,
+    name: m ? (label.replace(/^Литера\s+\S+\s*·?\s*/, '') || label) : label,
+    letter: m ? m[1] : '',
+    sub: [x0.oiType && !label.startsWith(x0.oiType) ? x0.oiType : '', x0.eni ? fmtEni(x0.eni) || x0.eni : ''].filter(Boolean).join(' · '),
+  };
+}
+
+// Строка состава — вход в осмотр ОИ: сколько полей заполнено, сколько обязательных осталось.
+function oiRow(o, x, photo) {
+  const h = oiHead(x);
+  const ctx = oiCtx(o, x.id);
+  const p = ctx ? progressOf(ctx) : null;
+  const sub = [h.sub, x.review === 'returned' ? 'на доосмотр' + (x.reason ? ': ' + x.reason : '') : ''].filter(Boolean).join(' · ');
+  const prog = p && p.total ? `<small class="om-prog${p.requiredLeft ? ' om-prog-req' : ''}">${progressText(p)}</small>` : '';
+  return `<a class="om-oi om-oi-link" href="${href({ v: 'oi', id: o.id, oi: x.id })}">${h.sq}<span class="om-row-tx"><b>${esc(h.name)}</b>${sub ? `<small>${esc(sub)}</small>` : ''}${prog}</span>
+    ${photo ? `<img class="om-facade" src="${esc(photo.dataUrl)}" alt="Фасад с прошлого осмотра" title="Фасад с прошлого осмотра${photo.at ? ', ' + esc(String(photo.at).slice(0, 10)) : ''}" loading="lazy">` : ''}${ico('chev', 18)}</a>`;
+}
+
+// --- осмотр ОИ: разделы и поля -------------------------------------------------------------------------
+// Поля — схема осмотра макета (pages/inspection/form.js, sections): разделы по виду ОИ, перечни и подписи из
+// карточек, рядом — значение в карточке (решения 15–16.10.2026; эталон полей — макет, пользователь
+// 16.11.2026: «Эталон по полям - наш макет… В стенде есть ошибки»). Значения — в «Результаты осмотра»
+// (kernel/inspectionResults.js, valuesOf) — туда же, куда их кладёт приложение «Осмотр» через мост.
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: каждое поле сохраняется сразу, без кнопки; на сервере — запись осмотра ОИ с автором и
+// временем правки поля (и разбор, если правят двое: осмотрщик на месте и ЦОД).
+// Выявленное на месте строение — строкой состава (решение 15.10.2026: здание, которого нет в составе, —
+// черновик ОИ «Выявлено на месте» со своей формой осмотра; разбирает ЦОД).
+const foundRow = (f) => ({ id: f.id, kind: f.card === 'vehicle' ? 'vehicle' : 'building', label: f.name || (f.card === 'vehicle' ? 'Транспортное средство' : foundCat(f.cat).label), oiType: 'выявлено на месте', found: true, review: '' });
+function oiCtx(o, oiId) {
+  const rec = loadTask(o.typeId, o.ocId);
+  const f = rec && foundOi(o.typeId, o.ocId).find((x) => x.id === oiId);
+  const oi = f || (rec && ownOis(rec).find((x) => x.id === oiId));
+  const row = f ? foundRow(f) : (o.ois || []).find((x) => x.id === oiId);
+  if (!oi || !row) return null;
+  setNetsRec(rec);
+  // Значения ОИ читаются без создания (assets[oiId]) — пустой набор создаёт первая правка (saveField).
+  const r = resultsOf(o.typeId, o.ocId);
+  const values = (r.assets || {})[oiId] || {};
+  const photos = (r.photos || []).filter((p) => p.oiId === oiId && !p.deleted).length;
+  // Закончен — только просмотр; ОИ, возвращённый на доосмотр, снова правится.
+  const ro = o.state === 'done' && row.review !== 'returned';
+  return { rec, oi, row, values, photos, ro, secs: sections(o.typeId, oi).filter((s) => s.fields.length) };
+}
+const visibleFields = (s, values) => s.fields.filter((f) => !f.visible || f.visible(values));
+function progressOf(ctx) {
+  return ctx.secs.map((s) => sectionProgress(s, ctx.values))
+    .reduce((a, p) => ({ total: a.total + p.total, filled: a.filled + p.filled, requiredLeft: a.requiredLeft + p.requiredLeft }), { total: 0, filled: 0, requiredLeft: 0 });
+}
+const progressText = (p) => `заполнено ${p.filled} из ${p.total}${p.requiredLeft ? ` · обязательных осталось ${p.requiredLeft}` : ''}`;
+const shown = (v) => (Array.isArray(v) ? v.filter(Boolean).join(', ') : String(v == null ? '' : v).trim());
+
+function viewOi(o, q) {
+  const ctx = o && oiCtx(o, q.oi);
+  if (!ctx) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Объект имущества не назначен</div>`;
+  const h = oiHead(ctx.row, 'om-sq-lg');
+  const p = progressOf(ctx);
+  const returned = (o.returned || []).filter((r) => r.oiIds.includes(ctx.row.id))
+    .map((r) => `<p class="om-warn"><b>На доосмотр</b>${r.reason ? ' — ' + esc(r.reason) : ''}</p>`).join('');
+  // Комментарий — не разделом, а полем прямо под разделами (пользователь 16.11.2026: «В комментарии не
+  // обязательно проваливаться. Выносим их к блокам 01 02 03 на уровень литеры»).
+  const note = ctx.secs.find((s) => s.key === 'comments');
+  const rows = ctx.secs.filter((s) => s !== note).map((s, i) => {
+    const sp = sectionProgress(s, ctx.values);
+    const vals = visibleFields(s, ctx.values).map((f) => shown(getValue(ctx.values, f.path || f.key))).filter(Boolean);
+    const tone = sp.requiredLeft ? 'om-t-amber' : sp.filled ? 'om-t-teal' : 'om-t-blue';
+    return `<a class="om-row om-secrow" href="${href({ v: 'sec', id: o.id, oi: ctx.row.id, s: s.key })}">
+      <span class="om-sq om-sq-sm ${tone}">${String(i + 1).padStart(2, '0')}</span>
+      <span class="om-row-tx"><b>${esc(s.title)}</b><small>${esc(vals.length ? vals.join(', ') : 'не заполнено')}</small>${sp.requiredLeft ? `<small class="om-prog-req">обязательных осталось ${sp.requiredLeft}</small>` : ''}</span>${ico('chev', 18)}</a>`;
+  }).join('');
+  const chipTone = p.requiredLeft ? 'om-t-amber' : p.filled === p.total ? 'om-t-green' : 'om-t-blue';
+  return `${back(href({ v: 'obj', id: o.id }), o.title)}
+    <div class="om-oihead">${h.sq}<div class="om-row-tx"><h1 class="om-title om-title-oi">${esc(h.name)}</h1>${h.sub ? `<small>${esc(h.sub)}</small>` : ''}</div></div>
+    <div class="om-idrow">${p.total ? `<span class="om-chip ${chipTone}" title="${esc(progressText(p))}">заполнено ${p.filled} из ${p.total}</span>` : ''}${ctx.ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}</div>
+    ${returned}
+    ${q.tab === 'photo' ? photosBlock(o, ctx, q) : `${rows ? `<div class="om-group">${rows}</div>` : '<div class="om-card om-empty">Полей осмотра у этого объекта нет — только снимки</div>'}
+      ${note ? `<div class="om-group om-form om-note-card">${note.fields.map((f) => fieldHTML(f, ctx)).join('')}<span class="om-saved om-saved-in" role="status" aria-live="polite"></span></div>` : ''}`}
+    ${ctx.row.found && !ctx.ro && q.tab !== 'photo' ? `<button type="button" class="om-btn om-btn-danger om-found-del" data-found-del="${esc(ctx.row.id)}">${ico('trash', 18)}Убрать выявленное строение</button>` : ''}
+    ${oiTabs(o, ctx, q)}`;
+}
+
+// «Выявлено на месте»: строения, которых нет в составе, — списком и строкой добавления (вид и название).
+function foundBlock(o) {
+  if (o.entity !== 'real') return '';
+  const list = foundOi(o.typeId, o.ocId);
+  const ro = o.state === 'done';
+  return `<section class="om-card om-comp om-found"><h2 class="om-card-h">Выявлено на месте</h2>
+    ${list.map((f) => oiRow(o, foundRow(f), null)).join('')}
+    ${ro ? (list.length ? '' : '<p class="om-muted om-found-none">Не выявлено</p>') : `<form class="om-found-add" data-found>
+      <label class="om-flabel" for="om-found-cat">Строение, которого нет в составе</label>
+      <span class="om-select"><select class="om-input" id="om-found-cat" name="cat">${FOUND_CATS.map((c) => `<option value="${c.key}">${esc(c.label)}</option>`).join('')}</select></span>
+      <input class="om-input" name="name" maxlength="80" placeholder="Например, склад" aria-label="Название выявленного строения">
+      <button class="om-btn" type="submit">Добавить строение</button></form>`}</section>`;
+}
+
+// Вкладки ОИ — «Сведения» (разделы осмотра) и «Фото», как у литеры на стенде.
+function oiTabs(o, ctx, q) {
+  const tabs = [['', 'docs', 'Сведения'], ['photo', 'camera', 'Фото']];
+  return `<nav class="om-bnav om-objtabs" aria-label="Разделы объекта имущества">${tabs.map(([k, icon, label]) => `<a class="om-btab${(q.tab || '') === k ? ' on' : ''}" href="${href({ v: 'oi', id: o.id, oi: ctx.row.id, tab: k })}" aria-current="${(q.tab || '') === k}">${ico(icon, 22)}<span>${label}${k === 'photo' && ctx.photos ? ` <b>${ctx.photos}</b>` : ''}</span></a>`).join('')}</nav>`;
+}
+
+// Фото ОИ: «куда снимаем» — категория съёмки (перечень по виду ОИ, pages/inspection/tasks.js, photoCatsOf),
+// съёмка камерой телефона или выбор из галереи; снимки — по категориям, снимок — во всю страницу.
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: снимки — в памяти вкладки и хранилище браузера (kernel/inspectionResults.js);
+// на сервере — загрузка с очередью и повтором при плохой связи.
+function photosBlock(o, ctx, q) {
+  const cats = photoCatsOf(ctx.oi);
+  const cat = cats.includes(q.cat) ? q.cat : cats[0];
+  const list = (resultsOf(o.typeId, o.ocId).photos || []).filter((p) => p.oiId === ctx.row.id && !p.deleted && p.dataUrl);
+  const groups = [...new Set([...cats, ...list.map((p) => p.cat)])].map((c) => [c, list.filter((p) => p.cat === c)]).filter(([, l]) => l.length);
+  const shoot = ctx.ro ? '' : `<section class="om-card om-shoot"><span class="om-cap">Куда снимаем</span>
+      <div class="om-segs">${cats.map((c) => `<a class="om-seg${c === cat ? ' on' : ''}" href="${href({ v: 'oi', id: o.id, oi: ctx.row.id, tab: 'photo', cat: c })}" aria-current="${c === cat}">${esc(c)}<b>${list.filter((p) => p.cat === c).length || ''}</b></a>`).join('')}</div>
+      <div class="om-shoot-act">
+        <label class="om-btn om-btn-primary">${ico('camera', 18)}Снять<input type="file" accept="image/*" capture="environment" multiple hidden data-shoot="${esc(cat)}"></label>
+        <label class="om-btn">${ico('photo', 18)}Из галереи<input type="file" accept="image/*" multiple hidden data-shoot="${esc(cat)}"></label>
+      </div></section>`;
+  return `${shoot}${groups.length ? groups.map(([c, l]) => `<h2 class="om-cap om-sec">${esc(c)} · ${l.length}</h2>
+    <div class="om-thumbs">${l.map((p) => `<a class="om-thumb" href="${href({ v: 'ph', id: o.id, oi: ctx.row.id, ph: p.id })}"><img src="${esc(p.dataUrl)}" alt="${esc(c)}" loading="lazy"></a>`).join('')}</div>`).join('')
+    : '<div class="om-card om-empty">Снимков этого объекта пока нет</div>'}`;
+}
+
+// Снимок во всю страницу: категория (перенос — требование ТЗ), удаление.
+function viewPhoto(o, q) {
+  const ctx = o && oiCtx(o, q.oi);
+  const p = ctx && (resultsOf(o.typeId, o.ocId).photos || []).find((x) => x.id === q.ph);
+  const to = ctx ? href({ v: 'oi', id: o.id, oi: ctx.row.id, tab: 'photo' }) : href({ v: 'trips' });
+  if (!p) return `${back(to, 'Фото')}<div class="om-card om-empty">Снимка нет</div>`;
+  const cats = photoCatsOf(ctx.oi);
+  const opts = cats.includes(p.cat) ? cats : [p.cat, ...cats];
+  return `${back(to, 'Фото · ' + oiHead(ctx.row).name)}
+    <img class="om-photo" src="${esc(p.dataUrl)}" alt="${esc(p.cat)}">
+    <div class="om-card om-photo-meta">
+      <label class="om-flabel" for="om-ph-cat">Категория</label>
+      <span class="om-select"><select class="om-input" id="om-ph-cat" data-ph-cat="${esc(p.id)}"${ctx.ro ? ' disabled' : ''}>${opts.map((c) => `<option${c === p.cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></span>
+      <p class="om-hint">${esc(new Date(p.at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }))}${p.place ? ' · место съёмки есть' : ''}</p>
+      ${ctx.ro ? '' : `<button type="button" class="om-btn om-btn-danger" data-ph-del="${esc(p.id)}">${ico('trash', 18)}Удалить снимок</button>`}
+    </div>`;
+}
+
+// Раздел: подпись — над полем (на узком экране длинные значения перечней не обрезаются), под полем —
+// значение в карточке или «РАСХОДИТСЯ». Сохранение сразу; строка «Сохранено» — что правка дошла.
+function viewSec(o, q, savedAt) {
+  const ctx = o && oiCtx(o, q.oi);
+  // «Далее» — по разделам экрана ОИ; комментарий — на самом экране ОИ, не разделом.
+  const secs = ctx ? ctx.secs.filter((s) => s.key !== 'comments') : [];
+  const i = secs.findIndex((s) => s.key === q.s);
+  if (i < 0) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Раздела нет</div>`;
+  const s = secs[i];
+  const next = secs[i + 1];
+  const h = oiHead(ctx.row);
+  const who = h.letter ? `Литера ${h.letter} · ${h.name}` : h.name;
+  return `${back(href({ v: 'oi', id: o.id, oi: ctx.row.id }), who)}
+    <h1 class="om-title om-title-sm om-sec-title">${esc(s.title)}</h1>
+    <p class="om-sec-sub"><span>${esc(who)}</span><span class="om-saved" role="status" aria-live="polite">${savedAt ? 'Сохранено ' + esc(savedAt) : ''}</span></p>
+    ${ctx.ro ? '<p class="om-warn">Осмотр закончен — поля только для просмотра</p>' : ''}
+    <div class="om-group om-form">${visibleFields(s, ctx.values).map((f) => fieldHTML(f, ctx)).join('')}</div>
+    <div class="om-sec-act">
+      ${next ? `<a class="om-btn om-btn-next" href="${href({ v: 'sec', id: o.id, oi: ctx.row.id, s: next.key })}"><span><small>Далее</small>${esc(next.title)}</span>${ico('chev', 18)}</a>` : ''}
+      <a class="om-btn om-btn-primary" href="${href({ v: 'oi', id: o.id, oi: ctx.row.id })}">Готово</a>
+    </div>`;
+}
+
+const fid = (key) => 'om-f-' + String(key).replace(/[^\w-]/g, '_');
+function hintOf(f, ctx) {
+  const text = mismatchHint(f, ctx.values, ctx.oi, { photos: ctx.photos });
+  const v = getValue(ctx.values, f.path || f.key);
+  return { text, diff: /^РАСХОДИТСЯ/.test(text), note: (f.optNotes && v && f.optNotes[v]) || f.note || '' };
+}
+function hintHTML(f, ctx) {
+  const h = hintOf(f, ctx);
+  return `<p class="om-hint${h.diff ? ' om-hint-diff' : ''}" id="${fid(f.key)}-h">${esc(h.text)}</p>${h.note ? `<p class="om-hint om-hint-note">${esc(h.note)}</p>` : ''}`;
+}
+function fieldHTML(f, ctx) {
+  const key = f.path || f.key;
+  const v = getValue(ctx.values, key);
+  const id = fid(f.key);
+  const dis = ctx.ro ? ' disabled' : '';
+  const req = f.req ? '<i class="om-req" title="Обязательное поле"> *</i>' : '';
+  if (f.opts && f.multi) {
+    const set = new Set(Array.isArray(v) ? v : v ? String(v).split(/,\s*/) : []);
+    return `<div class="om-field"><span class="om-flabel" id="${id}-l">${esc(f.label)}${req}</span>
+      <div class="om-ms" role="group" aria-labelledby="${id}-l" aria-describedby="${id}-h">${f.opts.map((x) => `<button type="button" class="om-opt" data-ms="${esc(key)}" data-opt="${esc(x)}" aria-pressed="${set.has(x)}"${dis}>${esc(x)}</button>`).join('')}</div>
+      ${hintHTML(f, ctx)}</div>`;
+  }
+  const attrs = `id="${id}" data-f="${esc(key)}" aria-describedby="${id}-h"${dis}${f.max ? ` maxlength="${f.max}"` : ''}${f.placeholder ? ` placeholder="${esc(f.placeholder)}"` : ''}`;
+  let ctl;
+  if (f.opts) {
+    const opts = v && !f.opts.includes(v) ? [v, ...f.opts] : f.opts;
+    ctl = `<span class="om-select"><select class="om-input" ${attrs}><option value="">не выбрано</option>${opts.map((x) => `<option${x === v ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></span>`;
+  } else if (f.long) {
+    ctl = `<textarea class="om-input" rows="${f.rows || 3}" ${attrs}>${esc(v || '')}</textarea>`;
+  } else {
+    const num = f.num ? ` inputmode="${f.int ? 'numeric' : 'decimal'}"` : '';
+    ctl = `<span class="om-inputwrap"><input class="om-input" type="text"${num} value="${esc(v == null ? '' : v)}" ${attrs}>${f.unit ? `<span class="om-unit">${esc(f.unit)}</span>` : ''}</span>`;
+  }
+  return `<div class="om-field"><label class="om-flabel" for="${id}">${esc(f.label)}${req}</label>${ctl}${hintHTML(f, ctx)}</div>`;
 }
 
 // Фото фасада с прошлого осмотра — по ОИ, последнее (согласовано 16.11.2026).
@@ -322,6 +523,8 @@ export function mountOsmotr(host) {
   let disconnect = null;
   let map = null;
   let mapKey = '';
+  let savedAt = '';
+  let cur = null; // объект на экране (obj, doc, oi, sec)
 
   const dropMap = () => { if (map) { try { map.remove(); } catch { /* уже снята */ } } map = null; mapKey = ''; };
 
@@ -334,16 +537,26 @@ export function mountOsmotr(host) {
     const notes = notesOf(person);
     const unread = notes.filter((n) => n.unread).length;
     const todayN = all.filter((o) => o.plannedAt === isoDay() && o.state !== 'done' && !o.removed).length;
-    const o = (v === 'obj' || v === 'doc') ? all.find((x) => x.id === q.id) : null;
+    const inObj = ['obj', 'doc', 'oi', 'sec', 'ph'].includes(v);
+    const o = inObj ? all.find((x) => x.id === q.id) : null;
+    cur = o || null;
     const screen = v === 'trips' ? viewTrips(all, q, unread) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
-      : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q) : v === 'doc' ? viewDoc(o, q) : viewToday(all, q, unread);
+      : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q) : v === 'doc' ? viewDoc(o, q)
+        : v === 'oi' ? viewOi(o, q) : v === 'sec' ? viewSec(o, q, savedAt) : v === 'ph' ? viewPhoto(o, q) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'
       ? `<div class="om-asbar" role="status"><span>Вы смотрите как: осмотрщик</span><a href="#/">Вернуться</a></div>` : '';
     const geoAt = o ? ((loadTask(o.typeId, o.ocId) || {}).geo || {}).at || '' : '';
     const keepMap = v === 'obj' && map && mapKey === q.id + '|' + geoAt && (q.tab || 'task') === 'task';
     const mapEl = keepMap ? map.getContainer() : null;
-    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${v === 'obj' || v === 'doc' ? '' : bottomNav(v, todayN)}</div>`);
+    // Перерисовка по событию (назначение, участок, своя правка) не сбивает ввод и прокрутку.
+    const ae = document.activeElement;
+    const focus = ae && ae.id && scope.root.contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
+    const top0 = (scope.$('.om-app') || {}).dataset?.v === v ? (scope.$('.om-scr') || {}).scrollTop || 0 : 0;
+    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${inObj ? '' : bottomNav(v, todayN)}</div>`);
+    if (top0) scope.$('.om-scr').scrollTop = top0;
+    const el = focus && document.getElementById(focus.id);
+    if (el && scope.root.contains(el)) { el.focus({ preventScroll: true }); try { if (focus.a != null) el.setSelectionRange(focus.a, focus.b); } catch { /* у списка выделения нет */ } }
     // Карта той же записи переносится, а не создаётся заново (WebGL-контекстов у браузера мало).
     if (openParcel) { const d = scope.$('.om-parcel'); if (d) d.open = true; }
     const slot = scope.$('[data-map]');
@@ -396,6 +609,71 @@ export function mountOsmotr(host) {
     navigator.clipboard && navigator.clipboard.writeText(b.dataset.copy).then(() => { b.classList.add('done'); setTimeout(() => b.classList.remove('done'), 1200); }, () => {});
   });
 
+  // Поле осмотра: значение — в «Результаты осмотра» сразу; первая правка переводит назначение «в работу».
+  function saveField(key, value) {
+    if (!cur || !q.oi) return;
+    setValue(valuesOf(cur.typeId, cur.ocId, q.oi), key, value);
+    startWork(session.state.person, cur.typeId, cur.ocId);
+    saveResults();
+    const d = new Date();
+    savedAt = `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+    const st = scope.$('.om-saved');
+    if (st) st.textContent = 'Сохранено ' + savedAt;
+  }
+  // Подсказка под полем («в карточке…», «РАСХОДИТСЯ») — на месте, без перерисовки: ввод не прерывается.
+  function refreshHint(el) {
+    const ctx = cur && oiCtx(cur, q.oi);
+    const s = ctx && ctx.secs.find((x) => x.key === q.s);
+    const f = s && s.fields.find((x) => (x.path || x.key) === el.dataset.f);
+    const p = f && document.getElementById(fid(f.key) + '-h');
+    if (!p) return;
+    const h = hintOf(f, ctx);
+    p.textContent = h.text;
+    p.classList.toggle('om-hint-diff', h.diff);
+  }
+  scope.on('input', 'input[data-f], textarea[data-f]', (e, el) => { saveField(el.dataset.f, el.value); refreshHint(el); });
+  // Выбор из списка может открыть или спрятать поля (тип объекта → его признаки) — раздел перерисовывается.
+  scope.on('change', 'select[data-f]', (e, el) => { saveField(el.dataset.f, el.value); render(); });
+  scope.on('click', '[data-ms]', (e, b) => {
+    const ctx = cur && oiCtx(cur, q.oi);
+    if (!ctx || ctx.ro) return;
+    const v0 = getValue(ctx.values, b.dataset.ms);
+    const set = new Set(Array.isArray(v0) ? v0 : v0 ? String(v0).split(/,\s*/) : []);
+    if (set.has(b.dataset.opt)) set.delete(b.dataset.opt); else set.add(b.dataset.opt);
+    saveField(b.dataset.ms, [...set]);
+    render();
+  });
+
+  scope.on('submit', '[data-found]', (e, form) => {
+    e.preventDefault();
+    if (!cur) return;
+    const f = addFoundOi(cur.typeId, cur.ocId, { cat: form.cat.value, name: form.name.value, by: session.state.person });
+    startWork(session.state.person, cur.typeId, cur.ocId);
+    location.hash = href({ v: 'oi', id: cur.id, oi: f.id });
+  });
+  // Снимки выявленного не пропадают — остаются у объекта без привязки (tasks.js, removeFoundOi).
+  scope.on('click', '[data-found-del]', (e, b) => {
+    if (!cur) return;
+    removeFoundOi(cur.typeId, cur.ocId, b.dataset.foundDel);
+    location.hash = href({ v: 'obj', id: cur.id });
+  });
+
+  // Съёмка: снимки — к этому ОИ, в выбранную категорию.
+  scope.on('change', '[data-shoot]', (e, input) => {
+    if (!cur || !q.oi) return;
+    const files = [...(input.files || [])];
+    const err = files.map((f) => addPhoto(cur.typeId, cur.ocId, f, { oiId: q.oi, cat: input.dataset.shoot }).error).find(Boolean);
+    input.value = '';
+    render();
+    if (err) { const st = scope.$('.om-shoot'); if (st) st.insertAdjacentHTML('afterbegin', `<p class="om-warn" role="alert">${esc(err)}</p>`); }
+  });
+  scope.on('change', '[data-ph-cat]', (e, el) => { if (cur) { movePhoto(cur.typeId, cur.ocId, el.dataset.phCat, { cat: el.value }); render(); } });
+  scope.on('click', '[data-ph-del]', (e, b) => {
+    if (!cur) return;
+    removePhoto(cur.typeId, cur.ocId, b.dataset.phDel);
+    location.hash = href({ v: 'oi', id: cur.id, oi: q.oi, tab: 'photo' });
+  });
+
   function renderKeepFocus() {
     const at = document.activeElement && document.activeElement.selectionStart;
     render();
@@ -412,7 +690,7 @@ export function mountOsmotr(host) {
 
   render();
   return {
-    onRoute(route) { const prevV = q.v; q = route.query || {}; render(); if (q.v !== prevV || q.v === 'obj') scope.root.querySelector('.om-scr')?.scrollTo(0, 0); },
+    onRoute(route) { const prevV = q.v; q = route.query || {}; render(); if (q.v !== prevV || q.v !== 'search') scope.root.querySelector('.om-scr')?.scrollTo(0, 0); },
     destroy() {
       if (disconnect) disconnect();
       dropMap();

@@ -29,7 +29,8 @@ body[data-page="osmotr"] .content{height:100dvh;overflow:hidden;padding:0;backgr
 .om-app a{color:inherit;text-decoration:none}
 .om-app :focus-visible{outline:2px solid #1668c9;outline-offset:2px}
 .om-scr{flex:1;min-height:0;overflow:auto;padding:0 18px 110px;overscroll-behavior:contain}
-.om-app[data-v="obj"] .om-scr,.om-app[data-v="doc"] .om-scr{padding-top:12px}
+.om-app[data-v="obj"] .om-scr,.om-app[data-v="doc"] .om-scr,.om-app[data-v="oi"] .om-scr,.om-app[data-v="sec"] .om-scr{padding-top:12px}
+.om-app[data-v="oi"] .om-scr,.om-app[data-v="sec"] .om-scr{padding-bottom:32px}
 
 /* Полоса «Вы смотрите как» — как у стенда; возврат в систему. */
 .om-asbar{display:flex;align-items:center;justify-content:center;gap:12px;padding:6px 16px;background:#fdf4e3;color:#8a5a10;border-bottom:1px solid #f3ddae;font-size:14px;font-weight:600;flex:none}
@@ -168,6 +169,13 @@ a.om-row:hover{background:#f7f9fb}
 .om-oi{display:flex;align-items:center;gap:12px;padding:10px 16px}
 .om-oi+.om-oi{border-top:1px solid #e3eaf2}
 .om-sq{display:grid;place-items:center;width:36px;height:36px;border-radius:10px;background:var(--t);color:#fff;font-weight:700;font-size:15px;flex:none}
+/* Строка состава — вход в осмотр ОИ */
+a.om-oi-link{color:var(--om-ink)}
+a.om-oi-link:hover{background:#f7f9fb}
+.om-oi-link>svg:last-child{color:#9aa8b8;flex:none}
+.om-prog{font-size:13px;color:var(--om-muted)}
+.om-prog-req{color:#8a5a10 !important}
+.om-row-tx small.om-prog,.om-row-tx small.om-prog-req{white-space:normal}
 .om-facade{width:52px;height:52px;border-radius:10px;object-fit:cover;flex:none;background:#e4ebf1}
 .om-docview{display:block;width:100%;height:calc(100dvh - 190px);border:0;border-radius:12px;background:#fff;box-shadow:var(--om-card-sh)}
 .om-docimg{display:block;max-width:100%;border-radius:12px;box-shadow:var(--om-card-sh)}
@@ -188,3 +196,69 @@ a.om-row:hover{background:#f7f9fb}
 .om-frame{flex:1;width:100%;height:100%;min-height:0;border:0;display:block;background:var(--bg)}
 .om-none{margin:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 32px;background:#fff;border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:13px;text-align:center}
 .om-none b{color:var(--ink);font-size:15px}
+
+/* Осмотр ОИ: шапка и разделы (как «Сведения» литеры на стенде) */
+.om-oihead{display:flex;align-items:center;gap:14px;margin-top:18px}
+.om-oihead small{font-size:14px;color:var(--om-muted)}
+.om-sq-lg{width:56px;height:56px;border-radius:14px;font-size:22px;background:var(--t50);color:var(--t)}
+.om-sq-sm{width:30px;height:30px;border-radius:8px;font-size:13px;font-variant-numeric:tabular-nums}
+.om-title-oi{font-size:22px;line-height:1.2}
+.om-secrow{min-height:60px}
+.om-secrow .om-row-tx small{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+
+/* Раздел: подпись над полем, подсказка под полем, сохранение сразу */
+.om-sec-title{margin-bottom:2px}
+.om-sec-sub{display:flex;flex-wrap:wrap;justify-content:space-between;gap:2px 12px;margin:0 2px 14px;font-size:13px;color:var(--om-muted)}
+.om-saved{color:#1f7a35;font-weight:600}
+.om-field{padding:12px 16px 10px}
+.om-field+.om-field{border-top:1px solid #e3eaf2}
+.om-flabel{display:block;margin-bottom:6px;font-size:14px;font-weight:600;color:var(--om-ink)}
+.om-req{font-style:normal;color:#c02626}
+.om-input{display:block;width:100%;min-height:44px;padding:10px 12px;border:1px solid var(--om-line);border-radius:12px;background:#f7f9fc;font:inherit;font-size:16px;color:var(--om-ink);box-sizing:border-box}
+.om-input:focus{outline:2px solid #1668c9;outline-offset:0;background:#fff}
+.om-input:disabled{opacity:.7;background:#f1f4f8}
+textarea.om-input{resize:vertical;line-height:1.4}
+.om-select{position:relative;display:block}
+.om-select select{appearance:none;padding-right:36px;text-overflow:ellipsis;cursor:pointer}
+.om-select::after{content:"";position:absolute;right:16px;top:50%;width:8px;height:8px;margin-top:-6px;border-right:2px solid #7a8899;border-bottom:2px solid #7a8899;transform:rotate(45deg);pointer-events:none}
+.om-inputwrap{display:flex;align-items:center;gap:8px}
+.om-inputwrap .om-input{flex:1;min-width:0;font-variant-numeric:tabular-nums}
+.om-unit{flex:none;color:var(--om-muted);font-size:14px}
+.om-ms{display:flex;flex-wrap:wrap;gap:6px}
+.om-opt{min-height:40px;padding:0 14px;border-radius:20px;border:1px solid var(--om-line);background:#f7f9fc;font:inherit;font-size:14px;font-weight:600;color:var(--om-ink);cursor:pointer}
+.om-opt[aria-pressed="true"]{background:var(--om-blue-50);border-color:var(--om-blue);color:var(--om-blue-700)}
+.om-opt:disabled{cursor:default;opacity:.7}
+.om-hint{margin:6px 0 0;font-size:13px;color:var(--om-muted)}
+.om-hint:empty{display:none}
+.om-hint-diff{color:#8a5a10;font-weight:600}
+.om-hint-note{margin-top:4px}
+.om-sec-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+/* «Далее» — во всю ширину (название раздела не обрезается), «Готово» — под ней. */
+.om-sec-act .om-btn{flex:1 1 100%;min-width:0}
+.om-btn-next{justify-content:space-between;min-height:56px;text-align:left;white-space:normal}
+.om-btn-next span{display:flex;flex-direction:column;line-height:1.25}
+.om-btn-next small{font-size:12px;font-weight:600;color:var(--om-muted)}
+
+/* Фото ОИ: «куда снимаем», съёмка, снимки по категориям */
+.om-app[data-v="ph"] .om-scr{padding-top:12px;padding-bottom:32px}
+.om-shoot{display:flex;flex-direction:column;gap:8px;margin-bottom:6px}
+.om-shoot .om-segs{margin:0}
+.om-shoot-act{display:flex;flex-wrap:wrap;gap:8px}
+.om-shoot-act .om-btn{flex:1 1 140px;cursor:pointer}
+.om-thumbs{display:grid;grid-template-columns:repeat(auto-fill,minmax(96px,1fr));gap:6px}
+.om-thumb{display:block;aspect-ratio:1;border-radius:10px;overflow:hidden;background:#e4ebf1;box-shadow:var(--om-card-sh)}
+.om-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.om-photo{display:block;width:100%;max-height:60dvh;object-fit:contain;margin:14px 0 12px;border-radius:12px;background:#0d1622}
+.om-photo-meta{display:flex;flex-direction:column;gap:6px}
+.om-btn-danger{color:#c02626;border-color:#f1c4c4;margin-top:6px}
+
+/* Выявлено на месте */
+.om-found{border-left-color:#c07c1e}
+.om-found-add{display:flex;flex-direction:column;gap:8px;padding:12px 16px 12px;border-top:1px solid #e3eaf2}
+.om-found-add .om-flabel{margin:0}
+.om-found-none{padding:10px 16px}
+.om-found-del{width:100%;margin-top:14px}
+
+/* Комментарий осмотрщика — прямо на экране ОИ, под разделами */
+.om-note-card{margin-top:12px;position:relative}
+.om-saved-in{position:absolute;top:12px;right:16px;font-size:13px}

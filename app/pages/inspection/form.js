@@ -194,7 +194,7 @@ const buildingSections = (typeId, oi, prod = isProd(oi)) => [
       // 15.10.2026: «Площади и высоты по осмотру не нужны») — остаётся
       // этажность, в общих параметрах (16.10.2026: «Объединяем» — отдельным
       // разделом было по одному полю в блоке).
-      { key: 'floorsN', label: 'Количество этажей', num: true, doc: docOf('floors'), tpLabel: 'в карточке' },
+      { key: 'floorsN', label: 'Количество этажей', num: true, int: true, doc: docOf('floors'), tpLabel: 'в карточке' },
     ],
   },
   // Конструктив, износ и состояние осмотрщик не заполняет (решение
@@ -222,10 +222,10 @@ const flatSections = (typeId, oi) => [
     title: 'Общие параметры квартиры',
     short: 'Общие',
     fields: [
-      { key: 'aptFloor', label: 'Этаж', num: true, doc: docOf('apartment.floor') },
-      { key: 'aptBuildingFloors', label: 'Этажность дома', num: true, doc: docOf('apartment.buildingFloors') },
-      { key: 'aptStoreys', label: 'Количество этажей в квартире', num: true, doc: docOf('apartment.storeys') },
-      { key: 'aptRooms', label: 'Количество комнат', num: true, doc: docOf('apartment.rooms') },
+      { key: 'aptFloor', label: 'Этаж', num: true, int: true, doc: docOf('apartment.floor') },
+      { key: 'aptBuildingFloors', label: 'Этажность дома', num: true, int: true, doc: docOf('apartment.buildingFloors') },
+      { key: 'aptStoreys', label: 'Количество этажей в квартире', num: true, int: true, doc: docOf('apartment.storeys') },
+      { key: 'aptRooms', label: 'Количество комнат', num: true, int: true, doc: docOf('apartment.rooms') },
       { key: 'aptSeries', label: 'Серия', opts: cardDict(typeId, 'apartment', 'series', APT_SERIES), doc: docOf('apartment.series') },
       { key: 'aptLocation', label: 'Положение на этаже', opts: cardDict(typeId, 'apartment', 'location', APT_LOCATION), doc: docOf('apartment.location') },
     ],
