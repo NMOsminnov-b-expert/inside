@@ -9,6 +9,10 @@
 Что ловит сценарий:
   * опись в объекте не ведёт на экран описи; позиций не столько, сколько в
     описи; поиск по инв. номеру не отбирает или теряет фокус;
+  * осмотрщику видны позиции списка «Вне ТЗ»; нет разбивки по спискам;
+    в карточке «Место» (в описях его нет);
+  * отбор по приоритету и по цене (от — до), порядок по стоимости — не те
+    позиции;
   * у позиции остались ручные «Найдено / Не найдено» или «Требуется ремонт»
     (16.11.2026: «заполняет только если нерабочее»);
   * в карточке нет МОЛ, модели, типа имущества;
@@ -32,7 +36,7 @@ TOUCHES = ('app/pages/osmotr/*', 'app/kernel/inventories.js', 'app/kernel/inspec
 OBJS = """async () => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
   return d.myObjects(s.person).flatMap((o) => o.inventories.map((x) => ({ obj: o.id, inv: x.id, kind: x.kind, count: x.count }))); }"""
 INV = """async ([obj, inv]) => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
-  const x = d.inventoryOf(s.person, obj, inv); return x && { kind: x.kind, oiId: x.oiId || '', items: x.items.map((it) => ({ id: it.id, inv: it.inv, name: it.name, cost: it.cost, qty: it.qty, own: it.own !== false })) }; }"""
+  const x = d.inventoryOf(s.person, obj, inv); return x && { kind: x.kind, oiId: x.oiId || '', items: x.items.map((it) => ({ id: it.id, inv: it.inv, name: it.name, cost: it.cost, qty: it.qty, priority: String(it.priority || ''), own: it.own !== false })) }; }"""
 MARK = """async ([inv, it]) => (await import('./app/kernel/inventories.js')).markOf(inv, it) || {}"""
 UNIT = """async ([obj, oi, it]) => { const [t, c] = obj.split('|'); const r = (await import('./app/kernel/inspectionResults.js')).resultsOf(t, c);
   return (((r.assets[oi] || {}).u) || {})[it] || {}; }"""
@@ -92,11 +96,44 @@ def run(t):
          'поиск по инв. номеру не отобрал позицию')
     t.ck(pg.evaluate("() => document.activeElement && document.activeElement.id") == 'om-inv-q', 'поиск по описи теряет фокус')
 
+    # --- разбивка по спискам: «Вне ТЗ» осмотрщику не видно, места (кабинета) нет ---
+    out = own[-1]
+    pg.evaluate("async ([inv, id]) => { const it = (await import('./app/kernel/inventories.js')).inventoryById(inv).items.find((x) => x.id === id); it.list = 'Вне ТЗ'; (await import('./app/kernel/inspections.js')).changed(); }", [inv, out['id']])
+    go(t, inv_q(obj, inv), '.om-app[data-v="inv"] .om-invrow')
+    t.ck(t.wait_until("(i) => ![...document.querySelectorAll('.om-invrow a.om-row-tx')].some((a) => (a.getAttribute('href') || '').includes('it=' + i))", out['id']),
+         'позиция «Вне ТЗ» видна осмотрщику')
+    t.ck(pg.locator('.om-prios .om-seg', has_text='Вне ТЗ').count() == 0, 'в разбивке по спискам есть «Вне ТЗ»')
+    t.ck(pg.locator('.om-prios .om-seg', has_text='Основной').count() == 1, 'нет разбивки по спискам')
+    data['items'] = [x for x in data['items'] if x['id'] != out['id']]
+    own = [x for x in own if x['id'] != out['id']]
+
+    # --- приоритет, цена, порядок (16.11.2026: «фильтрация по приоритетам. Обязательно. Как и по цене») ---
+    ROWS = "() => [...document.querySelectorAll('.om-invrow a.om-row-tx')].map((a) => new URLSearchParams(a.getAttribute('href').split('?')[1] || '').get('it') || a.dataset.sel)"
+    items = {x['id']: x for x in data['items']}
+    go(t, inv_q(obj, inv, '&p=1'), '.om-app[data-v="inv"] .om-prios')
+    got = pg.evaluate(ROWS)
+    t.ck(got and all(items[i]['priority'] == '1' for i in got) and len(got) == sum(1 for x in data['items'] if x['priority'] == '1'),
+         'отбор П1 показал не те позиции (%d)' % len(got))
+    t.ck(pg.locator('.om-prios .om-seg.on', has_text='П1').count() == 1, 'чип П1 не отмечен')
+    go(t, inv_q(obj, inv), '.om-app[data-v="inv"] #om-inv-min')
+    pg.fill('#om-inv-min', '100000')
+    t.ck(t.wait_until("() => /min=100000/.test(location.hash)"), 'цена «от» не попала в адрес')
+    t.wait_until("([n]) => document.querySelectorAll('.om-invrow').length === n", [sum(1 for x in data['items'] if float(x['cost'] or 0) >= 100000)])
+    got = pg.evaluate(ROWS)
+    want = [x['id'] for x in data['items'] if float(x['cost'] or 0) >= 100000]
+    t.ck(sorted(got) == sorted(want), 'отбор по цене от 100 000: на экране %d, ожидалось %d' % (len(got), len(want)))
+    t.ck(pg.evaluate("() => document.activeElement && document.activeElement.id") == 'om-inv-min', 'ввод цены теряет фокус')
+    go(t, inv_q(obj, inv, '&max=20000&sort=cost'), '.om-app[data-v="inv"] .om-invrow')
+    got = pg.evaluate(ROWS)
+    costs = [float(items[i]['cost'] or 0) for i in got]
+    t.ck(costs and max(costs) <= 20000 and costs == sorted(costs, reverse=True), 'цена «до» с порядком «по стоимости» — не тот список')
+
     # --- позиция: опознание, нет ручных «найдено» и «ремонта», нерабочее — после снимков, осмотрено ранее ---
     go(t, item_q(obj, inv, it0['id']), '.om-app[data-v="item"] .om-members')
     body = pg.locator('.om-scr').inner_text()
     for w in ('Модель', 'Тип имущества', 'МОЛ', 'Инв. номер'):
         t.ck(w in body, 'в карточке позиции нет «%s»' % w)
+    t.ck('Место' not in body, 'в карточке позиции есть «Место» — в описях его нет (16.11.2026: «Не выдумывай»)')
     for w in ('Не найдено', 'Требуется ремонт', 'Причина ремонта'):
         t.ck(w not in body, 'в карточке позиции осталось «%s» (16.11.2026: «заполняет только если нерабочее»)' % w)
     t.ck(pg.locator('[data-mk-broken]').first.is_disabled(), '«Нерабочее» доступно без снимков')

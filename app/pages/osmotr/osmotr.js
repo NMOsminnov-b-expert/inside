@@ -410,6 +410,7 @@ function foundBlock(o) {
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: опись в тысячи позиций — постраничная выдача с поиском на сервере; здесь — первые 200.
 const INV_LIMIT = 200;
 const BROKEN = 'Нерабочее';
+const OUT_OF_SCOPE = /^вне\s*тз$/i;
 function rawMark(o, inv, it) {
   if (inv.kind === 'mech') {
     const u = ((((resultsOf(o.typeId, o.ocId).assets || {})[inv.oiId] || {}).u) || {})[it.id] || {};
@@ -459,7 +460,7 @@ const pricesClose = (a, b) => (a == null || b == null ? a == null && b == null :
 // «Такие же в описи» — ещё не осмотренные, не в этой карточке, свои.
 function similarOf(o, inv, members) {
   const ids = new Set(members.map((x) => x.id));
-  return inv.items.filter((x) => !ids.has(x.id) && x.own !== false && !statusOf(o, inv, x).inspected
+  return inv.items.filter((x) => !ids.has(x.id) && x.own !== false && !OUT_OF_SCOPE.test(x.list || '') && !statusOf(o, inv, x).inspected
     && members.some((h) => nameKey(h) === nameKey(x) && pricesClose(unitPrice(h), unitPrice(x))));
 }
 function addToCard(o, inv, lead, items) {
@@ -471,7 +472,7 @@ const statusChip = (s) => (s.broken ? `<span class="om-chip om-t-rose">${BROKEN}
 
 function invRow(o, x) {
   const inv = inventoryOf(session.state.person, o.id, x.id);
-  const own = inv ? inv.items.filter((it) => it.own !== false) : [];
+  const own = inv ? inv.items.filter((it) => it.own !== false && !OUT_OF_SCOPE.test(it.list || '')) : [];
   const done = own.filter((it) => statusOf(o, inv, it).inspected).length;
   return `<a class="om-oi om-oi-link" href="${href({ v: 'inv', id: o.id, inv: x.id })}"><span class="om-sq om-t-amber">${ico('inv', 18)}</span>
     <span class="om-row-tx"><b>${esc(x.title)}</b><small>${inv && inv.part ? esc(inv.part) + ' · ' : ''}позиций: ${x.count}</small><small class="om-prog">осмотрено ${done} из ${own.length}</small></span>${ico('chev', 18)}</a>`;
@@ -482,12 +483,26 @@ const INV_FILTERS = [['', 'Все'], ['none', 'Не осмотрено'], ['done
 function viewInv(o, q, sel) {
   const inv = o && inventoryOf(session.state.person, o.id, q.inv);
   if (!inv) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Опись не назначена</div>`;
-  const rows = inv.items.map((it) => ({ it, s: statusOf(o, inv, it) }));
+  // Разбивка описи по спискам — осмотрщик видит все, кроме «Вне ТЗ» (пользователь 16.11.2026: «осмотрщик видит
+  // из нее все кроме "Вне ТЗ"»). Места (кабинета) в описях нет — не показывается («Не выдумывай»).
+  const rows = inv.items.filter((it) => !OUT_OF_SCOPE.test(it.list || '')).map((it) => ({ it, s: statusOf(o, inv, it) }));
   const own = rows.filter((x) => x.it.own !== false);
+  const lists = [...new Set(rows.map((x) => x.it.list).filter(Boolean))];
   const cnt = { '': rows.length, none: own.filter((x) => !x.s.inspected).length, done: own.filter((x) => x.s.inspected).length, broken: own.filter((x) => x.s.broken).length };
   const needle = foldSearch(q.q || '');
+  // Приоритет и цена — обязательные отборы (пользователь 16.11.2026: «Нам нужна фильтрация по приоритетам.
+  // Обязательно. Как и по цене»); порядок — как в приложении: по №, по приоритету, по стоимости.
+  const min = Number(q.min) || 0;
+  const max = Number(q.max) || 0;
+  const cost = (it) => Number(it.cost) || 0;
   const list = rows.filter((x) => (!q.f || (q.f === 'none' ? x.it.own !== false && !x.s.inspected : q.f === 'done' ? x.s.inspected : x.s.broken))
-    && (!needle || foldSearch([x.it.inv, x.it.name, x.it.model, x.it.place, x.it.no].join(' ')).includes(needle)));
+    && (!q.p || String(x.it.priority) === q.p) && (!q.l || x.it.list === q.l)
+    && (!min || cost(x.it) >= min) && (!max || cost(x.it) <= max)
+    && (!needle || foldSearch([x.it.inv, x.it.name, x.it.model, x.it.mol, x.it.no].join(' ')).includes(needle)));
+  if (q.sort === 'priority') list.sort((a, b) => (Number(a.it.priority) || 9) - (Number(b.it.priority) || 9) || a.it.no - b.it.no);
+  if (q.sort === 'cost') list.sort((a, b) => cost(b.it) - cost(a.it));
+  const prios = [...new Set(rows.map((x) => String(x.it.priority || '')).filter(Boolean))].sort();
+  const pOf = (p) => own.filter((x) => String(x.it.priority) === p);
   const ro = o.state === 'done';
   const target = q.to ? inv.items.find((x) => x.id === q.to) : null;
   const picking = !ro && (target || sel.size);
@@ -499,15 +514,23 @@ function viewInv(o, q, sel) {
     <p class="om-kicker">Опись${inv.part ? ' · ' + esc(inv.part) : ''}</p>
     <h1 class="om-title om-title-oi">${esc(inv.title)}</h1>
     <div class="om-idrow"><span class="om-chip ${cnt.none ? 'om-t-blue' : 'om-t-green'}">осмотрено ${cnt.done} из ${own.length}</span>${cnt.broken ? `<span class="om-chip om-t-rose">нерабочих ${cnt.broken}</span>` : ''}${ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}</div>
-    <label class="om-search">${ico('search', 18)}<input id="om-inv-q" data-invq type="search" value="${esc(q.q || '')}" placeholder="Инв. номер, наименование, модель, место" aria-label="Поиск по описи"></label>
+    <label class="om-search">${ico('search', 18)}<input id="om-inv-q" data-invq type="search" value="${esc(q.q || '')}" placeholder="Инв. номер, наименование, модель, МОЛ" aria-label="Поиск по описи"></label>
     <div class="om-segs">${INV_FILTERS.map(([k, label]) => `<a class="om-seg${(q.f || '') === k ? ' on' : ''}" href="${href({ ...q, f: k })}" aria-current="${(q.f || '') === k}">${label}<b>${cnt[k]}</b></a>`).join('')}</div>
+    ${lists.length > 1 ? `<div class="om-segs om-prios" role="group" aria-label="Список">${lists.map((l) => `<a class="om-seg${q.l === l ? ' on' : ''}" href="${href({ ...q, l: q.l === l ? '' : l })}" aria-current="${q.l === l}">${esc(l)}<b>${own.filter((x) => x.it.list === l).length}</b></a>`).join('')}</div>` : ''}
+    ${prios.length ? `<div class="om-segs om-prios" role="group" aria-label="Приоритет">${prios.map((p) => `<a class="om-seg${q.p === p ? ' on' : ''}" href="${href({ ...q, p: q.p === p ? '' : p })}" aria-current="${q.p === p}" title="Приоритет ${p}: осмотрено ${pOf(p).filter((x) => x.s.inspected).length} из ${pOf(p).length}">П${p}<b>${pOf(p).filter((x) => x.s.inspected).length}/${pOf(p).length}</b></a>`).join('')}</div>` : ''}
+    <div class="om-price">
+      <label class="om-price-f"><span title="Первоначальная стоимость позиции по описи">Стоимость, сом: от</span><input class="om-input" id="om-inv-min" data-invnum="min" inputmode="numeric" value="${esc(q.min || '')}" placeholder="0"></label>
+      <label class="om-price-f"><span>до</span><input class="om-input" id="om-inv-max" data-invnum="max" inputmode="numeric" value="${esc(q.max || '')}" placeholder="∞"></label>
+      <span class="om-select om-sort"><select class="om-input" data-invsort aria-label="Порядок">${[['', 'по №'], ['priority', 'по приоритету'], ['cost', 'по стоимости']].map(([k, l]) => `<option value="${k}"${(q.sort || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></span>
+    </div>
+    ${list.length !== rows.length ? `<p class="om-muted om-found-n">Показано ${list.length} из ${rows.length}${q.p || q.l || min || max ? ` · <a href="${href({ ...q, p: '', l: '', min: '', max: '' })}">сбросить отбор</a>` : ''}</p>` : ''}
     ${ro || target ? '' : '<p class="om-muted om-hint-sel">Несколько позиций — в одну карточку: отметьте их квадратиками слева.</p>'}
     ${list.length ? `<div class="om-group">${list.slice(0, INV_LIMIT).map(({ it, s }) => {
     const can = !ro && it.own !== false && !(target && cardOf(o, inv, target).some((x) => x.id === it.id));
     return `<div class="om-row om-invrow${it.own === false ? ' om-off' : ''}${sel.has(it.id) ? ' om-picked' : ''}">
       ${can ? `<button type="button" class="om-check" data-sel="${esc(it.id)}" aria-pressed="${sel.has(it.id)}" aria-label="Отметить: ${esc(it.name)}"></button>` : `<span class="om-invno">${esc(String(it.no))}</span>`}
       <a class="om-row-tx" href="${picking ? '#' : href({ v: 'item', id: o.id, inv: inv.id, it: it.id })}"${picking ? ` data-sel="${esc(it.id)}"` : ''}><b>${esc(it.name)}</b>
-        <small>${esc([it.inv, it.model, it.place].filter(Boolean).join(' · ') || 'без инв. номера')}${s.size > 1 ? ` · в карточке ${s.size} шт` : ''}${it.own === false ? ' · осматривает ' + esc(it.who) : ''}</small></a>
+        <small>${esc([it.inv, it.model, it.list].filter(Boolean).join(' · ') || 'без инв. номера')}${s.size > 1 ? ` · в карточке ${s.size} шт` : ''}${it.own === false ? ' · осматривает ' + esc(it.who) : ''}</small></a>
       ${statusChip(s)}</div>`;
   }).join('')}</div>${list.length > INV_LIMIT ? `<p class="om-muted om-more">Показаны первые ${INV_LIMIT} из ${list.length} — уточните поиск</p>` : ''}`
     : '<div class="om-card om-empty">Позиций не найдено</div>'}
@@ -530,7 +553,7 @@ function extrasBlock(o, inv, ro) {
 // Карточка: позиции (одна или собранные вместе), общие снимки и комментарий, рекомендация «Такие же в описи».
 function viewItem(o, q) {
   const inv = o && inventoryOf(session.state.person, o.id, q.inv);
-  const it = inv && inv.items.find((x) => x.id === q.it);
+  const it = inv && inv.items.find((x) => x.id === q.it && !OUT_OF_SCOPE.test(x.list || ''));
   if (!it) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Позиции нет</div>`;
   const members = cardOf(o, inv, it);
   const photos = photosOfCard(o, inv, members);
@@ -539,7 +562,7 @@ function viewItem(o, q) {
   const lead = members[0];
   const comment = rawMark(o, inv, lead).comment;
   const similar = ro ? [] : similarOf(o, inv, members);
-  const facts = (x) => [['Инв. номер', x.inv], ['Модель', x.model], ['Тип имущества', x.kind], ['Место', x.place], ['МОЛ', x.mol], ['Отдел', x.dept], ['Кол-во', x.qty > 1 ? x.qty : '']].filter(([, v]) => v);
+  const facts = (x) => [['Инв. номер', x.inv], ['Модель', x.model], ['Тип имущества', x.kind], ['МОЛ', x.mol], ['Подразделение', x.dept], ['Список', x.list], ['Кол-во', x.qty > 1 ? x.qty : '']].filter(([, v]) => v);
   const memberHTML = (x) => {
     const s = statusOf(o, inv, x);
     const m = rawMark(o, inv, x);
@@ -946,6 +969,11 @@ export function mountOsmotr(host) {
     startWork(person, cur.typeId, cur.ocId);
     render();
   });
+  scope.on('input', '[data-invnum]', (e, input) => {
+    clearTimeout(input._t);
+    input._t = setTimeout(() => { q = { ...q, [input.dataset.invnum]: input.value.replace(/\D/g, '') }; history.replaceState(null, '', href(q)); render(); }, 400);
+  });
+  scope.on('change', '[data-invsort]', (e, el) => { location.hash = href({ ...q, sort: el.value }); });
   scope.on('input', '[data-invq]', (e, input) => {
     clearTimeout(input._t);
     input._t = setTimeout(() => { q = { ...q, q: input.value.trim() }; history.replaceState(null, '', href(q)); render(); }, 250);

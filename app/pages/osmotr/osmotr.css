@@ -308,3 +308,12 @@ textarea.om-input{resize:vertical;line-height:1.4}
 .om-similar{margin-top:10px;color:var(--om-blue-700);border-color:var(--om-blue-200);white-space:normal}
 .om-members+.om-btn-wide,.om-similar+.om-btn-wide{margin-top:10px}
 .om-btn:disabled{opacity:.5;cursor:default;box-shadow:none}
+/* Опись: приоритет, цена, порядок */
+.om-prios{margin-top:-6px}
+.om-price{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}
+.om-price-f{display:flex;flex-direction:column;gap:2px;min-width:0}
+.om-price-f span{font-size:12px;font-weight:600;color:var(--om-muted)}
+.om-price-f .om-input{font-variant-numeric:tabular-nums;text-align:right}
+.om-sort{grid-column:1/-1}
+.om-found-n{margin:-4px 2px 10px;font-size:13px}
+.om-found-n a{color:var(--om-blue-700);font-weight:600}
