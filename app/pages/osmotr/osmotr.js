@@ -343,8 +343,9 @@ const shown = (v) => (Array.isArray(v) ? v.filter(Boolean).join(', ') : String(v
 // Разделы — раскрываемыми блоками прямо на экране ОИ, без перехода внутрь (пользователь 16.11.2026: «эти
 // категории лучше раскрываемыми делать. Иначе выходит слишком много усложнений»). У ТС полей мало — без
 // разделов, одним списком («В ТС ты зря закинул в категории пункты. Там их мало»). Комментарий — полем под
-// разделами («В комментарии не обязательно проваливаться»); раздел из одного поля (тип ОИ, санузел, тип
-// участка) — полем прямо в списке, без раскрытия. Подпись — над полем: длинные значения не обрезаются.
+// разделами («В комментарии не обязательно проваливаться»). Все разделы — одинаковыми нумерованными строками,
+// и из одного поля тоже (пользователь 16.11.2026 о полях вперемешку со строками: «В литерах каша. Надо бы это
+// причесать»); значение раздела — подписью строки. Подпись поля — над полем: длинные значения не обрезаются.
 function viewOi(o, q, opened, savedAt) {
   const ctx = o && oiCtx(o, q.oi);
   if (!ctx) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Объект имущества не назначен</div>`;
@@ -359,11 +360,11 @@ function viewOi(o, q, opened, savedAt) {
   const form = flat
     ? (secs.length ? `<div class="om-form">${secs.flatMap((s) => visibleFields(s, ctx.values)).map((f) => fieldHTML(f, ctx)).join('')}</div>` : '')
     : secs.map((s) => {
-      if (visibleFields(s, ctx.values).length === 1) return `<div class="om-form om-inline" data-sec="${esc(s.key)}">${fieldHTML(visibleFields(s, ctx.values)[0], ctx)}</div>`;
       const i = n++;
       const sp = secProgress(s, ctx);
       const vals = visibleFields(s, ctx.values).map((f) => shown(getValue(ctx.values, f.path || f.key))).filter(Boolean);
-      const tone = sp.requiredLeft ? 'om-t-amber' : sp.filled ? 'om-t-teal' : 'om-t-blue';
+      // Номер — два состояния: раздел заполнен (зелёный) или нет (синий); нехватка обязательных — текстом.
+      const tone = sp.total && sp.filled === sp.total && !sp.requiredLeft ? 'om-t-green' : 'om-t-blue';
       return `<details class="om-acc" data-sec="${esc(s.key)}"${opened.has(ctx.row.id + '|' + s.key) ? ' open' : ''}>
         <summary class="om-row om-secrow"><span class="om-sq om-sq-sm ${tone}">${String(i + 1).padStart(2, '0')}</span>
           <span class="om-row-tx"><b>${esc(s.title)}</b><small>${esc(vals.length ? vals.join(', ') : 'не заполнено')}</small>${sp.requiredLeft ? `<small class="om-prog-req">обязательных осталось ${sp.requiredLeft}</small>` : ''}</span>${ico('chev', 18)}</summary>
