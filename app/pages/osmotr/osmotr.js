@@ -89,6 +89,7 @@ const I = {
   layers: '<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5"/>',
   alert: '<path d="M12 4 2 20h20zM12 10v4M12 17h.01"/>',
   app: '<path d="M7 2h10v20H7zM11 18h2"/>',
+  filter: '<path d="M4 6h16M7 12h10M10 18h4"/>',
   camera: '<path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/>',
   photo: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
@@ -480,7 +481,7 @@ function invRow(o, x) {
 
 const INV_FILTERS = [['', 'Все'], ['none', 'Не осмотрено'], ['done', 'Осмотрено'], ['broken', 'Нерабочие']];
 // Опись: поиск, отбор, выбор нескольких позиций «в одну карточку» (sel — выбранные; to — добавление в карточку).
-function viewInv(o, q, sel) {
+function viewInv(o, q, sel, filtersOpen) {
   const inv = o && inventoryOf(session.state.person, o.id, q.inv);
   if (!inv) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Опись не назначена</div>`;
   // Разбивка описи по спискам — осмотрщик видит все, кроме «Вне ТЗ» (пользователь 16.11.2026: «осмотрщик видит
@@ -503,6 +504,12 @@ function viewInv(o, q, sel) {
   if (q.sort === 'cost') list.sort((a, b) => cost(b.it) - cost(a.it));
   const prios = [...new Set(rows.map((x) => String(x.it.priority || '')).filter(Boolean))].sort();
   const pOf = (p) => own.filter((x) => String(x.it.priority) === p);
+  // Включённые фильтры — строкой под поиском; панель фильтров свёрнута (пользователь 16.11.2026 о шапке
+  // описи: «надо причесать по-нормальному. занимает кучу места»).
+  const fmtSom = (n) => Number(n).toLocaleString('ru-RU');
+  const onList = [q.l, q.p ? 'П' + q.p : '', min ? 'от ' + fmtSom(min) : '', max ? 'до ' + fmtSom(max) : '',
+    q.sort === 'cost' ? 'по стоимости' : q.sort === 'priority' ? 'по приоритету' : ''].filter(Boolean);
+  const nOn = onList.length;
   const ro = o.state === 'done';
   const target = q.to ? inv.items.find((x) => x.id === q.to) : null;
   const picking = !ro && (target || sel.size);
@@ -511,20 +518,23 @@ function viewInv(o, q, sel) {
     : sel.size ? `<div class="om-selbar"><span>Отмечено: ${sel.size}</span><button type="button" class="om-btn om-btn-primary" data-sel-group${sel.size > 1 ? '' : ' disabled'}>В одну карточку (${sel.size})</button>
       <button type="button" class="om-btn" data-sel-clear>Снять выбор</button></div>` : '';
   return `${back(target ? href({ v: 'item', id: o.id, inv: inv.id, it: target.id }) : href({ v: 'obj', id: o.id }), target ? 'Карточка' : o.title)}
-    <p class="om-kicker">Опись${inv.part ? ' · ' + esc(inv.part) : ''}</p>
-    <h1 class="om-title om-title-oi">${esc(inv.title)}</h1>
-    <div class="om-idrow"><span class="om-chip ${cnt.none ? 'om-t-blue' : 'om-t-green'}">осмотрено ${cnt.done} из ${own.length}</span>${cnt.broken ? `<span class="om-chip om-t-rose">нерабочих ${cnt.broken}</span>` : ''}${ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}</div>
-    <label class="om-search">${ico('search', 18)}<input id="om-inv-q" data-invq type="search" value="${esc(q.q || '')}" placeholder="Инв. номер, наименование, модель, МОЛ" aria-label="Поиск по описи"></label>
-    <div class="om-segs">${INV_FILTERS.map(([k, label]) => `<a class="om-seg${(q.f || '') === k ? ' on' : ''}" href="${href({ ...q, f: k })}" aria-current="${(q.f || '') === k}">${label}<b>${cnt[k]}</b></a>`).join('')}</div>
-    ${lists.length > 1 ? `<div class="om-segs om-prios" role="group" aria-label="Список">${lists.map((l) => `<a class="om-seg${q.l === l ? ' on' : ''}" href="${href({ ...q, l: q.l === l ? '' : l })}" aria-current="${q.l === l}">${esc(l)}<b>${own.filter((x) => x.it.list === l).length}</b></a>`).join('')}</div>` : ''}
-    ${prios.length ? `<div class="om-segs om-prios" role="group" aria-label="Приоритет">${prios.map((p) => `<a class="om-seg${q.p === p ? ' on' : ''}" href="${href({ ...q, p: q.p === p ? '' : p })}" aria-current="${q.p === p}" title="Приоритет ${p}: осмотрено ${pOf(p).filter((x) => x.s.inspected).length} из ${pOf(p).length}">П${p}<b>${pOf(p).filter((x) => x.s.inspected).length}/${pOf(p).length}</b></a>`).join('')}</div>` : ''}
-    <div class="om-price">
-      <label class="om-price-f"><span title="Первоначальная стоимость позиции по описи">Стоимость, сом: от</span><input class="om-input" id="om-inv-min" data-invnum="min" inputmode="numeric" value="${esc(q.min || '')}" placeholder="0"></label>
-      <label class="om-price-f"><span>до</span><input class="om-input" id="om-inv-max" data-invnum="max" inputmode="numeric" value="${esc(q.max || '')}" placeholder="∞"></label>
-      <span class="om-select om-sort"><select class="om-input" data-invsort aria-label="Порядок">${[['', 'по №'], ['priority', 'по приоритету'], ['cost', 'по стоимости']].map(([k, l]) => `<option value="${k}"${(q.sort || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></span>
+    <p class="om-kicker">Опись${inv.part ? ' · ' + esc(inv.part) : ''} · <span class="${cnt.none ? '' : 'om-ok'}">осмотрено ${cnt.done} из ${own.length}</span>${ro ? ' · только просмотр' : ''}</p>
+    <h1 class="om-title om-title-inv">${esc(inv.title)}</h1>
+    <div class="om-invtools">
+      <label class="om-search">${ico('search', 18)}<input id="om-inv-q" data-invq type="search" value="${esc(q.q || '')}" placeholder="Инв. номер или модель" aria-label="Поиск по описи: инв. номер, наименование, модель, МОЛ"></label>
+      <button type="button" class="om-icon om-filter-btn${filtersOpen ? ' on' : ''}" data-filters aria-expanded="${filtersOpen}" aria-controls="om-inv-filters" aria-label="Фильтры${nOn ? ': включено ' + nOn : ''}" title="Фильтры">${ico('filter', 20)}${nOn ? `<b class="om-badge">${nOn}</b>` : ''}</button>
     </div>
-    ${list.length !== rows.length ? `<p class="om-muted om-found-n">Показано ${list.length} из ${rows.length}${q.p || q.l || min || max ? ` · <a href="${href({ ...q, p: '', l: '', min: '', max: '' })}">сбросить отбор</a>` : ''}</p>` : ''}
-    ${ro || target ? '' : '<p class="om-muted om-hint-sel">Несколько позиций — в одну карточку: отметьте их квадратиками слева.</p>'}
+    <div class="om-segs om-segs-line" role="group" aria-label="Осмотр позиций">${INV_FILTERS.map(([k, label]) => `<a class="om-seg${(q.f || '') === k ? ' on' : ''}" href="${href({ ...q, f: k })}" aria-current="${(q.f || '') === k}">${label}<b>${cnt[k]}</b></a>`).join('')}</div>
+    ${filtersOpen ? `<div class="om-card om-filters" id="om-inv-filters">
+      ${lists.length > 1 ? `<div class="om-fgroup"><span class="om-flabel">Список</span><div class="om-segs om-segs-line" role="group" aria-label="Список">${lists.map((l) => `<a class="om-seg${q.l === l ? ' on' : ''}" href="${href({ ...q, l: q.l === l ? '' : l })}" aria-current="${q.l === l}">${esc(l)}<b>${own.filter((x) => x.it.list === l).length}</b></a>`).join('')}</div></div>` : ''}
+      ${prios.length ? `<div class="om-fgroup"><span class="om-flabel">Приоритет · осмотрено/всего</span><div class="om-segs om-segs-line" role="group" aria-label="Приоритет">${prios.map((p) => `<a class="om-seg${q.p === p ? ' on' : ''}" href="${href({ ...q, p: q.p === p ? '' : p })}" aria-current="${q.p === p}">П${p}<b>${pOf(p).filter((x) => x.s.inspected).length}/${pOf(p).length}</b></a>`).join('')}</div></div>` : ''}
+      <div class="om-fgroup"><span class="om-flabel" title="Первоначальная стоимость позиции по описи">Стоимость, сом</span><div class="om-price">
+        <input class="om-input" id="om-inv-min" data-invnum="min" inputmode="numeric" value="${esc(q.min || '')}" placeholder="от" aria-label="Стоимость от, сом">
+        <span aria-hidden="true">—</span>
+        <input class="om-input" id="om-inv-max" data-invnum="max" inputmode="numeric" value="${esc(q.max || '')}" placeholder="до" aria-label="Стоимость до, сом"></div></div>
+      <div class="om-fgroup"><span class="om-flabel">Порядок</span><span class="om-select"><select class="om-input" data-invsort aria-label="Порядок">${[['', 'по №'], ['priority', 'по приоритету'], ['cost', 'по стоимости']].map(([k, l]) => `<option value="${k}"${(q.sort || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></span></div>
+    </div>` : ''}
+    ${nOn ? `<p class="om-muted om-found-n">${esc(onList.join(' · '))} · показано ${list.length} из ${rows.length} · <a href="${href({ ...q, p: '', l: '', min: '', max: '', sort: '' })}">сбросить</a></p>` : ''}
     ${list.length ? `<div class="om-group">${list.slice(0, INV_LIMIT).map(({ it, s }) => {
     const can = !ro && it.own !== false && !(target && cardOf(o, inv, target).some((x) => x.id === it.id));
     return `<div class="om-row om-invrow${it.own === false ? ' om-off' : ''}${sel.has(it.id) ? ' om-picked' : ''}">
@@ -746,7 +756,7 @@ export function mountOsmotr(host) {
   let mapKey = '';
   let savedAt = '';
   // Состояние экрана объекта: подтверждение «Осмотр закончен» (по объекту).
-  const ui = { asking: false, askFor: '' };
+  const ui = { asking: false, askFor: '', filters: false };
   // Выбранные позиции описи (в одну карточку) — по описи; сменилась опись — выбор снимается.
   const sel = new Set();
   let selFor = '';
@@ -774,7 +784,7 @@ export function mountOsmotr(host) {
     const screen = v === 'trips' ? viewTrips(all, q, unread) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
         : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
-          : v === 'inv' ? viewInv(o, q, sel) : v === 'item' ? viewItem(o, q) : viewToday(all, q, unread);
+          : v === 'inv' ? viewInv(o, q, sel, ui.filters) : v === 'item' ? viewItem(o, q) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'
       ? `<div class="om-asbar" role="status"><span>Вы смотрите как: осмотрщик</span><a href="#/">Вернуться</a></div>` : '';
@@ -888,6 +898,7 @@ export function mountOsmotr(host) {
     if (sel.has(id)) sel.delete(id); else sel.add(id);
     render();
   });
+  scope.on('click', '[data-filters]', () => { ui.filters = !ui.filters; render(); });
   scope.on('click', '[data-sel-clear]', () => { sel.clear(); render(); });
   // Выбранные — в одну карточку: карточка первой, у кого она уже есть, иначе — первой выбранной (Inventory.group).
   scope.on('click', '[data-sel-group]', () => {

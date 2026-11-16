@@ -102,19 +102,26 @@ def run(t):
     go(t, inv_q(obj, inv), '.om-app[data-v="inv"] .om-invrow')
     t.ck(t.wait_until("(i) => ![...document.querySelectorAll('.om-invrow a.om-row-tx')].some((a) => (a.getAttribute('href') || '').includes('it=' + i))", out['id']),
          'позиция «Вне ТЗ» видна осмотрщику')
-    t.ck(pg.locator('.om-prios .om-seg', has_text='Вне ТЗ').count() == 0, 'в разбивке по спискам есть «Вне ТЗ»')
-    t.ck(pg.locator('.om-prios .om-seg', has_text='Основной').count() == 1, 'нет разбивки по спискам')
+    # Шапка описи компактная: фильтры свёрнуты, первая позиция видна без прокрутки (16.11.2026: «занимает кучу места»).
+    t.ck(pg.locator('.om-filters').count() == 0, 'панель фильтров раскрыта сразу')
+    top = pg.evaluate("() => document.querySelector('.om-invrow').getBoundingClientRect().top")
+    t.ck(top < 420, 'первая позиция описи на 400×860 ниже %d px — шапка занимает много места' % top)
+    pg.locator('[data-filters]').click()
+    t.wait_for('.om-filters')
+    t.ck(pg.locator('.om-filters .om-seg', has_text='Вне ТЗ').count() == 0, 'в разбивке по спискам есть «Вне ТЗ»')
+    t.ck(pg.locator('.om-filters .om-seg', has_text='Основной').count() == 1, 'нет разбивки по спискам')
     data['items'] = [x for x in data['items'] if x['id'] != out['id']]
     own = [x for x in own if x['id'] != out['id']]
 
     # --- приоритет, цена, порядок (16.11.2026: «фильтрация по приоритетам. Обязательно. Как и по цене») ---
     ROWS = "() => [...document.querySelectorAll('.om-invrow a.om-row-tx')].map((a) => new URLSearchParams(a.getAttribute('href').split('?')[1] || '').get('it') || a.dataset.sel)"
     items = {x['id']: x for x in data['items']}
-    go(t, inv_q(obj, inv, '&p=1'), '.om-app[data-v="inv"] .om-prios')
+    go(t, inv_q(obj, inv, '&p=1'), '.om-app[data-v="inv"] .om-filters')
     got = pg.evaluate(ROWS)
     t.ck(got and all(items[i]['priority'] == '1' for i in got) and len(got) == sum(1 for x in data['items'] if x['priority'] == '1'),
          'отбор П1 показал не те позиции (%d)' % len(got))
-    t.ck(pg.locator('.om-prios .om-seg.on', has_text='П1').count() == 1, 'чип П1 не отмечен')
+    t.ck(pg.locator('.om-filters .om-seg.on', has_text='П1').count() == 1, 'чип П1 не отмечен')
+    t.ck('П1' in pg.locator('.om-found-n').inner_text(), 'включённый отбор П1 не виден строкой под поиском')
     go(t, inv_q(obj, inv), '.om-app[data-v="inv"] #om-inv-min')
     pg.fill('#om-inv-min', '100000')
     t.ck(t.wait_until("() => /min=100000/.test(location.hash)"), 'цена «от» не попала в адрес')

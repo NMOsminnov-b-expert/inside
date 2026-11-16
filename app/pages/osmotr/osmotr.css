@@ -292,7 +292,6 @@ textarea.om-input{resize:vertical;line-height:1.4}
 .om-check[aria-pressed="true"]{background:var(--om-blue);border-color:var(--om-blue)}
 .om-check[aria-pressed="true"]::after{content:"";width:10px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
 .om-picked{background:var(--om-blue-50)}
-.om-hint-sel{margin:-4px 2px 10px;font-size:13px}
 /* Панель выбора — внизу колонки, как нижняя панель разделов */
 .om-selbar{position:sticky;bottom:8px;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding:10px 12px;border-radius:18px;
   background:var(--om-glass);border:1px solid var(--om-glass-line);box-shadow:var(--om-glass-sh);backdrop-filter:blur(18px)}
@@ -308,12 +307,21 @@ textarea.om-input{resize:vertical;line-height:1.4}
 .om-similar{margin-top:10px;color:var(--om-blue-700);border-color:var(--om-blue-200);white-space:normal}
 .om-members+.om-btn-wide,.om-similar+.om-btn-wide{margin-top:10px}
 .om-btn:disabled{opacity:.5;cursor:default;box-shadow:none}
-/* Опись: приоритет, цена, порядок */
-.om-prios{margin-top:-6px}
-.om-price{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}
-.om-price-f{display:flex;flex-direction:column;gap:2px;min-width:0}
-.om-price-f span{font-size:12px;font-weight:600;color:var(--om-muted)}
-.om-price-f .om-input{font-variant-numeric:tabular-nums;text-align:right}
-.om-sort{grid-column:1/-1}
 .om-found-n{margin:-4px 2px 10px;font-size:13px}
 .om-found-n a{color:var(--om-blue-700);font-weight:600}
+
+/* Опись: поиск с кнопкой фильтров, строка состояния, свёрнутая панель фильтров */
+.om-title-inv{font-size:20px;line-height:1.2;margin-bottom:10px}
+.om-kicker .om-ok{color:#1f7a35}
+.om-invtools{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.om-invtools .om-search{flex:1;min-width:0;margin:0}
+.om-filter-btn{width:48px;height:48px;cursor:pointer}
+.om-filter-btn.on{background:var(--om-blue-50);border-color:var(--om-blue);color:var(--om-blue-700)}
+.om-segs-line{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin:0 0 10px;padding-bottom:2px}
+.om-segs-line::-webkit-scrollbar{display:none}
+.om-segs-line .om-seg{flex:none}
+.om-filters{display:flex;flex-direction:column;gap:10px;margin-bottom:10px;padding:12px 14px}
+.om-fgroup .om-flabel{font-size:12px;margin-bottom:4px;color:var(--om-muted)}
+.om-fgroup .om-segs-line{margin:0}
+.om-price{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px}
+.om-price .om-input{font-variant-numeric:tabular-nums;text-align:right}
