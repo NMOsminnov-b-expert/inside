@@ -66,33 +66,11 @@ export function parse(hash = location.hash) {
     return { name: 'institutions', query };
   }
 
-  // Осмотры — интерфейс осмотрщика. Отдельные экраны под телефон, а не адаптив
-  // настольных (решение пользователя 08.09.2026):
-  //   #/insp                            — мои осмотры списком
-  //   #/insp/<typeId>/<ocId>            — задача: куда ехать, сводка, примечания
-  //   #/insp/<typeId>/<ocId>/<раздел>   — object | docs | photo
-  //   #/insp/<typeId>/<ocId>/object/<oiId> — осмотр одного объекта имущества
-  //   #/insp/<typeId>/<ocId>/inv/<invId> — опись, приложенная к назначению
-  //
-  // Раздел стоит В АДРЕСЕ, а не в состоянии экрана: у осмотрщика на телефоне
-  // кнопка «назад» — основной способ вернуться, и она должна возвращать на
-  // предыдущий раздел, а не выбрасывать из задачи целиком.
-  if (segs[0] === 'insp') {
-    return {
-      name: 'inspector',
-      typeId: segs[1] ? dec(segs[1]) : null,
-      ocId: segs[2] ? dec(segs[2]) : null,
-      section: segs[3] ? dec(segs[3]) : 'task',
-      // Осмотр ведётся по объекту имущества, поэтому у раздела «object» есть
-      // свой хвост: какую именно литеру (котельную, участок) осматриваем.
-      oiId: segs[4] ? dec(segs[4]) : null,
-      query,
-    };
-  }
-
   // Осмотры (осмотрщики) — приложение «Осмотр» в браузере (pages/osmotr,
-  // решение пользователя 03.11.2026); прежний экран — #/insp выше.
-  if (segs[0] === 'osmotr') return { name: 'osmotr', query };
+  // решение пользователя 03.11.2026). Прежний экран осмотрщика #/insp убран
+  // 16.11.2026 («Прежний экран сноси»); его адреса из закладок и старых ссылок
+  // ведут сюда же.
+  if (segs[0] === 'osmotr' || segs[0] === 'insp') return { name: 'osmotr', query };
 
   if (segs[0] === 'oc' && segs[1]) {
     return {
@@ -134,21 +112,7 @@ export function start(onRoute) {
   fire();
 }
 
-export const INSP_HREF = '#/insp';
 export const OSMOTR_HREF = '#/osmotr';
-
-// Адрес экрана осмотрщика. Раздел 'task' в адрес не пишем — он и так по
-// умолчанию, а короткий адрес читается в отладке и в логе понятнее.
-export function inspHref({ typeId, ocId, section, oiId } = {}) {
-  const parts = ['insp'];
-  if (typeId && ocId) {
-    parts.push(typeId, ocId);
-    if (section && section !== 'task') parts.push(section);
-    // object/<ОИ>, inv/<опись> (экран описи, этап Б4).
-    if (oiId && (section === 'object' || section === 'inv')) parts.push(oiId);
-  }
-  return '#/' + parts.map(encodeURIComponent).join('/');
-}
 
 export const ARCHIVE_HREF = '#/archive';
 export const DOCS_HREF = '#/docs';

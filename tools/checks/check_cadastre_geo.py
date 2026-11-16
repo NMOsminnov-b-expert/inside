@@ -15,8 +15,6 @@
   * то же через путь /cadastre/, когда своего прокси нет (сборка для показа,
     Live Server);
   * карточка: «Получить по ЕНИ» не заполняет рамку участка;
-  * карта задачи осмотра не запрашивает соседние участки и строения вокруг
-    участка с известным контуром.
 """
 import cadastre_fixture as cf
 from harness import use_cadastre_fixture
@@ -115,21 +113,3 @@ def run(t):
          '«Получить по ЕНИ» в карточке не заполнило рамку участка')
     t.ck(t.wait_until("() => /получены из Кадастра/.test(document.body.innerText)"),
          'после «Получить по ЕНИ» нет итога «Адрес и участок получены из Кадастра»')
-
-    # --- карта задачи осмотра: соседние участки и строения ----------------------
-    before = cf.CALLS['layer:ENI_WGS84'], cf.CALLS['layer:ENI_BUILDINGS']
-    t.open('#/insp/civil/oc-cv-1', wait='[data-ins-map]')
-    t.ck(t.wait_until("() => !!document.querySelector('[data-ins-map] canvas')"), 'на задаче осмотра нет карты')
-    t.wait_until("() => !!document.querySelector('[data-ins-map] .maplibregl-canvas')")
-    t.ck(_until(lambda: cf.CALLS['layer:ENI_WGS84'] > before[0] and cf.CALLS['layer:ENI_BUILDINGS'] > before[1], pg),
-         'карта задачи не запросила соседние участки и строения: %s' % dict(cf.CALLS))
-
-
-def _until(cond, pg, ms=8000):
-    """Условие на стороне Python (счётчики подмены) — по факту, с опросом страницы."""
-    step = 200
-    for _ in range(ms // step):
-        if cond():
-            return True
-        pg.wait_for_timeout(step)
-    return cond()

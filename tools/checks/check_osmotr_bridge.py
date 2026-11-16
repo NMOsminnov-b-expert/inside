@@ -16,6 +16,9 @@
   * первая отправка не переводит назначение «Назначено» → «В работе»;
   * «finish» не ставит «Осмотр закончен»;
   * запрос по чужому объекту выполняется;
+  * в уведомлениях осмотрщика нет нового назначения от регионала; отчёт дня
+    из приложения не сохраняется (прежде это проверялось на экране #/insp,
+    убранном 16.11.2026);
   * сообщения не из своей рамки обрабатываются.
 """
 from harness import use_cadastre_fixture
@@ -340,3 +343,15 @@ def run(t):
             sc = pg.evaluate("""async ([ty, oc, iv]) => { const s = ((await import('./app/kernel/inspectionResults.js')).resultsOf(ty, oc).scans || []).find((y) => y.inv && y.inv.invId === iv && y.title === 'Акт группы');
               return s ? (s.inv.itemIds || []).length : 0; }""", x['id'].split('|') + [inv['id']])
             t.ck(ac['ok'] and sc == 2, 'акт на группу позиций не стал сканом описи на 2 позиции: %s %s' % (ac, sc))
+
+    # --- уведомления и отчёт дня осмотрщика ---
+    me = pg.evaluate("async () => (await import('./app/kernel/session.js')).session.state.person")
+    pg.evaluate("""async (me) => { const S = (await import('./app/kernel/session.js')).session; const K = %s; const was = S.state.person;
+      S.state.person = 'Регионал проверки'; try { K.assign({ typeId: 'civil', ocId: 'oc-cv-2', person: me, oiIds: [] }); } finally { S.state.person = was; } }""" % KI, me)
+    nt = pg.evaluate(ASK, ['notes', {}, False])
+    labels = [x['label'] for x in (nt.get('body') or {}).get('items') or []]
+    t.ck(nt['ok'] and 'Новое назначение' in labels, 'notes: нет уведомления о новом назначении от регионала: %s' % labels[:8])
+    day = pg.evaluate("() => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }")
+    rp = pg.evaluate(ASK, ['saveReport', {'kind': 'evening', 'date': day, 'data': {'noOdometer': True, 'km': 12}}, False])
+    km = pg.evaluate("async ([me, d]) => { const r = (%s).reportOf(me, d, 'evening'); return r && r.km; }" % KI, [me, day])
+    t.ck(rp['ok'] and km == 12, 'saveReport: вечерний отчёт из приложения не сохранён: %s %s' % (rp, km))

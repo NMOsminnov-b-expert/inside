@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Покрытие осмотров: каждый тип ОЦ × каждый вид ОИ — от формы осмотрщика до
+"""Покрытие осмотров: каждый тип ОЦ × каждый вид ОИ — от схемы полей осмотра до
 вкладки «Результаты осмотра» у ЦОД.
 
 Указание пользователя 02.11.2026: «Все карточки имеют осмотры, все подключено и
@@ -10,17 +10,19 @@
 механизмы и оборудование) и каждого вида ОИ, который в нём встречается
 (строение, квартира, участок, механизмы, ТС; у ТС-ОЦ и механизмов-ОЦ — сама
 запись), сценарий:
-  * открывает у осмотрщика форму осмотра этого ОИ — разделы есть;
+  * берёт схему полей осмотра этого ОИ (pages/inspection/form.js) — поля есть;
   * вносит значения (до трёх полей: выбор — первым вариантом, число — 3) и
     снимок, завершает осмотр;
   * открывает карточку ОЦ у ЦОД: вкладка «Результаты осмотра» есть, у каждого
     ОИ — свой блок с внесёнными значениями и снимком, осмотр «закончен».
-Механизмов-ОЦ в демо нет — запись заводится в сценарии.
+Механизмов-ОЦ в демо нет — запись заводится в сценарии. Форму у осмотрщика
+сценарий прежде открывал на экране #/insp; экран убран 16.11.2026, осмотрщики
+работают в приложении «Осмотр» (его проверяет check_osmotr_bridge.py).
 """
 NAME = 'осмотры: все типы ОЦ и ОИ'
 
 TOUCHES = (
-    'app/pages/inspector/*', 'app/kernel/inspectionTab.js', 'app/kernel/ocHead.js', 'app/kernel/inspections.js',
+    'app/pages/inspection/*', 'app/kernel/inspectionTab.js', 'app/kernel/ocHead.js', 'app/kernel/inspections.js',
     'app/kernel/inspectionResults.js', 'app/kernel/fieldSchema.js', 'app/kernel/registry.js',
     'app/modules/*/card/ocCard.view.js', 'app/modules/*/index.js', 'app/modules/*/data/seed.js',
     'app/modules/vehicle/view.js', 'app/modules/mechanisms/view.js', 'app/modules/mechanisms/records.js',
@@ -101,17 +103,9 @@ def run(t):
             ty = p['ty']
             done = pg.evaluate(FILL, [ty, oc, INSP])
             t.ck(done, '%s %s: у записи нет ОИ для осмотра' % (p['label'], oc))
-            # Форма осмотра каждого ОИ у осмотрщика.
+            # Схема полей осмотра каждого ОИ.
             for oi in done:
                 t.ck(oi['fields'] > 0, '%s %s · %s: у формы осмотра нет полей' % (p['label'], oc, oi['label']))
-                # Механизмы-ОЦ у нынешнего экрана осмотрщика не осматриваются —
-                # экран переходит на приложение «Осмотр» (02.11.2026); там это
-                # требование. Здесь — только схема полей и вкладка у ЦОД.
-                if ty == 'mechanisms':
-                    continue
-                t.open('#/insp/%s/%s/object/%s?as=%s' % (ty, oc, oi['id'], INSP), wait='.ins')
-                t.ck(t.wait_until("() => document.querySelectorAll('.ins-acc').length > 0"),
-                     '%s %s · %s: форма осмотра не открылась' % (p['label'], oc, oi['label']))
             # Вкладка у ЦОД.
             t.open('#/oc/%s/%s?tab=inspection' % (ty, oc), wait='[data-oc-head]')
             t.ck(pg.locator('[data-tab="inspection"]').count() == 1, '%s %s: нет вкладки «Результаты осмотра»' % (p['label'], oc))

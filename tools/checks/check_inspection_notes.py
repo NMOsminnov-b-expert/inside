@@ -1,7 +1,9 @@
 # -*- coding: utf-8 -*-
-"""Уведомления о пропусках: лента регионала и уведомления осмотрщика о себе.
+"""Уведомления о пропусках: лента регионала.
 
 ТЗ рабочего дня осмотрщика, раздел 8 (запись графа tz-rabota-osmotrschika).
+Уведомления осмотрщика о себе отдаёт приложению мост (notes, проверка —
+check_osmotr_bridge.py); прежний экран осмотрщика #/insp убран 16.11.2026.
 
 Что ловит сценарий:
   * счётчик на вкладке не равен числу непрочитанных;
@@ -11,12 +13,11 @@
     не помечает его прочитанным;
   * «Отметить все прочитанными» не убирает счётчик; прочитанное не
     переживает перезагрузку;
-  * у осмотрщика нет уведомления о новом назначении;
   * в консоли ошибки.
 """
 NAME = 'уведомления'
 
-TOUCHES = ('app/pages/inspections/*', 'app/pages/inspector/*', 'app/kernel/inspections.js')
+TOUCHES = ('app/pages/inspections/*', 'app/kernel/inspections.js')
 
 K = "import('./app/kernel/inspections.js')"
 
@@ -62,10 +63,3 @@ def run(t):
     pg.reload()
     t.wait_for('[data-ip-section]')
     t.ck(pg.locator('[data-ip-section="notes"] .ip-unread').count() == 0, 'прочитанное не пережило перезагрузку')
-
-    # осмотрщик — новое назначение
-    who = pg.evaluate("async () => (await %s).profileNames()[0]" % K)
-    # Уведомления осмотрщика — свой раздел нижней панели (14.10.2026).
-    t.open('#/insp?as=' + who + '&tab=notes', wait='.ins-body')
-    t.ck(t.wait_until("() => /Новое назначение/.test(document.querySelector('.ins-ntfs')?.innerText || '')"),
-         'у осмотрщика нет уведомления о новом назначении')

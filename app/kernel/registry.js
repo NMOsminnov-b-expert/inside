@@ -25,7 +25,7 @@ import { manifest as mechanismsManifest } from '../modules/mechanisms/manifest.j
 import * as mechanismsRecords from '../modules/mechanisms/records.js';
 import * as mechanismsDicts from '../modules/mechanisms/data/dictExport.js';
 
-// Тип и класс капитальности литеры — для формы осмотра (pages/inspector/
+// Тип и класс капитальности литеры — для полей осмотра (pages/inspection/
 // form.js; решение пользователя 15.10.2026 «Тип и класс капитальности надо
 // бы включить в осмотры»): виды литеры, назначения по факту и признаки класса
 // — из модуля civil, единственного их источника (oi/building/capClass.js).

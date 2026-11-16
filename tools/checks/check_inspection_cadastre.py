@@ -3,16 +3,19 @@
 
 ТЗ рабочего дня осмотрщика, раздел 5 (запись графа tz-rabota-osmotrschika).
 
+Осмотрщик отвечает в приложении «Осмотр» (мост — cadastre / cadAnswer →
+kernel/inspections.js answerCadRow); прежний экран осмотрщика #/insp с формой
+ответа убран 16.11.2026. Ответ здесь кладётся той же функцией ядра.
+
 Что ловит сценарий:
   * запрос в кадастр можно отдать осмотрщику без доступа в кадастр;
   * запрос без строк или без осмотрщика создаётся молча;
-  * «Нет в кадастре» без причины и «Получен» без PDF или без даты
-    сканирования сохраняются молча;
-  * полученный PDF не ложится в документы объекта или ложится без даты
-    сканирования; имя файла — не «№ + ЕНИ + название»;
+  * ответ «Получен» теряет итог, дату сканирования или файл; файл ложится в
+    документы объекта без проверки ЦОД;
   * регионал не видит итог строки; отчёт по запросу — не xlsx;
   * в консоли ошибки.
 """
+import base64
 import os
 import tempfile
 
@@ -20,7 +23,7 @@ from check_archive import make_pdf
 
 NAME = 'запросы документов'
 
-TOUCHES = ('app/pages/inspector/*', 'app/pages/inspections/*', 'app/kernel/inspections.js',
+TOUCHES = ('app/pages/osmotr/bridge.js', 'app/pages/inspections/*', 'app/kernel/inspections.js',
            'app/kernel/inspectionsDemo.js', 'app/kernel/institutions.js')
 
 K = "import('./app/kernel/inspections.js')"
@@ -90,27 +93,12 @@ def run(t):
         pg.click('[data-ip-cad-remind="%s"]' % rid)
         t.ck(t.wait_until("() => /напомнено/.test(document.querySelector('.ip-cad-log')?.textContent || '')"), 'напоминание не отмечено в запросе')
 
-        # --- осмотрщик ------------------------------------------------------------
-        # Запросы осмотрщика — свой раздел нижней панели (14.10.2026).
-        t.open('#/insp?as=' + who + '&tab=cad', wait='.ins-body')
-        t.ck(t.wait_for('[data-cad-open="%s"]' % rid), 'у осмотрщика нет нового запроса в «Запросах документов»')
-        pg.click('[data-cad-open="%s"]' % rid)
-        t.wait_for('[data-cad-row="%s"]' % rowid)
-        pg.click('[data-cad-res="%s|none"]' % rowid)
-        pg.click('[data-cad-save="%s"]' % rowid)
-        t.ck(t.wait_until("() => /причину/.test(document.querySelector('.ins-rp-err')?.textContent || '')"), '«Нет в кадастре» без причины не остановилось')
-        pg.click('[data-cad-res="%s|got"]' % rowid)
-        pg.click('[data-cad-save="%s"]' % rowid)
-        t.ck(t.wait_until("() => /PDF/.test(document.querySelector('.ins-rp-err')?.textContent || '')"), '«Получен» без PDF не остановилось')
-        with pg.expect_file_chooser() as fc:
-            pg.click('[data-cad-file="%s"]' % rowid)
-        fc.value.set_files(pdf)
-        t.wait_for('.ins-cad-fname')
-        pg.click('[data-cad-save="%s"]' % rowid)
-        t.ck(t.wait_until("() => /сканирования/.test(document.querySelector('.ins-rp-err')?.textContent || '')"), '«Получен» без даты сканирования не остановилось')
-        pg.fill('[data-cad-scan="%s"]' % rowid, '2026-10-01')
-        pg.click('[data-cad-save="%s"]' % rowid)
-        t.ck(t.wait_for('[data-cad-row="%s"] .ins-ro' % rowid), 'ответ не сохранён')
+        # --- осмотрщик отвечает (как мост cadAnswer) --------------------------------
+        b64 = base64.b64encode(open(pdf, 'rb').read()).decode()
+        pg.evaluate("""async ([rid, rowid, b64]) => { const k = await %s;
+          const bytes = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+          const file = new File([bytes], 'документ.pdf', { type: 'application/pdf' });
+          return !!(await k.answerCadRow(rid, rowid, { result: 'got', scanDate: '2026-10-01', file, fileName: file.name })); }""" % K, [rid, rowid, b64])
 
         got = pg.evaluate("""async ([rid, rowid, tid, oid]) => {
           const k = await %s; const reg = await import('./app/kernel/registry.js');
@@ -120,8 +108,7 @@ def run(t):
           return [row.result, row.scanDate, (row.file || {}).name, d ? [d.date, d.type, d.name, !!d.file] : null, !!(row.file || {}).attached];
         }""" % K, [rid, rowid, type_id, oc_id])
         t.ck(got[0] == 'got' and got[1] == '2026-10-01', 'итог строки сохранён неверно: %s' % got)
-        t.ck(bool(got[2]) and eni in got[2] and doc in got[2] and got[2].endswith('.pdf'),
-             'имя файла не «№ + ЕНИ + название»: %s' % got[2])
+        t.ck(bool(got[2]) and got[2].endswith('.pdf'), 'у ответа нет файла: %s' % got[2])
         # Решение 27.10.2026 (В2): файл ждёт проверки ЦОД, в документы записи сам не ложится.
         t.ck(got[3] is None and got[4], 'ответ кадастра попал в документы объекта без проверки ЦОД: %s' % (got,))
 

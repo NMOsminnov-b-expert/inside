@@ -18,7 +18,6 @@ PERSON = 'Абдылдаев Айсултан Марсович'
 
 _INSP_TOUCH = ('app/pages/inspections/', 'app/kernel/inspections', 'app/kernel/grid.js', 'app/kernel/xlsx.js',
                'app/kernel/mapgl.js', 'app/kernel/cadastreLayersGL.js', 'app/vendor/maplibre/')
-_INSPECTOR_TOUCH = ('app/pages/inspector/', 'app/kernel/inspections')
 _ALL = ['load', 'summary', 'table', 'reports', 'totals', 'norms', 'stats', 'fields']
 _PERSON = ['trips', 'plan', 'route', 'reports', 'stats', 'assigns', 'profile', 'car']
 
@@ -65,24 +64,12 @@ _add('Сканы с осмотров · Ждёт разбора', 'osmotry', 'rm
 _add('Сканы с осмотров · Принято', 'osmotry', 'rm', '#/scans?state=accepted', '.sc-main', _SCANS_TOUCH)
 _add('Сканы с осмотров · Возвращено', 'osmotry', 'rm', '#/scans?state=returned', '.sc-main', _SCANS_TOUCH)
 
-# Разделы верхнего уровня экрана осмотрщика (14.10.2026): Сегодня · Задачи ·
-# Запросы · Уведомления.
-_add('Осмотрщик · Сегодня', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON), '.ins-body', _INSPECTOR_TOUCH)
-_add('Осмотрщик · Задачи', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON) + '&tab=tasks', '.ins-page, .ins-list, main', _INSPECTOR_TOUCH)
-_add('Осмотрщик · Запросы', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON) + '&tab=cad', '.ins-body', _INSPECTOR_TOUCH)
-_add('Осмотрщик · Уведомления', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON) + '&tab=notes', '.ins-body', _INSPECTOR_TOUCH)
-_add('Осмотрщик · Задача', 'osmotry', 'insp', '#/insp?as=' + quote(PERSON), '.ins-page, .ins-list, main', _INSPECTOR_TOUCH,
-     prep=['a[href^="#/insp/"]'])
-# Опись у осмотрщика (этап Б, 29.10.2026): демо-опись приложена к
-# назначению на «Осминнов Н.» по oc-cv-1.
-_add('Осмотрщик · Опись', 'osmotry', 'insp', '#/insp/civil/oc-cv-1/inv/inv-mt-adm?as=' + quote('Осминнов Н.'), '.inv-list',
-     _INSPECTOR_TOUCH + ('app/kernel/inventories.js',))
-# Осмотр ТС (этап А, 27.10.2026): ОЦ «ТС» с модулем и без адреса, форма «на
-# месте»; выявленное ТС в блоке «Выявлено».
-_TS_TOUCH = _INSPECTOR_TOUCH + ('app/modules/vehicle/inspect.js', 'app/modules/vehicle/data/seed.js', 'app/kernel/geoHere.js')
-_add('Осмотрщик · Осмотр ТС', 'osmotry', 'insp', '#/insp/vehicle/oc-vehicle-d2/object/ts?as=' + quote(PERSON), '.ins-acc', _TS_TOUCH)
-_add('Осмотрщик · Объект · выявленное ТС', 'osmotry', 'insp', '#/insp/civil/oc-cv-1/object?as=' + quote('Бабашова Даяна Алтынбековна'),
-     '.ins-oi', _TS_TOUCH)
+# Осмотрщик — приложение «Осмотр» в рамке страницы (03.11.2026). Прежний экран
+# осмотрщика #/insp с разделами «Сегодня», «Задачи», «Запросы», «Уведомления»,
+# описью и осмотром ТС убран 16.11.2026; экраны приложения проверяются в его
+# репозитории, мост — check_osmotr_bridge.py.
+_add('Осмотрщик · Приложение «Осмотр»', 'osmotry', 'insp', '#/osmotr', '.om-frame, .om-none',
+     ('app/pages/osmotr/', 'app/vendor/osmotr.json', 'app/kernel/router.js'))
 
 # Аналитика · Земли по айыл аймакам (04.11.2026): Дарек и Кадастр — записанными
 # ответами (harness: map.darek.kg, use_cadastre_fixture).

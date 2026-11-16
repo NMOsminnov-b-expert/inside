@@ -433,9 +433,7 @@ def run(t):
          'фильтр по области не оставил только осмотрщиков этой области')
     pg.select_option('[data-ip-region]', '')
 
-    t.ck(pg.locator('a[href^="#/insp?as="]').count() == 0, 'в карточке осталась кнопка «Экран осмотрщика» (убрана 14.10.2026)')
+    t.ck(pg.locator('a[href^="#/insp"]').count() == 0, 'в карточке осталась ссылка на прежний экран осмотрщика (убран 16.11.2026)')
+    # Прежний адрес экрана осмотрщика ведёт на страницу приложения «Осмотр».
     pg.evaluate("(w) => { location.hash = '#/insp?as=' + encodeURIComponent(w); }", who)
-    t.ck(t.wait_until("() => location.hash.startsWith('#/insp?')"), 'адрес #/insp?as= не открыл экран осмотрщика')
-    t.wait_until("async (w) => (await import('./app/pages/inspection/tasks.js')).currentInspector() === w", who)
-    shown = pg.evaluate("async () => (await import('./app/pages/inspection/tasks.js')).currentInspector()")
-    t.ck(shown == who, 'экран осмотрщика открыт не от того человека: %s вместо %s' % (shown, who))
+    t.ck(t.wait_until("() => !!document.querySelector('.om-frame, .om-none')"), 'адрес #/insp не открыл страницу приложения «Осмотр»')

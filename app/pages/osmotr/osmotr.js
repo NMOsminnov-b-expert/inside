@@ -5,8 +5,9 @@
 // приложения лежит в app/vendor/osmotr (tools/osmotr/sync_pwa.py) и
 // показывается во всю область страницы.
 //
-// Прежний экран осмотрщика (#/insp, pages/inspector) не удалён: на нём держатся
-// автопроверки и ссылки панели регионала; из меню он убран.
+// Прежний экран осмотрщика (#/insp, pages/inspector) убран 16.11.2026 («Прежний
+// экран сноси»); его адреса открывают эту страницу. Общее для осмотров — данные,
+// подписи полей, вкладка «Результаты осмотра», приём архива — в pages/inspection.
 //
 // Обмен с системой — мостом (bridge.js): вход по учётной записи E•state,
 // назначенные объекты, отправка снятого в «Результаты осмотра». Архив
@@ -14,7 +15,6 @@
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: задание и результат — через сервер (API), а не окном макета.
 
 import { setCrumbs, setActiveNav } from '../../shell/shell.js';
-import { INSP_HREF } from '../../kernel/router.js';
 import { connectBridge } from './bridge.js';
 
 export const OSMOTR_SRC = './app/vendor/osmotr/index.html';
@@ -30,8 +30,8 @@ export function mountOsmotr(host) {
   scope.setHTML('<div class="om-page"></div>');
   const page = scope.$('.om-page');
   let disconnect = null;
-  // Сборки нет (папку кладёт tools/osmotr/sync_pwa.py) — сказать прямо и дать
-  // прежний экран, а не показывать в рамке ответ сервера «404».
+  // Сборки нет (папку кладёт tools/osmotr/sync_pwa.py) — сказать прямо и
+  // не показывать в рамке ответ сервера «404» (собирает tools/osmotr/sync_pwa.py).
   fetch(OSMOTR_INFO, { cache: 'no-store' })
     .then((r) => (r.ok ? r.json() : {}), () => ({}))
     .then((info) => {
@@ -43,7 +43,6 @@ export function mountOsmotr(host) {
         : `<div class="om-none">
              <b>Приложение «Осмотр» не подключено к макету</b>
              <span>Нет сборки приложения в app/vendor/osmotr.</span>
-             <a class="btn btn-ghost" href="${INSP_HREF}">Прежний экран осмотрщика</a>
            </div>`;
       // Вход, назначенные объекты, отправка снятого — через мост (bridge.js).
       const frame = page.querySelector('.om-frame');

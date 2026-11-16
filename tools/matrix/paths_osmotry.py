@@ -15,7 +15,6 @@ from screens import PERSON
 
 OTHER = 'Карабекова Анара Тариеловна'
 _T = ('app/pages/inspections/', 'app/kernel/inspections', 'app/kernel/grid.js', 'app/kernel/router.js')
-_TI = ('app/pages/inspector/', 'app/kernel/inspections', 'app/kernel/router.js')
 
 # Видимое состояние панели осмотров — то, что человек держал бы в голове.
 STATE_JS = """() => {
@@ -198,83 +197,6 @@ def _(p):
         p.eq('месяц тот же (%s)' % how, p.text('.ipc-cal-nav b'), month)
 
 
-@path('inventory-search-back', 'Опись: поиск и отбор → к задаче → «Назад» → поиск, отбор и строки те же', 'О-опись', roles=('insp',), touches=_TI + ('app/kernel/inventories.js',))
-def _(p):
-    p.open('#/insp/civil/oc-cv-1/inv/inv-mt-adm?as=%D0%9E%D1%81%D0%BC%D0%B8%D0%BD%D0%BD%D0%BE%D0%B2%20%D0%9D.', '.inv-list')
-    p.fill('[data-inv-q]', 'стол')
-    p.click('[data-inv-chip="todo"]')
-    st = lambda: {'поиск': p.page.input_value('[data-inv-q]'), 'отбор': p.page.evaluate("() => (document.querySelector('.inv-chip.on') || {}).dataset?.invChip || ''"),
-                  'строк': p.page.locator('.inv-row').count()}
-    s1 = st()
-    p.ck('поиск сузил опись', s1['строк'] > 0, s1['строк'], '> 0')
-    p.click('.ins-back')
-    p.page.wait_for_selector('.inv-task', timeout=9000)
-    p.back()
-    p.page.wait_for_selector('.inv-list', timeout=9000)
-    p.eq('поиск, отбор и строки те же', st(), s1)
-
-
-@path('inspector-task-back', 'Осмотрщик: задачи → задача → «Назад» → список на месте', 'О2', roles=('insp',), touches=_TI)
-def _(p):
-    p.open('#/insp?as=' + quote(PERSON), 'a[href^="#/insp/"]')
-    h0 = p.page.evaluate('location.hash')
-    n0 = p.page.locator('a[href^="#/insp/"]').count()
-    # Задача объекта недвижимости: у ОЦ «ТС» ЕНИ нет (ТС стоит на учёте не в
-    # Кадастре), а первым в плане может стоять ТС (демо осмотра ТС, 27.10.2026).
-    p.page.locator('a[href^="#/insp/"]:not([href*="/vehicle/"])').first.click()
-    p.wait_until("() => /#\\/insp\\/[^?]/.test(location.hash)")
-    p.ck('ЕНИ в шапке задачи', p.page.locator('[data-ins-eni]').count() > 0, p.page.locator('[data-ins-eni]').count(), '> 0')
-    p.back()
-    p.wait_for('a[href^="#/insp/"]')
-    p.eq('список тот же', [p.page.evaluate('location.hash'), p.page.locator('a[href^="#/insp/"]').count()], [h0, n0])
-
-
-@path('inspector-plan-search-back', 'Осмотрщик: «Сегодня» — поиск по плану → объект → «Назад» → поиск и найденное те же', 'О2', roles=('insp',), touches=_TI)
-def _(p):
-    p.open('#/insp?as=' + quote(PERSON), '[data-plan-q]')
-    p.page.fill('[data-plan-q]', 'ул')
-    # Отбор по плану — с задержкой ввода (150 мс): ждём, пока в списке не
-    # останется не подходящих («ул» нет у ТС «Toyota Camry»).
-    p.wait_until("() => { const a = [...document.querySelectorAll('[data-plan-list] a[href^=\"#/insp/\"]')]; return a.length > 0 && a.every((x) => /ул/i.test(x.innerText)); }")
-    n0 = p.page.locator('[data-plan-list] a[href^="#/insp/"]').count()
-    p.page.locator('[data-plan-list] a[href^="#/insp/"]').first.click()
-    p.wait_until("() => /#\\/insp\\/[^?]/.test(location.hash)")
-    p.back()
-    p.wait_for('[data-plan-q]')
-    p.eq('поиск и найденное те же', [p.page.input_value('[data-plan-q]'), p.page.locator('[data-plan-list] a[href^="#/insp/"]').count()], ['ул', n0])
-
-
-@path('inspector-asset-tabs-back', 'Осмотрщик: литера, прокрутка → «Фото» → «Объект» → та же литера и то же место; «Фото» — на этой литере', 'О3', roles=('insp',), touches=_TI)
-def _(p):
-    # Указание пользователя 15.10.2026: «Возврат из других разделов не
-    # возвращает обратно в ОИ… Нужно, что бы вкладки запоминали свои состояния».
-    p.open('#/insp/civil/oc-cv-1/object/oi-cv1-b?as=' + quote(PERSON), '[data-cam-shoot]')
-    y0 = p.page.evaluate("() => { const b = document.querySelector('.ins-body'); b.scrollTop = 400; return b.scrollTop; }")
-    p.page.locator('.ins-tabs a', has_text='Фото').click()
-    p.wait_for('[data-oi-pick]')
-    p.eq('«Фото» на текущей литере', p.page.evaluate("document.querySelector('[data-oi-pick]').value"), 'oi-cv1-b')
-    p.page.locator('.ins-tabs a', has_text='Объект').click()
-    p.wait_for('[data-cam-shoot]')
-    p.eq('та же литера и место', [p.page.evaluate('location.hash').split('?')[0].endswith('/object/oi-cv1-b'),
-                                   abs(p.page.evaluate("document.querySelector('.ins-body').scrollTop") - y0) < 4], [True, True])
-
-
-@path('inspector-ts-tabs-back', 'Осмотрщик: осмотр ТС, госномер, прокрутка → «Задача» → «Объект» → то же ТС, введённое и место те же', 'О8', roles=('insp',), touches=_TI + ('app/modules/vehicle/inspect.js',))
-def _(p):
-    # Осмотр ТС (этап А, 27.10.2026): ОЦ «ТС» осматривается объектом «ts».
-    p.open('#/insp/vehicle/oc-vehicle-d2/object/ts?as=' + quote(PERSON), '[data-fs-input="f.plate"]')
-    p.fill('[data-fs-input="f.plate"]', '02KG200DEM')
-    y0 = p.page.evaluate("() => { const b = document.querySelector('.ins-body'); b.scrollTop = 300; return b.scrollTop; }")
-    p.page.locator('.ins-tabs a', has_text='Задача').click()
-    p.wait_for('[data-toggle-done]')
-    p.page.locator('.ins-tabs a', has_text='Объект').click()
-    p.wait_for('[data-fs-input="f.plate"]')
-    p.eq('то же ТС, госномер и место', [p.page.evaluate('location.hash').split('?')[0].endswith('/object/ts'),
-                                       p.page.input_value('[data-fs-input="f.plate"]'),
-                                       abs(p.page.evaluate("document.querySelector('.ins-body').scrollTop") - y0) < 4],
-         [True, '02KG200DEM', True])
-
-
 @path('queue-filters-back', '«К назначению»: отборы (район, площадь) → другой раздел → «Назад» → отборы и строки те же', 'Р2')
 def _(p):
     p.open('#/inspections?s=assign&t=queue', '.ip-fbtn')
@@ -327,7 +249,7 @@ def _(p):
 # возврат ОИ с причиной виден в «Истории» осмотров, «Назад» возвращает к тому
 # же ОИ во вкладке.
 @path('cod-return-history', 'Результаты осмотра: вернуть ОИ с причиной → «История» осмотров — событие с причиной → «Назад» → тот же ОИ на доосмотре',
-      'Ц5', roles=('cod', 'any'), touches=_TI + ('app/kernel/inspectionResults.js',))
+      'Ц5', roles=('cod', 'any'), touches=('app/pages/inspection/', 'app/kernel/inspections', 'app/kernel/router.js', 'app/kernel/inspectionResults.js'))
 def _(p):
     p.open('#/oc/civil/oc-pr-1?tab=inspection', '.ir-nav-tbl')
     p.click('.ir-nav-tbl tbody tr:nth-child(2) [data-ir-sel]')

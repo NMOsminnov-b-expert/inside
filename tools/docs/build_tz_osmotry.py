@@ -52,7 +52,6 @@ COLLECT = """async () => {
   const r = await import('./app/pages/inspections/route.js');
   const t = await import('./app/pages/inspection/tasks.js');
   const f = await import('./app/pages/inspection/form.js');
-  const v = await import('./app/pages/inspector/views.js');
   const lab = (x) => (typeof x.label === 'string' ? x.label : typeof x.title === 'string' ? x.title : String(x));
   const STUB = { building: { card: 'building' }, apartment: { card: 'apartment' }, land: { card: 'land' },
     mech: { card: 'mech', mechanisms: [{ id: 'u', name: 'Единица оборудования (на каждую — свой раздел)', inv: '', params: {} }] } };
@@ -68,10 +67,18 @@ COLLECT = """async () => {
     notes: n.NOTE_KINDS.map(lab), metrics: st.METRICS.map((x) => ({ label: x.label, hint: x.hint || '', fmt: x.fmt, better: x.better })),
     periods: st.PERIOD_UNITS.map((x) => x[1]), oiKinds: st.OI_KINDS.map((x) => x[1]),
     norms: r.NORM_KINDS.map((x) => ({ label: x.label, base: r.normOf(x.key).base, perM2: r.normOf(x.key).perM2 })),
-    photoCats: t.PHOTO_CATS, homeTabs: v.HOME_TABS.map(lab), navigators: v.NAVIGATORS.map(lab),
+    photoCats: t.PHOTO_CATS,
     form: forms.building, forms,
   };
 }"""
+
+
+# Разделы и навигаторы прежнего экрана осмотрщика (pages/inspector/views.js
+# HOME_TABS, NAVIGATORS) — экран убран 16.11.2026, а раздел ТЗ об экране
+# осмотрщика ещё не переписан под приложение «Осмотр»; до этого — прежние
+# значения постоянными, чтобы документ собирался тем же.
+OLD_INSPECTOR = {'homeTabs': ['Сегодня', 'Задачи', 'Запросы', 'Уведомления'],
+                 'navigators': ['Google Карты', 'Яндекс Карты', '2ГИС', 'Карты телефона']}
 
 
 def collect():
@@ -82,9 +89,9 @@ def collect():
         with sync_playwright() as p:
             b = p.chromium.launch()
             pg = b.new_page()
-            pg.goto('http://127.0.0.1:%d/app.html#/insp' % harness.PORT)
-            pg.wait_for_selector('.ins-body', timeout=30000)
-            data = pg.evaluate(COLLECT)
+            pg.goto('http://127.0.0.1:%d/app.html#/inspections' % harness.PORT)
+            pg.wait_for_selector('[data-ip-section]', timeout=30000)
+            data = {**pg.evaluate(COLLECT), **OLD_INSPECTOR}
             b.close()
             return data
     finally:
