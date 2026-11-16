@@ -261,3 +261,50 @@ textarea.om-input{resize:vertical;line-height:1.4}
 
 /* Комментарий осмотрщика — прямо на экране ОИ, под разделами */
 .om-note-card{margin-top:12px;position:relative}
+
+/* Опись: позиции и отметки */
+.om-app[data-v="inv"] .om-scr,.om-app[data-v="item"] .om-scr{padding-top:12px;padding-bottom:32px}
+.om-invrow{min-height:58px}
+.om-invno{flex:none;min-width:28px;font-size:13px;font-weight:700;color:var(--om-muted);font-variant-numeric:tabular-nums;text-align:right}
+.om-invrow .om-chip{max-width:40%;overflow:hidden;text-overflow:ellipsis}
+.om-more{margin:8px 2px 0}
+.om-extras{margin-top:12px}
+.om-item{margin-top:12px}
+.om-item .om-shoot-act{margin-top:8px}
+
+/* Исход выезда: закончен, перенос, не состоялся */
+.om-finish{display:flex;flex-direction:column;gap:10px;margin:16px 0 8px}
+.om-btn-wide{width:100%;min-height:52px;font-size:16px}
+.om-ask{display:flex;flex-direction:column;gap:6px;border-left:4px solid #c07c1e}
+.om-ask ul{margin:0;padding-left:18px;font-size:14px}
+.om-more-act{padding:0}
+.om-more-act>summary{display:flex;align-items:center;min-height:48px;padding:0 16px;font-weight:600;color:var(--om-blue-700);cursor:pointer}
+.om-more-act[open]>summary{border-bottom:1px solid #e3eaf2}
+.om-more-act .om-found-add{border-top:0}
+.om-radios{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+.om-radio{display:flex;align-items:center;gap:10px;min-height:40px;font-size:15px}
+.om-radio input{width:20px;height:20px}
+.om-finish-note{margin:16px 2px}
+.om-invrow{gap:10px}
+.om-invrow>a.om-row-tx{color:var(--om-ink);min-width:0}
+.om-invrow small{white-space:normal}
+.om-check{flex:none;width:28px;height:28px;border-radius:8px;border:2px solid #9aa8b8;background:#fff;cursor:pointer;display:grid;place-items:center}
+.om-check[aria-pressed="true"]{background:var(--om-blue);border-color:var(--om-blue)}
+.om-check[aria-pressed="true"]::after{content:"";width:10px;height:6px;border-left:2px solid #fff;border-bottom:2px solid #fff;transform:rotate(-45deg) translate(1px,-1px)}
+.om-picked{background:var(--om-blue-50)}
+.om-hint-sel{margin:-4px 2px 10px;font-size:13px}
+/* Панель выбора — внизу колонки, как нижняя панель разделов */
+.om-selbar{position:sticky;bottom:8px;z-index:4;display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin-top:12px;padding:10px 12px;border-radius:18px;
+  background:var(--om-glass);border:1px solid var(--om-glass-line);box-shadow:var(--om-glass-sh);backdrop-filter:blur(18px)}
+.om-selbar span{flex:1 1 100%;font-weight:600;font-size:14px}
+.om-selbar .om-btn{flex:1 1 auto}
+/* Карточка: позиции, снимки, рекомендация */
+.om-members{margin-top:4px}
+.om-member{padding:12px 16px;display:flex;flex-direction:column;gap:8px}
+.om-member+.om-member{border-top:1px solid #e3eaf2}
+.om-member-head{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.om-x{flex:none;width:36px;height:36px;border-radius:50%;border:1px solid var(--om-line);background:#fff;font-size:20px;line-height:1;color:var(--om-muted);cursor:pointer}
+.om-opt-broken[aria-pressed="true"]{background:#fff1f0;border-color:#c02626;color:#c02626}
+.om-similar{margin-top:10px;color:var(--om-blue-700);border-color:var(--om-blue-200);white-space:normal}
+.om-members+.om-btn-wide,.om-similar+.om-btn-wide{margin-top:10px}
+.om-btn:disabled{opacity:.5;cursor:default;box-shadow:none}

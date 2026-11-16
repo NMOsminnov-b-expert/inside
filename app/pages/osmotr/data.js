@@ -108,11 +108,13 @@ export function inventoriesOf(rec, list, ois) {
     const whoOf = (it) => others.filter((h) => inPart(it, h.part)).map((h) => h.person).join(', ');
     out.push({ id, kind: 'inv', title: inv.title, part: mine.map((a) => partLabel((a.invParts || {})[id])).join('; '), items: inv.items.map((it, i) => ({ id: it.id, no: it.no || i + 1, inv: it.inv || '', name: it.name, place: it.place || '',
       qty: it.qty || 1, cost: it.costInitial || '', balance: it.costBalance || '', priority: it.priority || '', list: it.list || '', dept: it.dept || '',
+      model: it.model || '', kind: it.kind || '', mol: it.mol || '',
       own: own(it), who: own(it) ? '' : whoOf(it) || 'не в вашей части' })) });
   });
   ois.filter((o) => o.card === 'mech').forEach((o) => {
     out.push({ id: 'mech:' + o.id, kind: 'mech', oiId: o.id, title: oiLabel(o),
-      items: (o.mechanisms || []).map((u, i) => ({ id: u.id, no: i + 1, inv: u.inv || '', name: u.name || 'Единица', place: '', qty: u.qty || 1, cost: u.cost || '', balance: '', priority: '', list: '', dept: '', own: true, who: '' })) });
+      items: (o.mechanisms || []).map((u, i) => ({ id: u.id, no: i + 1, inv: u.inv || '', name: u.name || 'Единица', place: '', qty: u.qty || 1, cost: u.cost || '', balance: '', priority: '', list: '', dept: '',
+        model: (u.params && u.params.model) || u.model || '', kind: u.type || '', mol: '', own: true, who: '' })) });
   });
   return out.map((x) => ({ ...x, folder: `${MACHINES}/${clean(x.title)}` }));
 }
@@ -253,4 +255,12 @@ export function findObject(person, id) {
   const mine = rec && assignmentsOfPerson(person, { live: false }).some((a) => a.typeId === typeId && a.ocId === ocId);
   if (!mine) throw new Error('объект не назначен этому осмотрщику');
   return { typeId, ocId, rec };
+}
+
+// Опись назначения целиком (с позициями) — для экрана описи на веб-странице осмотрщика; не назначена — null.
+export function inventoryOf(person, objId, invId) {
+  let o;
+  try { o = findObject(person, objId); } catch { return null; }
+  const list = assignmentsOfPerson(person, { live: false }).filter((a) => a.typeId === o.typeId && a.ocId === o.ocId);
+  return inventoriesOf(o.rec, list, ownOis(o.rec)).find((x) => x.id === invId) || null;
 }

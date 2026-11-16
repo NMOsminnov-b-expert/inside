@@ -29,12 +29,13 @@ import { esc } from '../../kernel/dom.js';
 import { foldSearch, fmtEni } from '../../kernel/fmt.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
-import { resultsOf, valuesOf, saveResults } from '../../kernel/inspectionResults.js';
-import { startWork } from '../../kernel/inspections.js';
+import { resultsOf, valuesOf, saveResults, addResultPhoto } from '../../kernel/inspectionResults.js';
+import { startWork, myAssignsOn, finishWork, requestMove, skipReasons, logEvent, eventsOf, changed, isLive } from '../../kernel/inspections.js';
+import { markItem, markOf, addItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
 import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, FOUND_CATS } from '../inspection/tasks.js';
 import { connectBridge } from './bridge.js';
-import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay } from './data.js';
+import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay, inventoryOf } from './data.js';
 import { notesOf, markRead } from './feed.js';
 import { pwaSections, pwaDefaults } from './params.js';
 
@@ -216,7 +217,7 @@ function viewNotes(items) {
 }
 
 // Объект: шапка, назначение, место (карта, маршрут, контакт), документы для выезда, состав.
-function viewObj(o, q) {
+function viewObj(o, q, ui) {
   if (!o) return `${back(href({ v: 'trips' }), 'Выезды')}<div class="om-card om-empty">Объект не назначен или снят</div>`;
   const tab = q.tab === 'docs' ? 'docs' : 'task';
   const rec = loadTask(o.typeId, o.ocId) || {};
@@ -224,13 +225,13 @@ function viewObj(o, q) {
     <p class="om-kicker">${esc(o.typeLabel)}</p>
     <h1 class="om-title">${esc(o.title)}</h1>
     <div class="om-idrow">${o.eni ? `<button type="button" class="om-eni" data-copy="${esc(o.eni)}" title="Скопировать ЕНИ">${esc(fmtEni(o.eni) || o.eni)} ${ico('copy', 14)}</button>` : ''}${chip(o)}</div>`;
-  const body = tab === 'docs' ? docsBlock(o) : taskBlock(o, rec);
+  const body = tab === 'docs' ? docsBlock(o) : taskBlock(o, rec, ui);
   const tabs = [['task', 'task', 'Задача'], ['docs', 'docs', 'Документы']];
   return `${head}${body}
     <nav class="om-bnav om-objtabs" aria-label="Разделы объекта">${tabs.map(([k, icon, label]) => `<a class="om-btab${tab === k ? ' on' : ''}" href="${href({ v: 'obj', id: o.id, tab: k === 'task' ? '' : k, f: q.f })}" aria-current="${tab === k}">${ico(icon, 22)}<span>${label}${k === 'docs' && o.docs.length ? ` <b>${o.docs.length}</b>` : ''}</span></a>`).join('')}</nav>`;
 }
 
-function taskBlock(o, rec) {
+function taskBlock(o, rec, ui = {}) {
   const facts = [
     o.address && o.institution ? ['Учреждение', o.institution] : null,
     ...(o.facts || []).map((f) => [f.label, f.value]),
@@ -259,7 +260,8 @@ function taskBlock(o, rec) {
     ${o.docs.length ? `<a class="om-card om-row om-doclink" href="${href({ v: 'obj', id: o.id, tab: 'docs' })}"><span class="om-row-ico om-t-blue">${ico('docs')}</span><span class="om-row-tx"><b>Документы для выезда</b><small>${esc(o.docs.slice(0, 3).map((d) => d.type || d.name).join(', '))}${o.docs.length > 3 ? '…' : ''}</small></span><b class="om-n">${o.docs.length}</b>${ico('chev', 18)}</a>` : ''}
     ${(o.ois || []).length ? `<section class="om-card om-comp"><h2 class="om-card-h">Состав объекта</h2>${o.ois.map((x) => oiRow(o, x, facade[x.id])).join('')}</section>` : ''}
     ${foundBlock(o)}
-    ${(o.inventories || []).length ? `<section class="om-card om-comp"><h2 class="om-card-h">Описи</h2>${o.inventories.map((x) => `<div class="om-oi"><span class="om-sq om-t-amber">${ico('inv', 18)}</span><span class="om-row-tx"><b>${esc(x.title)}</b><small>позиций: ${x.count}</small></span></div>`).join('')}</section>` : ''}`;
+    ${(o.inventories || []).length ? `<section class="om-card om-comp"><h2 class="om-card-h">Описи</h2>${o.inventories.map((x) => invRow(o, x)).join('')}</section>` : ''}
+    ${finishBlock(o, ui)}`;
 }
 
 // Сведения участка по Кадастру — свёрнутым блоком: строка на месте сразу, сведения
@@ -395,6 +397,209 @@ function foundBlock(o) {
       <button class="om-btn" type="submit">Добавить строение</button></form>`}</section>`;
 }
 
+// --- описи: как в приложении «Осмотр» (Inventory.kt, InventoryScreen.kt, BrowserScreen.kt) ---------------------
+// Пользователь 16.11.2026: «Осмотрщик на месте заполняет только если нерабочее. найдено/не найдено смотрится на
+// основе описи… Система рекомендаций оттуда нужна, нужно так же иметь возможность самому несколько инвентарников
+// в 1 категорию собирать и потом к ним всем фото прикреплять. В таком случае эти инвентарники попадают в 1
+// карточку». Осмотрено — есть снимки позиции (своей карточки) или отметка «осмотрено ранее»; «Нерабочее» — только
+// после снимков. Карточка — несколько позиций с общими снимками и комментарием; рекомендация «Такие же в описи» —
+// то же наименование (слова в любом порядке) и цена за штуку в пределах 1 % (Inventory.isLike). Для опознания —
+// инв. номер, модель, тип имущества, место, МОЛ, отдел (16.11.2026: «МОЛ, Модель средства, Тип имущества»).
+// У описи учреждения — отметки описи (kernel/inventories.js, markItem: state 'seen', cond, group, earlier); у
+// механизмов-ОИ — значения единиц в «Результатах осмотра» (u.<единица>.found / state / group / earlier).
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: опись в тысячи позиций — постраничная выдача с поиском на сервере; здесь — первые 200.
+const INV_LIMIT = 200;
+const BROKEN = 'Нерабочее';
+function rawMark(o, inv, it) {
+  if (inv.kind === 'mech') {
+    const u = ((((resultsOf(o.typeId, o.ocId).assets || {})[inv.oiId] || {}).u) || {})[it.id] || {};
+    return { state: u.found === 'Найдено' ? 'seen' : '', cond: u.state === BROKEN ? BROKEN : '', group: u.group || '', earlier: !!u.earlier, comment: u.comment || '' };
+  }
+  const m = markOf(inv.id, it.id) || {};
+  return { state: m.state || '', cond: m.cond || '', group: m.group || '', earlier: !!m.earlier, comment: m.comment || '', photos: m.photos || [] };
+}
+// Позиции карточки: общая группа или одна позиция.
+function cardOf(o, inv, it) {
+  const g = rawMark(o, inv, it).group;
+  return g ? inv.items.filter((x) => rawMark(o, inv, x).group === g) : [it];
+}
+function photosOfCard(o, inv, members) {
+  if (inv.kind === 'mech') {
+    const ids = new Set(members.map((x) => x.id));
+    const names = new Set(members.map((x) => x.name));
+    return (resultsOf(o.typeId, o.ocId).photos || []).filter((p) => p.oiId === inv.oiId && !p.deleted && p.dataUrl
+      && ((p.units || []).some((id) => ids.has(id)) || (!p.units && names.has(p.cat))));
+  }
+  return members.flatMap((x) => (markOf(inv.id, x.id) || {}).photos || []).filter((p) => p.dataUrl);
+}
+// Состояние позиции, как в приложении: снято / осмотрено ранее / не осмотрено; нерабочее — отдельно.
+function statusOf(o, inv, it) {
+  const m = rawMark(o, inv, it);
+  const members = m.group ? cardOf(o, inv, it) : [it];
+  const shot = photosOfCard(o, inv, members).length > 0;
+  return { shot, earlier: !shot && (m.earlier || m.state === 'seen'), inspected: shot || m.earlier || m.state === 'seen', broken: shot && m.cond === BROKEN, group: m.group, size: members.length, comment: m.comment };
+}
+function markSet(o, inv, it, patch) {
+  const person = session.state.person;
+  startWork(person, o.typeId, o.ocId);
+  if (inv.kind === 'mech') {
+    const v = valuesOf(o.typeId, o.ocId, inv.oiId);
+    if ('state' in patch) setValue(v, `u.${it.id}.found`, patch.state === 'seen' ? 'Найдено' : '');
+    if ('cond' in patch) setValue(v, `u.${it.id}.state`, patch.cond);
+    ['group', 'earlier', 'comment'].forEach((k) => { if (k in patch) setValue(v, `u.${it.id}.${k}`, patch[k]); });
+    saveResults();
+    return;
+  }
+  const a = myAssignsOn(person, o.typeId, o.ocId)[0];
+  markItem(inv.id, it.id, patch, { by: person, assignId: a ? a.id : '' });
+}
+const nameKey = (it) => foldSearch(String(it.name || '')).split(/[^0-9a-zа-яё]+/i).filter(Boolean).sort().join(' ');
+const unitPrice = (it) => { const c = Number(it.cost) || 0; const q = Number(it.qty) || 1; return c ? c / q : null; };
+const pricesClose = (a, b) => (a == null || b == null ? a == null && b == null : Math.abs(a - b) <= Math.max(Math.abs(a), Math.abs(b)) * 0.01 + 0.005);
+// «Такие же в описи» — ещё не осмотренные, не в этой карточке, свои.
+function similarOf(o, inv, members) {
+  const ids = new Set(members.map((x) => x.id));
+  return inv.items.filter((x) => !ids.has(x.id) && x.own !== false && !statusOf(o, inv, x).inspected
+    && members.some((h) => nameKey(h) === nameKey(x) && pricesClose(unitPrice(h), unitPrice(x))));
+}
+function addToCard(o, inv, lead, items) {
+  const g = rawMark(o, inv, lead).group || 'g-' + lead.id;
+  [lead, ...items].forEach((x) => markSet(o, inv, x, { group: g }));
+}
+const statusChip = (s) => (s.broken ? `<span class="om-chip om-t-rose">${BROKEN}</span>` : s.shot ? '<span class="om-chip om-t-green">Снято</span>'
+  : s.earlier ? '<span class="om-chip om-t-teal">Осмотрено ранее</span>' : '');
+
+function invRow(o, x) {
+  const inv = inventoryOf(session.state.person, o.id, x.id);
+  const own = inv ? inv.items.filter((it) => it.own !== false) : [];
+  const done = own.filter((it) => statusOf(o, inv, it).inspected).length;
+  return `<a class="om-oi om-oi-link" href="${href({ v: 'inv', id: o.id, inv: x.id })}"><span class="om-sq om-t-amber">${ico('inv', 18)}</span>
+    <span class="om-row-tx"><b>${esc(x.title)}</b><small>${inv && inv.part ? esc(inv.part) + ' · ' : ''}позиций: ${x.count}</small><small class="om-prog">осмотрено ${done} из ${own.length}</small></span>${ico('chev', 18)}</a>`;
+}
+
+const INV_FILTERS = [['', 'Все'], ['none', 'Не осмотрено'], ['done', 'Осмотрено'], ['broken', 'Нерабочие']];
+// Опись: поиск, отбор, выбор нескольких позиций «в одну карточку» (sel — выбранные; to — добавление в карточку).
+function viewInv(o, q, sel) {
+  const inv = o && inventoryOf(session.state.person, o.id, q.inv);
+  if (!inv) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Опись не назначена</div>`;
+  const rows = inv.items.map((it) => ({ it, s: statusOf(o, inv, it) }));
+  const own = rows.filter((x) => x.it.own !== false);
+  const cnt = { '': rows.length, none: own.filter((x) => !x.s.inspected).length, done: own.filter((x) => x.s.inspected).length, broken: own.filter((x) => x.s.broken).length };
+  const needle = foldSearch(q.q || '');
+  const list = rows.filter((x) => (!q.f || (q.f === 'none' ? x.it.own !== false && !x.s.inspected : q.f === 'done' ? x.s.inspected : x.s.broken))
+    && (!needle || foldSearch([x.it.inv, x.it.name, x.it.model, x.it.place, x.it.no].join(' ')).includes(needle)));
+  const ro = o.state === 'done';
+  const target = q.to ? inv.items.find((x) => x.id === q.to) : null;
+  const picking = !ro && (target || sel.size);
+  const bar = target ? `<div class="om-selbar"><span>В карточку «${esc(target.name)}»: отмечено ${sel.size}</span>
+      <button type="button" class="om-btn om-btn-primary" data-sel-add${sel.size ? '' : ' disabled'}>Добавить</button><a class="om-btn" href="${href({ v: 'item', id: o.id, inv: inv.id, it: target.id })}">Отмена</a></div>`
+    : sel.size ? `<div class="om-selbar"><span>Отмечено: ${sel.size}</span><button type="button" class="om-btn om-btn-primary" data-sel-group${sel.size > 1 ? '' : ' disabled'}>В одну карточку (${sel.size})</button>
+      <button type="button" class="om-btn" data-sel-clear>Снять выбор</button></div>` : '';
+  return `${back(target ? href({ v: 'item', id: o.id, inv: inv.id, it: target.id }) : href({ v: 'obj', id: o.id }), target ? 'Карточка' : o.title)}
+    <p class="om-kicker">Опись${inv.part ? ' · ' + esc(inv.part) : ''}</p>
+    <h1 class="om-title om-title-oi">${esc(inv.title)}</h1>
+    <div class="om-idrow"><span class="om-chip ${cnt.none ? 'om-t-blue' : 'om-t-green'}">осмотрено ${cnt.done} из ${own.length}</span>${cnt.broken ? `<span class="om-chip om-t-rose">нерабочих ${cnt.broken}</span>` : ''}${ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}</div>
+    <label class="om-search">${ico('search', 18)}<input id="om-inv-q" data-invq type="search" value="${esc(q.q || '')}" placeholder="Инв. номер, наименование, модель, место" aria-label="Поиск по описи"></label>
+    <div class="om-segs">${INV_FILTERS.map(([k, label]) => `<a class="om-seg${(q.f || '') === k ? ' on' : ''}" href="${href({ ...q, f: k })}" aria-current="${(q.f || '') === k}">${label}<b>${cnt[k]}</b></a>`).join('')}</div>
+    ${ro || target ? '' : '<p class="om-muted om-hint-sel">Несколько позиций — в одну карточку: отметьте их квадратиками слева.</p>'}
+    ${list.length ? `<div class="om-group">${list.slice(0, INV_LIMIT).map(({ it, s }) => {
+    const can = !ro && it.own !== false && !(target && cardOf(o, inv, target).some((x) => x.id === it.id));
+    return `<div class="om-row om-invrow${it.own === false ? ' om-off' : ''}${sel.has(it.id) ? ' om-picked' : ''}">
+      ${can ? `<button type="button" class="om-check" data-sel="${esc(it.id)}" aria-pressed="${sel.has(it.id)}" aria-label="Отметить: ${esc(it.name)}"></button>` : `<span class="om-invno">${esc(String(it.no))}</span>`}
+      <a class="om-row-tx" href="${picking ? '#' : href({ v: 'item', id: o.id, inv: inv.id, it: it.id })}"${picking ? ` data-sel="${esc(it.id)}"` : ''}><b>${esc(it.name)}</b>
+        <small>${esc([it.inv, it.model, it.place].filter(Boolean).join(' · ') || 'без инв. номера')}${s.size > 1 ? ` · в карточке ${s.size} шт` : ''}${it.own === false ? ' · осматривает ' + esc(it.who) : ''}</small></a>
+      ${statusChip(s)}</div>`;
+  }).join('')}</div>${list.length > INV_LIMIT ? `<p class="om-muted om-more">Показаны первые ${INV_LIMIT} из ${list.length} — уточните поиск</p>` : ''}`
+    : '<div class="om-card om-empty">Позиций не найдено</div>'}
+    ${inv.kind === 'inv' && !target ? extrasBlock(o, inv, ro) : ''}
+    ${bar}`;
+}
+
+// «Нет в описи» — предмет на месте есть, в описи нет: название и комментарий (Б4).
+function extrasBlock(o, inv, ro) {
+  const list = extrasOf(inv.id);
+  return `<section class="om-card om-comp om-found om-extras"><h2 class="om-card-h">Нет в описи</h2>
+    ${list.map((x) => `<div class="om-oi"><span class="om-row-tx"><b>${esc(x.name)}</b>${x.comment ? `<small>${esc(x.comment)}</small>` : ''}</span></div>`).join('')}
+    ${ro ? (list.length ? '' : '<p class="om-muted om-found-none">Нет</p>') : `<form class="om-found-add" data-extra>
+      <label class="om-flabel" for="om-extra-name">Предмет, которого нет в описи</label>
+      <input class="om-input" id="om-extra-name" name="name" maxlength="120" required placeholder="Наименование">
+      <input class="om-input" name="comment" maxlength="300" placeholder="Комментарий: где стоит, номер с бирки" aria-label="Комментарий">
+      <button class="om-btn" type="submit">Добавить</button></form>`}</section>`;
+}
+
+// Карточка: позиции (одна или собранные вместе), общие снимки и комментарий, рекомендация «Такие же в описи».
+function viewItem(o, q) {
+  const inv = o && inventoryOf(session.state.person, o.id, q.inv);
+  const it = inv && inv.items.find((x) => x.id === q.it);
+  if (!it) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Позиции нет</div>`;
+  const members = cardOf(o, inv, it);
+  const photos = photosOfCard(o, inv, members);
+  const ro = o.state === 'done' || it.own === false;
+  const dis = ro ? ' disabled' : '';
+  const lead = members[0];
+  const comment = rawMark(o, inv, lead).comment;
+  const similar = ro ? [] : similarOf(o, inv, members);
+  const facts = (x) => [['Инв. номер', x.inv], ['Модель', x.model], ['Тип имущества', x.kind], ['Место', x.place], ['МОЛ', x.mol], ['Отдел', x.dept], ['Кол-во', x.qty > 1 ? x.qty : '']].filter(([, v]) => v);
+  const memberHTML = (x) => {
+    const s = statusOf(o, inv, x);
+    const m = rawMark(o, inv, x);
+    return `<div class="om-member"><div class="om-member-head"><b>${esc(x.name)}</b>${members.length > 1 && !ro ? `<button type="button" class="om-x" data-card-remove="${esc(x.id)}" aria-label="Убрать из карточки" title="Убрать из карточки">×</button>` : ''}</div>
+      <dl class="om-dl">${facts(x).map(([l, v]) => `<dt>${esc(l)}</dt><dd>${esc(String(v))}</dd>`).join('')}</dl>
+      ${ro ? statusChip(s) : `<div class="om-ms">
+        <button type="button" class="om-opt om-opt-broken" data-mk-broken="${esc(x.id)}" aria-pressed="${s.broken}"${photos.length ? '' : ' disabled'}>${s.broken ? 'Нерабочее, на списание' : photos.length ? 'Отметить: нерабочее' : 'Нерабочее — сначала снимки'}</button>
+        ${photos.length ? '' : `<button type="button" class="om-opt" data-mk-earlier="${esc(x.id)}" aria-pressed="${m.earlier || m.state === 'seen'}">${m.earlier || m.state === 'seen' ? 'Осмотрено — снять отметку' : 'Отметить осмотренным'}</button>`}</div>`}</div>`;
+  };
+  return `${back(href({ v: 'inv', id: o.id, inv: inv.id }), inv.title)}
+    <p class="om-kicker">${members.length > 1 ? `Карточка · ${members.length} позиции` : `Позиция № ${esc(String(it.no))}`}</p>
+    <h1 class="om-title om-title-oi">${esc(lead.name)}${members.length > 1 ? ` <small class="om-muted">(${members.length} шт)</small>` : ''}</h1>
+    <div class="om-idrow"><span class="om-saved" role="status" aria-live="polite"></span>${it.own === false ? `<span class="om-muted">Осматривает ${esc(it.who)} — только просмотр</span>` : o.state === 'done' ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}</div>
+    <div class="om-group om-members">${members.map(memberHTML).join('')}</div>
+    ${similar.length ? `<button type="button" class="om-btn om-btn-wide om-similar" data-card-similar>+ Такие же в описи: ${similar.length} — добавить сюда</button>` : ''}
+    ${ro ? '' : `<a class="om-btn om-btn-wide" href="${href({ v: 'inv', id: o.id, inv: inv.id, to: lead.id })}">Добавить из описи</a>`}
+    <div class="om-group om-form om-item">
+      <div class="om-field"><span class="om-flabel">Снимки${members.length > 1 ? ' карточки' : ''}${photos.length ? ' · ' + photos.length : ''}</span>
+        ${photos.length ? `<div class="om-thumbs">${photos.map((p) => `<span class="om-thumb"><img src="${esc(p.dataUrl)}" alt="Снимок позиции" loading="lazy"></span>`).join('')}</div>` : ''}
+        ${ro ? '' : `<div class="om-shoot-act"><label class="om-btn om-btn-primary">${ico('camera', 18)}Снять<input type="file" accept="image/*" capture="environment" multiple hidden data-mk-shoot></label>
+          <label class="om-btn">${ico('photo', 18)}Из галереи<input type="file" accept="image/*" multiple hidden data-mk-shoot></label></div>`}</div>
+      <div class="om-field"><label class="om-flabel" for="om-mk-comment">Комментарий</label>
+        <textarea class="om-input" id="om-mk-comment" rows="2" maxlength="300" data-mk-comment${dis}>${esc(comment)}</textarea></div>
+    </div>`;
+}
+
+// --- исход выезда: закончен, перенос, не состоялся (как в приложении «Осмотр», экран объекта) ---------------
+// «Осмотр закончен» при незаполненном обязательном — предупреждение и «неполный» (решение 03.11.2026:
+// «Предупредить, «неполный»»); исходы «не состоялся» — перечень приложения (Estate.OUTCOMES; 03.11.2026 «Нужны»);
+// перенос — запрос регионалу с датой и причиной из справочника (06.11.2026). Без окон поверх: панели на месте.
+const OUTCOMES = ['Не на месте', 'Нет доступа', 'Объект закрыт', 'Другое ТС', 'Другое'];
+function missingOf(o) {
+  const rows = [...(o.ois || []), ...(o.entity === 'real' ? foundOi(o.typeId, o.ocId).map(foundRow) : [])];
+  return rows.map((x) => { const c = oiCtx(o, x.id); const p = c && progressOf(c); return p && p.requiredLeft ? `${oiHead(x).name} — не заполнено: ${p.requiredLeft}` : ''; }).filter(Boolean);
+}
+function finishBlock(o, ui) {
+  if (o.removed) return '<p class="om-muted om-finish-note">Назначение снято или передано другому осмотрщику.</p>';
+  const r = resultsOf(o.typeId, o.ocId).outcome;
+  const last = r && r.reason ? `<p class="om-warn">Осмотр не состоялся: ${esc(r.reason)}${r.note ? ' — ' + esc(r.note) : ''} · ${esc(shortDate(String(r.at).slice(0, 10)))}</p>` : '';
+  if (o.state === 'done') return `<section class="om-finish">${last}<p class="om-muted">Осмотр закончен — объект на проверке ЦОД.</p><button type="button" class="om-btn" data-reopen>Вернуть в работу</button></section>`;
+  const miss = ui.asking ? missingOf(o) : [];
+  const ask = ui.asking ? `<div class="om-card om-ask" role="alert"><b>${miss.length ? 'Заполнено не всё обязательное' : 'Закончить осмотр?'}</b>
+      ${miss.length ? `<ul>${miss.map((m) => `<li>${esc(m)}</li>`).join('')}</ul><p class="om-muted">Осмотр уйдёт с отметкой «неполный».</p>` : '<p class="om-muted">Снятое уйдёт в E•state, объект — на проверку ЦОД.</p>'}
+      <div class="om-shoot-act"><button type="button" class="om-btn om-btn-primary" data-finish="${miss.length ? 'incomplete' : 'full'}">${miss.length ? 'Закончить как неполный' : 'Закончить'}</button>
+      <button type="button" class="om-btn" data-finish-cancel>${miss.length ? 'Дозаполнить' : 'Отмена'}</button></div></div>`
+    : '<button type="button" class="om-btn om-btn-primary om-btn-wide" data-finish-ask>Осмотр закончен</button>';
+  const mv = o.moveReq ? `<p class="om-muted">Перенос запрошен на ${esc(shortDate(o.moveReq.date))}: ${esc(o.moveReq.reason)} — ждёт регионала.</p>`
+    : `<details class="om-card om-more-act"><summary>Перенести</summary><form class="om-found-add" data-move>
+      <label class="om-flabel" for="om-move-date">Дата</label><input class="om-input" id="om-move-date" name="date" type="date" required min="${isoDay()}">
+      <label class="om-flabel" for="om-move-reason">Причина</label><span class="om-select"><select class="om-input" id="om-move-reason" name="reason" required>${skipReasons().map((x) => `<option>${esc(x)}</option>`).join('')}</select></span>
+      <input class="om-input" name="note" maxlength="200" placeholder="Пояснение" aria-label="Пояснение">
+      <button class="om-btn" type="submit">Запросить перенос</button></form></details>`;
+  const reasons = OUTCOMES.filter((x) => x !== 'Другое ТС' || o.entity === 'vehicle' || (o.ois || []).some((y) => y.kind === 'vehicle'));
+  const fail = `<details class="om-card om-more-act"><summary>Осмотр не состоялся</summary><form class="om-found-add" data-outcome>
+      <fieldset class="om-radios"><legend class="om-flabel">Причина</legend>${reasons.map((x, i) => `<label class="om-radio"><input type="radio" name="reason" value="${esc(x)}"${i ? '' : ' checked'}> ${esc(x)}</label>`).join('')}</fieldset>
+      <textarea class="om-input" name="note" rows="2" maxlength="300" placeholder="Пояснение" aria-label="Пояснение"></textarea>
+      <button class="om-btn" type="submit">Отправить регионалу</button></form></details>`;
+  return `<section class="om-finish">${last}${ask}${mv}${fail}</section>`;
+}
+
 // Вкладки ОИ — «Сведения» (разделы осмотра) и «Фото», как у литеры на стенде.
 function oiTabs(o, ctx, q) {
   const tabs = [['', 'docs', 'Сведения'], ['photo', 'camera', 'Фото']];
@@ -517,6 +722,11 @@ export function mountOsmotr(host) {
   let map = null;
   let mapKey = '';
   let savedAt = '';
+  // Состояние экрана объекта: подтверждение «Осмотр закончен» (по объекту).
+  const ui = { asking: false, askFor: '' };
+  // Выбранные позиции описи (в одну карточку) — по описи; сменилась опись — выбор снимается.
+  const sel = new Set();
+  let selFor = '';
   // Раскрытые разделы ОИ — «ОИ|раздел»; адрес с &s= (прежний экран раздела) раскрывает свой.
   const opened = new Set();
   let cur = null; // объект на экране (obj, doc, oi, sec)
@@ -533,12 +743,15 @@ export function mountOsmotr(host) {
     const notes = notesOf(person);
     const unread = notes.filter((n) => n.unread).length;
     const todayN = all.filter((o) => o.plannedAt === isoDay() && o.state !== 'done' && !o.removed).length;
-    const inObj = ['obj', 'doc', 'oi', 'sec', 'ph'].includes(v);
+    const inObj = ['obj', 'doc', 'oi', 'sec', 'ph', 'inv', 'item'].includes(v);
     const o = inObj ? all.find((x) => x.id === q.id) : null;
     cur = o || null;
+    if (ui.askFor !== q.id) ui.asking = false;
+    if (selFor !== q.id + '|' + q.inv + '|' + (q.to || '')) { sel.clear(); selFor = q.id + '|' + q.inv + '|' + (q.to || ''); }
     const screen = v === 'trips' ? viewTrips(all, q, unread) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
-      : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q) : v === 'doc' ? viewDoc(o, q)
-        : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q) : viewToday(all, q, unread);
+      : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
+        : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
+          : v === 'inv' ? viewInv(o, q, sel) : v === 'item' ? viewItem(o, q) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'
       ? `<div class="om-asbar" role="status"><span>Вы смотрите как: осмотрщик</span><a href="#/">Вернуться</a></div>` : '';
@@ -634,6 +847,140 @@ export function mountOsmotr(host) {
     const k = q.oi + '|' + sum.parentElement.dataset.sec;
     if (sum.parentElement.open) opened.delete(k); else opened.add(k);
   });
+  // --- опись: выбор «в одну карточку», нерабочее, осмотрено ранее, снимки карточки, «Нет в описи», поиск ---
+  const curInv = () => (cur && q.inv ? inventoryOf(session.state.person, cur.id, q.inv) : null);
+  const curItem = () => {
+    const inv = curInv();
+    const it = inv && inv.items.find((x) => x.id === q.it);
+    return it && it.own !== false && cur.state !== 'done' ? { inv, it } : null;
+  };
+  const marked = () => {
+    const d = new Date();
+    const st = scope.$('.om-saved');
+    if (st) st.textContent = `Сохранено ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+  scope.on('click', '[data-sel]', (e, b) => {
+    e.preventDefault();
+    const id = b.dataset.sel;
+    if (sel.has(id)) sel.delete(id); else sel.add(id);
+    render();
+  });
+  scope.on('click', '[data-sel-clear]', () => { sel.clear(); render(); });
+  // Выбранные — в одну карточку: карточка первой, у кого она уже есть, иначе — первой выбранной (Inventory.group).
+  scope.on('click', '[data-sel-group]', () => {
+    const inv = curInv(); if (!inv || cur.state === 'done') return;
+    const items = inv.items.filter((x) => sel.has(x.id) && x.own !== false);
+    if (items.length < 2) return;
+    const lead = items.find((x) => rawMark(cur, inv, x).group) || items[0];
+    addToCard(cur, inv, lead, items.filter((x) => x !== lead));
+    sel.clear();
+    location.hash = href({ v: 'item', id: cur.id, inv: inv.id, it: lead.id });
+  });
+  scope.on('click', '[data-sel-add]', () => {
+    const inv = curInv(); if (!inv || cur.state === 'done') return;
+    const lead = inv.items.find((x) => x.id === q.to);
+    const items = inv.items.filter((x) => sel.has(x.id) && x.own !== false);
+    if (!lead || !items.length) return;
+    addToCard(cur, inv, lead, items);
+    sel.clear();
+    location.hash = href({ v: 'item', id: cur.id, inv: inv.id, it: lead.id });
+  });
+  scope.on('click', '[data-card-similar]', () => {
+    const x = curItem(); if (!x) return;
+    const members = cardOf(cur, x.inv, x.it);
+    addToCard(cur, x.inv, members[0], similarOf(cur, x.inv, members));
+    render(); marked();
+  });
+  scope.on('click', '[data-card-remove]', (e, b) => {
+    const x = curItem(); if (!x) return;
+    const it = x.inv.items.find((y) => y.id === b.dataset.cardRemove);
+    if (!it) return;
+    markSet(cur, x.inv, it, { group: '' });
+    // Убрали ту, с которой открыта карточка, — открыть карточку с оставшимися.
+    if (it.id === q.it) { const rest = x.inv.items.find((y) => y.id !== it.id && rawMark(cur, x.inv, y).group && rawMark(cur, x.inv, y).group === rawMark(cur, x.inv, x.it).group); location.hash = href({ v: 'item', id: cur.id, inv: x.inv.id, it: rest ? rest.id : it.id }); return; }
+    render(); marked();
+  });
+  scope.on('click', '[data-mk-broken]', (e, b) => {
+    const x = curItem(); if (!x) return;
+    const it = x.inv.items.find((y) => y.id === b.dataset.mkBroken);
+    if (!it || !photosOfCard(cur, x.inv, cardOf(cur, x.inv, it)).length) return;
+    markSet(cur, x.inv, it, { cond: rawMark(cur, x.inv, it).cond === BROKEN ? '' : BROKEN, state: 'seen' });
+    render(); marked();
+  });
+  scope.on('click', '[data-mk-earlier]', (e, b) => {
+    const x = curItem(); if (!x) return;
+    const it = x.inv.items.find((y) => y.id === b.dataset.mkEarlier);
+    if (!it) return;
+    const m = rawMark(cur, x.inv, it);
+    const on = !(m.earlier || m.state === 'seen');
+    markSet(cur, x.inv, it, { earlier: on, state: on ? 'seen' : '' });
+    render(); marked();
+  });
+  scope.on('input', '[data-mk-comment]', (e, el) => {
+    const x = curItem(); if (!x) return;
+    markSet(cur, x.inv, cardOf(cur, x.inv, x.it)[0], { comment: el.value });
+    marked();
+  });
+  // Снимки — карточке: засчитываются всем её позициям, позиции — осмотрены.
+  scope.on('change', '[data-mk-shoot]', (e, input) => {
+    const x = curItem(); if (!x) return;
+    const person = session.state.person;
+    const a = myAssignsOn(person, cur.typeId, cur.ocId)[0];
+    const members = cardOf(cur, x.inv, x.it);
+    [...(input.files || [])].forEach((f) => {
+      if (x.inv.kind === 'mech') addResultPhoto(cur.typeId, cur.ocId, f, { oiId: x.inv.oiId, cat: members[0].name, units: members.map((u) => u.id), by: person, at: new Date().toISOString() });
+      else addItemPhoto(x.inv.id, members[0].id, f, { by: person, assignId: a ? a.id : '' });
+    });
+    input.value = '';
+    members.forEach((u) => { if (rawMark(cur, x.inv, u).state !== 'seen') markSet(cur, x.inv, u, { state: 'seen' }); });
+    startWork(person, cur.typeId, cur.ocId);
+    saveResults();
+    render(); marked();
+  });
+  scope.on('submit', '[data-extra]', (e, form) => {
+    e.preventDefault();
+    if (!cur || !form.name.value.trim()) return;
+    const person = session.state.person;
+    const a = myAssignsOn(person, cur.typeId, cur.ocId)[0];
+    addExtra(q.inv, { name: form.name.value, comment: form.comment.value.trim() }, { by: person, assignId: a ? a.id : '' });
+    startWork(person, cur.typeId, cur.ocId);
+    render();
+  });
+  scope.on('input', '[data-invq]', (e, input) => {
+    clearTimeout(input._t);
+    input._t = setTimeout(() => { q = { ...q, q: input.value.trim() }; history.replaceState(null, '', href(q)); render(); }, 250);
+  });
+
+  // --- исход выезда ---
+  const mine = () => myAssignsOn(session.state.person, cur.typeId, cur.ocId);
+  scope.on('click', '[data-finish-ask]', () => { ui.asking = true; ui.askFor = q.id; render(); });
+  scope.on('click', '[data-finish-cancel]', () => { ui.asking = false; render(); });
+  scope.on('click', '[data-finish]', (e, b) => {
+    if (!cur) return;
+    finishWork(session.state.person, cur.typeId, cur.ocId, true, { incomplete: b.dataset.finish === 'incomplete' });
+    ui.asking = false;
+    changed();
+  });
+  scope.on('click', '[data-reopen]', () => { if (cur) { finishWork(session.state.person, cur.typeId, cur.ocId, false); changed(); } });
+  scope.on('submit', '[data-move]', (e, form) => {
+    e.preventDefault();
+    if (!cur) return;
+    mine().filter(isLive).forEach((a) => requestMove(a.id, { date: form.date.value, reason: form.reason.value, note: form.note.value.trim() }));
+  });
+  scope.on('submit', '[data-outcome]', (e, form) => {
+    e.preventDefault();
+    if (!cur) return;
+    const reason = (form.querySelector('[name=reason]:checked') || {}).value || OUTCOMES[0];
+    const note = form.note.value.trim();
+    const text = [reason, note].filter(Boolean).join(' — ');
+    const today = isoDay();
+    const same = (a) => eventsOf({ typeId: cur.typeId, ocId: cur.ocId }).some((x) => x.kind === 'outcome' && x.assignId === a.id && x.text === text && String(x.at).slice(0, 10) === today);
+    mine().filter((a) => !same(a)).forEach((a) => logEvent('outcome', a, { text }));
+    resultsOf(cur.typeId, cur.ocId).outcome = { reason, note, by: session.state.person, at: new Date().toISOString() };
+    saveResults();
+    changed();
+  });
+
   scope.on('submit', '[data-found]', (e, form) => {
     e.preventDefault();
     if (!cur) return;
