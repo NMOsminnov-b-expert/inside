@@ -207,7 +207,7 @@ a.om-oi-link:hover{background:#f7f9fb}
 .om-secrow .om-row-tx small{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
 
 /* Разделы ОИ — раскрываемые блоки; подпись над полем, подсказка под полем, сохранение сразу */
-.om-accs .om-acc+.om-acc{border-top:1px solid #e3eaf2}
+.om-accs>*+*{border-top:1px solid #e3eaf2}
 .om-acc>summary{list-style:none;cursor:pointer}
 .om-acc>summary::-webkit-details-marker{display:none}
 .om-acc>summary>svg:last-child{transition:transform .15s}

@@ -31,12 +31,12 @@ import { session, roleLabel } from '../../kernel/session.js';
 import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { resultsOf, valuesOf, saveResults } from '../../kernel/inspectionResults.js';
 import { startWork } from '../../kernel/inspections.js';
-import { getValue, setValue, sectionProgress } from '../../kernel/fieldSchema.js';
+import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
 import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, FOUND_CATS } from '../inspection/tasks.js';
-import { sections, setNetsRec, mismatchHint } from '../inspection/form.js';
 import { connectBridge } from './bridge.js';
 import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay } from './data.js';
 import { notesOf, markRead } from './feed.js';
+import { pwaSections, pwaDefaults } from './params.js';
 
 export const OSMOTR_SRC = './app/vendor/osmotr/index.html';
 // Есть ли сборка приложения — пишет tools/osmotr/sync_pwa.py; файл в репозитории всегда.
@@ -298,9 +298,8 @@ function oiRow(o, x, photo) {
 }
 
 // --- осмотр ОИ: разделы и поля -------------------------------------------------------------------------
-// Поля — схема осмотра макета (pages/inspection/form.js, sections): разделы по виду ОИ, перечни и подписи из
-// карточек, рядом — значение в карточке (решения 15–16.10.2026; эталон полей — макет, пользователь
-// 16.11.2026: «Эталон по полям - наш макет… В стенде есть ошибки»). Значения — в «Результаты осмотра»
+// Поля — приложения «Осмотр» (params.js, перенос Params.kt; пользователь 16.11.2026: «Сверь поля с файлом Поля
+// осмотров PWA»), не схема прежнего экрана осмотрщика. Значения — в «Результаты осмотра»
 // (kernel/inspectionResults.js, valuesOf) — туда же, куда их кладёт приложение «Осмотр» через мост.
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: каждое поле сохраняется сразу, без кнопки; на сервере — запись осмотра ОИ с автором и
 // временем правки поля (и разбор, если правят двое: осмотрщик на месте и ЦОД).
@@ -313,18 +312,29 @@ function oiCtx(o, oiId) {
   const oi = f || (rec && ownOis(rec).find((x) => x.id === oiId));
   const row = f ? foundRow(f) : (o.ois || []).find((x) => x.id === oiId);
   if (!oi || !row) return null;
-  setNetsRec(rec);
   // Значения ОИ читаются без создания (assets[oiId]) — пустой набор создаёт первая правка (saveField).
+  // На экране — со значениями по умолчанию (тип ОИ, госномер), в счёт заполненного — только введённое.
   const r = resultsOf(o.typeId, o.ocId);
-  const values = (r.assets || {})[oiId] || {};
+  const own = (r.assets || {})[oiId] || {};
+  const def = pwaDefaults(oi);
+  const values = { ...def, ...own, ...(def.f || own.f ? { f: { ...(def.f || {}), ...(own.f || {}) } } : {}) };
   const photos = (r.photos || []).filter((p) => p.oiId === oiId && !p.deleted).length;
   // Закончен — только просмотр; ОИ, возвращённый на доосмотр, снова правится.
   const ro = o.state === 'done' && row.review !== 'returned';
-  return { rec, oi, row, values, photos, ro, secs: sections(o.typeId, oi).filter((s) => s.fields.length) };
+  return { rec, oi, row, values, own, photos, ro, secs: pwaSections(oi) };
 }
 const visibleFields = (s, values) => s.fields.filter((f) => !f.visible || f.visible(values));
+// «Заполнено N из M» — как в приложении: видимые поля, кроме комментария; обязательное закрыто любым значением.
+function secProgress(s, ctx) {
+  const fields = visibleFields(s, ctx.values).filter((f) => f.counted !== false);
+  return {
+    total: fields.length,
+    filled: fields.filter((f) => isFilled(getValue(ctx.own, f.key))).length,
+    requiredLeft: fields.filter((f) => f.req && f.req(ctx.values) && !isFilled(getValue(ctx.values, f.key))).length,
+  };
+}
 function progressOf(ctx) {
-  return ctx.secs.map((s) => sectionProgress(s, ctx.values))
+  return ctx.secs.map((s) => secProgress(s, ctx))
     .reduce((a, p) => ({ total: a.total + p.total, filled: a.filled + p.filled, requiredLeft: a.requiredLeft + p.requiredLeft }), { total: 0, filled: 0, requiredLeft: 0 });
 }
 const progressText = (p) => `заполнено ${p.filled} из ${p.total}${p.requiredLeft ? ` · обязательных осталось ${p.requiredLeft}` : ''}`;
@@ -333,8 +343,8 @@ const shown = (v) => (Array.isArray(v) ? v.filter(Boolean).join(', ') : String(v
 // Разделы — раскрываемыми блоками прямо на экране ОИ, без перехода внутрь (пользователь 16.11.2026: «эти
 // категории лучше раскрываемыми делать. Иначе выходит слишком много усложнений»). У ТС полей мало — без
 // разделов, одним списком («В ТС ты зря закинул в категории пункты. Там их мало»). Комментарий — полем под
-// разделами («В комментарии не обязательно проваливаться»). Подпись — над полем: на узком экране длинные
-// значения перечней не обрезаются; под полем — значение в карточке или «РАСХОДИТСЯ».
+// разделами («В комментарии не обязательно проваливаться»); раздел из одного поля (тип ОИ, санузел, тип
+// участка) — полем прямо в списке, без раскрытия. Подпись — над полем: длинные значения не обрезаются.
 function viewOi(o, q, opened, savedAt) {
   const ctx = o && oiCtx(o, q.oi);
   if (!ctx) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Объект имущества не назначен</div>`;
@@ -343,12 +353,15 @@ function viewOi(o, q, opened, savedAt) {
   const returned = (o.returned || []).filter((r) => r.oiIds.includes(ctx.row.id))
     .map((r) => `<p class="om-warn"><b>На доосмотр</b>${r.reason ? ' — ' + esc(r.reason) : ''}</p>`).join('');
   const note = ctx.secs.find((s) => s.key === 'comments');
-  const secs = ctx.secs.filter((s) => s !== note);
+  const secs = ctx.secs.filter((s) => s !== note && visibleFields(s, ctx.values).length);
   const flat = ctx.oi.card === 'vehicle';
+  let n = 0;
   const form = flat
-    ? (secs.length ? `<div class="om-group om-form">${secs.flatMap((s) => visibleFields(s, ctx.values)).map((f) => fieldHTML(f, ctx)).join('')}</div>` : '')
-    : secs.map((s, i) => {
-      const sp = sectionProgress(s, ctx.values);
+    ? (secs.length ? `<div class="om-form">${secs.flatMap((s) => visibleFields(s, ctx.values)).map((f) => fieldHTML(f, ctx)).join('')}</div>` : '')
+    : secs.map((s) => {
+      if (visibleFields(s, ctx.values).length === 1) return `<div class="om-form om-inline" data-sec="${esc(s.key)}">${fieldHTML(visibleFields(s, ctx.values)[0], ctx)}</div>`;
+      const i = n++;
+      const sp = secProgress(s, ctx);
       const vals = visibleFields(s, ctx.values).map((f) => shown(getValue(ctx.values, f.path || f.key))).filter(Boolean);
       const tone = sp.requiredLeft ? 'om-t-amber' : sp.filled ? 'om-t-teal' : 'om-t-blue';
       return `<details class="om-acc" data-sec="${esc(s.key)}"${opened.has(ctx.row.id + '|' + s.key) ? ' open' : ''}>
@@ -426,26 +439,20 @@ function viewPhoto(o, q) {
 }
 
 const fid = (key) => 'om-f-' + String(key).replace(/[^\w-]/g, '_');
-function hintOf(f, ctx) {
-  const text = mismatchHint(f, ctx.values, ctx.oi, { photos: ctx.photos });
-  const v = getValue(ctx.values, f.path || f.key);
-  return { text, diff: /^РАСХОДИТСЯ/.test(text), note: (f.optNotes && v && f.optNotes[v]) || f.note || '' };
-}
-function hintHTML(f, ctx) {
-  const h = hintOf(f, ctx);
-  return `<p class="om-hint${h.diff ? ' om-hint-diff' : ''}" id="${fid(f.key)}-h">${esc(h.text)}</p>${h.note ? `<p class="om-hint om-hint-note">${esc(h.note)}</p>` : ''}`;
+function hintHTML(f) {
+  return `<p class="om-hint" id="${fid(f.key)}-h">${esc(f.hint || '')}</p>`;
 }
 function fieldHTML(f, ctx) {
   const key = f.path || f.key;
   const v = getValue(ctx.values, key);
   const id = fid(f.key);
   const dis = ctx.ro ? ' disabled' : '';
-  const req = f.req ? '<i class="om-req" title="Обязательное поле"> *</i>' : '';
+  const req = f.req && f.req(ctx.values) ? '<i class="om-req" title="Обязательное поле"> *</i>' : '';
   if (f.opts && f.multi) {
     const set = new Set(Array.isArray(v) ? v : v ? String(v).split(/,\s*/) : []);
     return `<div class="om-field"><span class="om-flabel" id="${id}-l">${esc(f.label)}${req}</span>
       <div class="om-ms" role="group" aria-labelledby="${id}-l" aria-describedby="${id}-h">${f.opts.map((x) => `<button type="button" class="om-opt" data-ms="${esc(key)}" data-opt="${esc(x)}" aria-pressed="${set.has(x)}"${dis}>${esc(x)}</button>`).join('')}</div>
-      ${hintHTML(f, ctx)}</div>`;
+      ${hintHTML(f)}</div>`;
   }
   const attrs = `id="${id}" data-f="${esc(key)}" aria-describedby="${id}-h"${dis}${f.max ? ` maxlength="${f.max}"` : ''}${f.placeholder ? ` placeholder="${esc(f.placeholder)}"` : ''}`;
   let ctl;
@@ -458,7 +465,7 @@ function fieldHTML(f, ctx) {
     const num = f.num ? ` inputmode="${f.int ? 'numeric' : 'decimal'}"` : '';
     ctl = `<span class="om-inputwrap"><input class="om-input" type="text"${num} value="${esc(v == null ? '' : v)}" ${attrs}>${f.unit ? `<span class="om-unit">${esc(f.unit)}</span>` : ''}</span>`;
   }
-  return `<div class="om-field"><label class="om-flabel" for="${id}">${esc(f.label)}${req}</label>${ctl}${hintHTML(f, ctx)}</div>`;
+  return `<div class="om-field"><label class="om-flabel" for="${id}">${esc(f.label)}${req}</label>${ctl}${hintHTML(f)}</div>`;
 }
 
 // Фото фасада с прошлого осмотра — по ОИ, последнее (согласовано 16.11.2026).
@@ -608,17 +615,7 @@ export function mountOsmotr(host) {
     const st = scope.$('.om-saved');
     if (st) st.textContent = 'Сохранено ' + savedAt;
   }
-  // Подсказка под полем («в карточке…», «РАСХОДИТСЯ») — на месте, без перерисовки: ввод не прерывается.
-  function refreshHint(el) {
-    const ctx = cur && oiCtx(cur, q.oi);
-    const f = ctx && ctx.secs.flatMap((x) => x.fields).find((x) => (x.path || x.key) === el.dataset.f);
-    const p = f && document.getElementById(fid(f.key) + '-h');
-    if (!p) return;
-    const h = hintOf(f, ctx);
-    p.textContent = h.text;
-    p.classList.toggle('om-hint-diff', h.diff);
-  }
-  scope.on('input', 'input[data-f], textarea[data-f]', (e, el) => { saveField(el.dataset.f, el.value); refreshHint(el); });
+  scope.on('input', 'input[data-f], textarea[data-f]', (e, el) => saveField(el.dataset.f, el.value));
   // Выбор из списка может открыть или спрятать поля (тип объекта → его признаки) — раздел перерисовывается.
   scope.on('change', 'select[data-f]', (e, el) => { saveField(el.dataset.f, el.value); render(); });
   scope.on('click', '[data-ms]', (e, b) => {

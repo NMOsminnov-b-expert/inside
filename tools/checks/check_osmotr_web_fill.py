@@ -13,8 +13,11 @@
   * выбор из списка, ввод числа, отметка в мультивыборе не доходят до
     «Результатов осмотра»; ввод сбивает фокус; нет строки «Сохранено»;
   * первая правка не переводит назначение «в работу»;
-  * выбор типа объекта имущества не открывает поля своего типа (назначение
-    по факту);
+  * поля не как в приложении «Осмотр» (Params.kt, сводка «Поля осмотра PWA»):
+    у ТС есть «Адрес на момент осмотра» (убран 16.11.2026) или нет руля,
+    топлива, общего состояния; у строения нет «Тип ОИ» или есть класс
+    капитальности; тип ОИ «Квартира» не переключает форму; тип участка не
+    переключает сельхозхарактеристики и сети;
   * обязательные поля участка (сети) не считаются в «обязательных осталось»;
   * снимок не встаёт в выбранную категорию, не переносится, не удаляется;
   * выявленное на месте строение не добавляется, не открывается своей формой
@@ -30,21 +33,21 @@ from harness import use_cadastre_fixture
 NAME = 'осмотр ОИ на месте (веб)'
 
 TOUCHES = (
-    'app/pages/osmotr/*', 'app/pages/inspection/form.js', 'app/kernel/geoHere.js', 'app/pages/inspection/tasks.js', 'app/kernel/fieldSchema.js',
+    'app/pages/osmotr/*', 'app/kernel/geoHere.js', 'app/pages/inspection/tasks.js', 'app/kernel/fieldSchema.js',
     'app/kernel/inspections.js', 'app/kernel/inspectionResults.js', 'app/kernel/registry.js',
 )
 
-# Все ОИ осмотрщика: вид, разделы и число видимых полей по схеме осмотра.
+# Все ОИ осмотрщика: вид, разделы и число видимых полей по полям приложения «Осмотр» (params.js, Params.kt).
 OIS = """async () => {
   const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
-  const f = await import('./app/pages/inspection/form.js'); const tk = await import('./app/pages/inspection/tasks.js');
+  const P = await import('./app/pages/osmotr/params.js'); const tk = await import('./app/pages/inspection/tasks.js');
   const r = await import('./app/kernel/inspectionResults.js');
   return d.myObjects(s.person).flatMap((o) => o.ois.map((x) => {
     const rec = tk.loadTask(o.typeId, o.ocId); const oi = tk.ownOis(rec).find((y) => y.id === x.id);
-    f.setNetsRec(rec);
-    const vals = (r.resultsOf(o.typeId, o.ocId).assets || {})[x.id] || {};
-    const secs = f.sections(o.typeId, oi).filter((z) => z.fields.length && z.key !== 'comments')
-      .map((z) => ({ key: z.key, n: z.fields.filter((q) => !q.visible || q.visible(vals)).length }));
+    const own = (r.resultsOf(o.typeId, o.ocId).assets || {})[x.id] || {}; const def = P.pwaDefaults(oi);
+    const vals = { ...def, ...own, f: { ...(def.f || {}), ...(own.f || {}) } };
+    const secs = P.pwaSections(oi).filter((z) => z.key !== 'comments')
+      .map((z) => ({ key: z.key, n: z.fields.filter((q) => !q.visible || q.visible(vals)).length })).filter((z) => z.n);
     const kind = oi.card === 'building' ? (oi.residential ? 'жилое' : oi.litKind === 'prod' ? 'производственное' : 'нежилое') : oi.card;
     return { obj: o.id, oi: x.id, kind, state: o.state, secs };
   }));
@@ -101,10 +104,13 @@ def run(t):
             got = pg.locator('.om-accs .om-field').count()
             t.ck(got == sum(s['n'] for s in x['secs']), 'ТС: полей на экране %d, в схеме %d' % (got, sum(s['n'] for s in x['secs'])))
             continue
+        acc = [s for s in x['secs'] if s['n'] > 1]
         n = pg.locator('.om-acc').count()
-        t.ck(n == len(x['secs']), '%s: разделов на экране %d, в схеме %d' % (kind, n, len(x['secs'])))
+        t.ck(n == len(acc), '%s: раскрываемых разделов на экране %d, в схеме %d' % (kind, n, len(acc)))
+        one = len(x['secs']) - len(acc)
+        t.ck(pg.locator('.om-inline').count() == one, '%s: разделов из одного поля (полем в списке) %d, в схеме %d' % (kind, pg.locator('.om-inline').count(), one))
         t.ck(pg.locator('.om-acc[open]').count() == 0, '%s: разделы раскрыты сразу' % kind)
-        for s in x['secs']:
+        for s in acc:
             summ = pg.locator('.om-acc[data-sec="%s"] > summary' % s['key'])
             summ.click()
             ok = t.wait_until("(k) => document.querySelector('.om-acc[data-sec=\"' + k + '\"]').open", s['key'])
@@ -112,7 +118,33 @@ def run(t):
             t.ck(got == s['n'], '%s, раздел %s: полей на экране %d, в схеме %d' % (kind, s['key'], got, s['n']))
         t.ck(t.wait_until("() => /v=oi/.test(location.hash)"), '%s: раскрытие раздела увело с экрана ОИ' % kind)
 
-    # --- правка полей строения: список, число, тип объекта, мультивыбор ---
+    # --- поля — как в приложении «Осмотр» (сводка «Поля осмотра PWA»), у ТС — без адреса на момент осмотра ---
+    def labels():
+        return [x.replace('*', '').strip() for x in pg.locator('.om-flabel').all_inner_texts()]
+    ts = kinds['vehicle']
+    go(t, qs(ts['obj'], ts['oi']), '.om-app[data-v="oi"] .om-form')
+    lb = labels()
+    t.ck('Адрес на момент осмотра' not in lb, 'у ТС осталось «Адрес на момент осмотра» (16.11.2026: «убираем у ТС»)')
+    for w in ('Регистрационный номер', 'Пробег', 'Единица', 'Моточасы, ч', 'Руль', 'Тип топлива', 'Общее состояние', 'Комментарий осмотрщика'):
+        t.ck(w in lb, 'у ТС нет поля «%s» приложения' % w)
+    go(t, qs(obj, oi), '.om-app[data-v="oi"] .om-title')
+    lb = labels() + pg.locator('.om-secrow b').all_inner_texts()
+    for w in ('Тип ОИ', 'Общие параметры', 'Санузел', 'Инженерные сети'):
+        t.ck(w in lb, 'у строения нет «%s» приложения' % w)
+    for w in ('Тип и класс капитальности', 'Доп параметры (производственное строение)'):
+        t.ck(w not in lb, 'у строения есть «%s» — в приложении нет' % w)
+    land = kinds['land']
+    pg.evaluate(FINISH, [land['obj'], False])
+    go(t, qs(land['obj'], land['oi']), '.om-app[data-v="oi"] .om-title')
+    t.ck(pg.locator('select[data-f="landType"]').count() == 1, 'у участка нет «Тип земельного участка»')
+    pg.locator('select[data-f="landType"]').select_option(label='Сельскохозяйственный')
+    t.ck(t.wait_until("() => !!document.querySelector('.om-acc[data-sec=agri]') && !document.querySelector('.om-acc[data-sec=nets]')"),
+         'сельхозучасток: нет «Сельскохозяйственных характеристик» или остались инженерные сети')
+    pg.locator('select[data-f="landType"]').select_option(label='Несельскохозяйственный')
+    t.ck(t.wait_until("() => !document.querySelector('.om-acc[data-sec=agri]') && !!document.querySelector('.om-acc[data-sec=nets]')"),
+         'несельхозучасток: остались сельхозхарактеристики или нет сетей')
+
+    # --- правка полей строения: список, число, тип ОИ, мультивыбор ---
     go(t, qs(obj, oi, 'general'), '.om-app[data-v="sec"] .om-form')
     sel = pg.locator('select[data-f="buildType"]')
     opt = sel.locator('option').nth(1).inner_text().strip()
@@ -128,20 +160,16 @@ def run(t):
     t.ck(pg.evaluate("() => document.activeElement && document.activeElement.dataset.f") == 'floorsN', 'ввод числа сбивает фокус')
     t.ck(str(pg.evaluate(VAL, [obj, oi, 'floorsN'])) == '32', 'этажность не сохранилась: %s' % pg.evaluate(VAL, [obj, oi, 'floorsN']))
 
-    go(t, qs(obj, oi, 'capclass'), '.om-app[data-v="sec"] .om-form')
-    kind_sel = pg.locator('select[data-f="litKind"]')
-    t.ck(kind_sel.count() == 1, 'в «Тип и класс капитальности» нет поля «Тип объекта имущества»')
-    if kind_sel.count():
-        cur = kind_sel.evaluate('(e) => e.value')
-        labels = [o.strip() for o in kind_sel.locator('option').all_inner_texts()]
-        other = next((lb for lb in labels[1:] if lb != cur), None)
-        kind_sel.select_option(label=other)
-        t.ck(t.wait_until("() => [...document.querySelectorAll('.om-flabel')].some((l) => l.textContent.startsWith('Назначение по факту'))"),
-             'выбор типа объекта имущества не открыл «Назначение по факту»')
-        t.ck(pg.locator('.om-acc[data-sec="capclass"][open]').count() == 1, 'раздел свернулся после правки')
+    t.ck(pg.locator('.om-acc[data-sec="general"][open]').count() == 1, 'раздел свернулся после правки')
+    kind_sel = pg.locator('.om-inline select[data-f="objKind"]')
+    t.ck(kind_sel.count() == 1, '«Тип ОИ» не полем в списке')
+    kind_sel.select_option(label='Квартира')
+    t.ck(t.wait_until("() => [...document.querySelectorAll('.om-secrow b')].some((b) => b.textContent === 'Общие параметры квартиры') && ![...document.querySelectorAll('.om-secrow b')].some((b) => b.textContent === 'Общие параметры')"),
+         'тип ОИ «Квартира» не переключил форму на квартиру')
+    pg.locator('.om-inline select[data-f="objKind"]').select_option(label='Здание')
+    t.ck(t.wait_until("() => [...document.querySelectorAll('.om-secrow b')].some((b) => b.textContent === 'Общие параметры')"), 'тип ОИ «Здание» не вернул форму строения')
 
-    go(t, qs(obj, oi, 'nets'), '.om-app[data-v="sec"] .om-form')
-    opt_btn = pg.locator('.om-ms .om-opt').first
+    opt_btn = pg.locator('.om-inline[data-sec="sanuzel"] .om-opt').first
     key = opt_btn.get_attribute('data-ms')
     word = opt_btn.get_attribute('data-opt')
     opt_btn.click()
@@ -182,12 +210,10 @@ def run(t):
     t.ck(len(pg.evaluate(PHOTOS, [obj, oi])) == n0 + 1, 'снимок не удалился')
 
     # --- обязательные поля участка ---
-    land = kinds['land']
-    pg.evaluate(FINISH, [land['obj'], False])
     go(t, qs(land['obj'], land['oi']), '.om-app[data-v="oi"] .om-title')
     t.ck(pg.locator('.om-secrow', has_text='Инженерные сети').locator('.om-prog-req').count() == 1, 'у сетей участка не видно «обязательных осталось»')
     go(t, qs(land['obj'], land['oi'], 'nets'), '.om-app[data-v="sec"] .om-form')
-    for k in ('electricity', 'centralWater', 'sewerage', 'gasification'):
+    for k in ('electricity', 'centralWater', 'sewerage', 'gasification', 'centralHeating'):
         pg.locator('select[data-f="%s"]' % k).select_option(index=1)
         t.wait_until("(k) => document.querySelector('select[data-f=\"' + k + '\"]').value !== ''", k)
     go(t, qs(land['obj'], land['oi']), '.om-app[data-v="oi"] .om-title')
@@ -201,7 +227,7 @@ def run(t):
     t.ck(t.wait_until("() => /v=oi/.test(location.hash) && /oi=found-/.test(location.hash) && !!document.querySelector('.om-secrow')"),
          'добавленное строение не открылось осмотром ОИ')
     t.ck(pg.locator('.om-title').inner_text().strip() == 'Склад во дворе', 'у выявленного не то название: %s' % pg.locator('.om-title').inner_text())
-    t.ck(pg.locator('.om-secrow', has_text='Доп параметры').count() == 1, 'у выявленного производственного нет раздела «Доп параметры»')
+    t.ck(pg.locator('.om-inline select[data-f="objKind"]').evaluate('(e) => e.value') == 'Здание', 'у выявленного производственного тип ОИ не «Здание»')
     go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] .om-found')
     t.ck(pg.locator('.om-found a.om-oi-link', has_text='Склад во дворе').count() == 1, 'выявленного нет в блоке «Выявлено на месте»')
     pg.locator('.om-found a.om-oi-link', has_text='Склад во дворе').click()
@@ -218,7 +244,7 @@ def run(t):
 
     # --- ширины ---
     pg.set_viewport_size({'width': 360, 'height': 780})
-    for q in (qs(obj, oi), qs(obj, oi, 'capclass'), qs(land['obj'], land['oi'], 'place')):
+    for q in (qs(obj, oi), qs(obj, oi, 'nets'), qs(land['obj'], land['oi'], 'place')):
         go(t, q, '.om-app .om-title')
         over = pg.evaluate("() => { const s = document.querySelector('.om-scr'); return s.scrollWidth - s.clientWidth; }")
         t.ck(over <= 0, '%s на 360 px прокручивается вбок на %d px' % (q, over))

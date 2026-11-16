@@ -76,7 +76,7 @@ _add('Осмотрщик · Выезды · Оборудование', 'osmotry'
 _add('Осмотрщик · Поиск', 'osmotry', 'insp', '#/osmotr?v=search&q=' + quote('Бишкек'), '.om-app[data-v="search"]', _OM_TOUCH)
 _add('Осмотрщик · Меню', 'osmotry', 'insp', '#/osmotr?v=menu', '.om-app[data-v="menu"]', _OM_TOUCH)
 _add('Осмотрщик · Объект имущества', 'osmotry', 'insp', '#/osmotr?v=oi&id=' + quote('civil|oc-cv-1') + '&oi=oi-cv1-b', '.om-app[data-v="oi"] .om-secrow', _OM_TOUCH)
-_add('Осмотрщик · Раздел осмотра', 'osmotry', 'insp', '#/osmotr?v=sec&id=' + quote('civil|oc-cv-1') + '&oi=oi-cv1-b&s=capclass', '.om-app[data-v="sec"] .om-field', _OM_TOUCH)
+_add('Осмотрщик · Раздел осмотра', 'osmotry', 'insp', '#/osmotr?v=sec&id=' + quote('civil|oc-cv-1') + '&oi=oi-cv1-b&s=nets', '.om-app[data-v="sec"] .om-field', _OM_TOUCH)
 _add('Осмотрщик · Входящие', 'osmotry', 'insp', '#/osmotr?v=notes', '.om-app[data-v="notes"]', _OM_TOUCH)
 _add('Осмотрщик · Приложение «Осмотр»', 'osmotry', 'insp', '#/osmotr?v=app', '.om-frame, .om-none',
      ('app/pages/osmotr/', 'app/vendor/osmotr.json', 'app/kernel/router.js'))
