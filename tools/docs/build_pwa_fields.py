@@ -7,7 +7,7 @@
 Только экраны приложения (пользователь 13.11.2026:
 «Только по экрану осмотрщиков сводку! По мобильному приложению PWA!»).
 
-    python tools/docs/build_pwa_fields.py [--repo C:/vs code/osmotr] [--out docs/Поля осмотра PWA.xlsx]
+    python tools/docs/build_pwa_fields.py [--repo C:/vs code/osmotr] [--out docs/осмотры/Поля осмотра PWA.xlsx]
 
 Решение пользователя 13.11.2026 (pwa-osmotr-otdelnyy-modul-so-svoey-kodovoy-
 bazoy-polya-osmotra-v-maket): PWA — отдельный модуль, его поля прописываются
@@ -21,7 +21,7 @@ from openpyxl.utils import get_column_letter
 
 ap = argparse.ArgumentParser()
 ap.add_argument('--repo', default=r'C:\vs code\osmotr')
-ap.add_argument('--out', default=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'docs', 'Поля осмотра PWA.xlsx'))
+ap.add_argument('--out', default=os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), 'docs', 'осмотры', 'Поля осмотра PWA.xlsx'))
 a = ap.parse_args()
 src = open(os.path.join(a.repo, r'shared\src\commonMain\kotlin\kg\osmotr\core\Params.kt'), encoding='utf-8').read()
 

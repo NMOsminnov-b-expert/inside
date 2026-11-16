@@ -188,7 +188,7 @@ export function removeRecord(id) {
 }
 
 // Изъять запись, отдав её содержимое: так объект уезжает в архив, а не
-// исчезает (kernel/archive.js, ТЗ docs/tz/20-arhiv.md §4.2). Отличие от
+// исчезает (kernel/archive.js, ТЗ docs/тз/20-arhiv.md §4.2). Отличие от
 // removeRecord ровно в том, что запись возвращается вызывающему.
 export function takeRecord(id) {
   const i = records.findIndex((r) => r.id === id);

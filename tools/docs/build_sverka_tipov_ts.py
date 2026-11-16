@@ -12,7 +12,7 @@
 функция findLeaves по каталогу — та же, что на экране), итог. По «типу ТС»
 (столбец F) — какую категорию подбирает карточка (categoryCandidates).
 
-    python tools/docs/build_sverka_tipov_ts.py "<книга уникальных>.xlsx"   # docs/sverka-tipov-ts.xlsx
+    python tools/docs/build_sverka_tipov_ts.py "<книга уникальных>.xlsx"   # docs/сверки/sverka-tipov-ts.xlsx
 """
 import json
 import os
@@ -24,7 +24,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'sverka-tipov-ts.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'сверки', 'sverka-tipov-ts.xlsx')
 
 LG = 'Легковое (тип кузова — в «Тип ТС, вид кузова»)'
 BUS = 'Автобусы → Автобус: класс по длине'
@@ -284,4 +284,4 @@ if __name__ == '__main__':
         raise SystemExit('укажите книгу уникальных значений (tools/data/unique_values.py)')
     for name, n, rows in build(sys.argv[1]):
         print('%-36s %4d  %6d' % (name, n, rows))
-    print('docs/sverka-tipov-ts.xlsx собран')
+    print('docs/сверки/sverka-tipov-ts.xlsx собран')

@@ -24,7 +24,7 @@
 
 Отчёты — `out/` (вне git); таблица для человека:
 
-    python tools/docs/build_matrix_report.py     # docs/matricy-i-scenarii.xlsx
+    python tools/docs/build_matrix_report.py     # docs/реестры/matricy-i-scenarii.xlsx
 
 Где что:
 

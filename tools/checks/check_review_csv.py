@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Выгрузка реестра в CSV: значения-формулы остаются текстом.
 
-Код-ревью 09.10.2026 (docs/kod-revyu.xlsx): pages/ocMenu/table.js csvOf не
+Код-ревью 09.10.2026 (docs/аудиты-и-разборы/kod-revyu.xlsx): pages/ocMenu/table.js csvOf не
 экранировал значения, начинающиеся с = + - @ — Excel выполняет такие как
 формулы (OWASP «CSV Injection»).
 

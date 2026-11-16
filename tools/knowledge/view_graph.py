@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Граф проекта картинкой: все записи knowledge/ узлами, связи — рёбрами.
 
-    python tools/knowledge/view_graph.py          собрать local-docs/graf-proekta.html
+    python tools/knowledge/view_graph.py          собрать docs/граф-выгрузки/graf-proekta.html
     python tools/knowledge/view_graph.py --open   собрать и открыть в браузере
 
 Страница — один файл: данные и библиотеки (tools/knowledge/vendor) внутри,
@@ -23,7 +23,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import graph  # noqa: E402
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-OUT = os.path.join(graph.ROOT, 'local-docs', 'graf-proekta.html')
+OUT = os.path.join(graph.ROOT, 'docs', 'граф-выгрузки', 'graf-proekta.html')
 
 # Цвет по папке: соседние по смыслу виды — разными тонами.
 COLORS = {

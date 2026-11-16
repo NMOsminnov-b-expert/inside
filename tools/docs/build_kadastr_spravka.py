@@ -14,8 +14,8 @@ cadastre-kg-otkrytye-zaprosy-portala-chto-mozhno-poluchit.
 отстаёт от портала:
 
     python tools/docs/build_kadastr_spravka.py
-    # docs/kadastr-api.docx — документация для чтения: разделы по задачам
-    # docs/kadastr-api.xlsx — те же сведения таблицами (фильтры, поиск)
+    # docs/api/kadastr-api.docx — документация для чтения: разделы по задачам
+    # docs/api/kadastr-api.xlsx — те же сведения таблицами (фильтры, поиск)
 
 «Что за коды? … давай docx» (пользователь 14.10.2026): разделы называются по
 задаче («Найти ЕНИ по адресу»), без служебных кодов.
@@ -35,7 +35,7 @@ import urllib.parse
 import urllib.request
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'kadastr-api.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'api', 'kadastr-api.xlsx')
 BASE = 'https://cadastre.kg/svc-portal/'
 WFS = 'map/proxy.do?http://localhost/o2map/services/wfs'
 WMS = 'map/proxy.do?http://localhost/o2map/services/wms'
@@ -512,7 +512,7 @@ def build(path, overview, params, answers, examples, lay_rows):
     wb.save(path)
 
 
-DOCX = os.path.join(ROOT, 'docs', 'kadastr-api.docx')
+DOCX = os.path.join(ROOT, 'docs', 'api', 'kadastr-api.docx')
 
 
 def safe_docx(path):

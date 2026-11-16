@@ -1626,7 +1626,7 @@ export function mountInstitutions(host) {
       const id = b.dataset.idocDel;
       const doc = getDocument(id);
       // Не удаление: документ уезжает в архив, откуда его можно вернуть
-      // (ТЗ docs/tz/20-arhiv.md, §4.1).
+      // (ТЗ docs/тз/20-arhiv.md, §4.1).
       const ok = await host.confirm({
         title: 'Убрать документ в архив?',
         okLabel: 'В архив',

@@ -122,7 +122,7 @@ export function main(host) {
 
 
       // Литера уезжает в архив, а не удаляется: снимок уносит её площади,
-      // документы и фото, и её можно вернуть (ТЗ docs/tz/20-arhiv.md, §4.3).
+      // документы и фото, и её можно вернуть (ТЗ docs/тз/20-arhiv.md, §4.3).
       archiveOi({
         typeId: 'civil', typeLabel: manifest.label,
         rec, oi, movedPhotos: hasPhotos ? photos : null, today: ctx.today,

@@ -17,7 +17,7 @@
 
     python tools/docs/build_audit_posle_pud.py
 
-На выходе — docs/audit-posle-pud.docx (локальный файл, никуда не выгружается).
+На выходе — docs/аудиты-и-разборы/audit-posle-pud.docx (локальный файл, никуда не выгружается).
 """
 import io
 import os
@@ -29,7 +29,7 @@ from docx import Document
 from docx.shared import Pt
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DOCS = os.path.join(ROOT, 'docs')
+DOCS = os.path.join(ROOT, 'docs', 'аудиты-и-разборы')
 OUT = os.path.join(DOCS, 'audit-posle-pud.docx')
 
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'docs'))
@@ -231,6 +231,6 @@ def build():
 
 if __name__ == '__main__':
     res = build()
-    print('docs/audit-posle-pud.docx собран')
+    print('docs/аудиты-и-разборы/audit-posle-pud.docx собран')
     for k, v in res.items():
         print('  %-18s %s' % (k, v))

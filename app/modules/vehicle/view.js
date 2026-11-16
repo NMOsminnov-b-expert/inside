@@ -20,7 +20,7 @@ import { lastSavedAt } from '../../kernel/persist.js';
 import { PHOTO_CATS, photoSetOf, photoFileAt } from './photos.js';
 
 // Карточка транспортного средства как объекта оценки — по категоризации
-// «база + модуль» (справочник docs/kategorii-ts-baza-modul.xlsx).
+// «база + модуль» (справочник docs/поля-и-справочники/kategorii-ts-baza-modul.xlsx).
 //
 // Порядок — как на свидетельстве о регистрации (практика «порядок полей как в
 // документе», Smith & Mosier 1.4/25): ЦОД переписывает с бланка сверху вниз.

@@ -19,7 +19,7 @@
 34.602-2020 и ГОСТ 2.105-2019, лист утверждения, содержание, сквозная
 нумерация пунктов.
 
-    python tools/docs/build_tz_sborka_lista.py   # → docs/tz-sborka-lista.docx
+    python tools/docs/build_tz_sborka_lista.py   # → docs/тз/tz-sborka-lista.docx
 """
 import datetime
 import os
@@ -33,7 +33,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from build_tz_osmotry import Doc  # noqa: E402  (оформление ТЗ проекта)
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-OUT = os.path.join(ROOT, 'docs', 'tz-sborka-lista.docx')
+OUT = os.path.join(ROOT, 'docs', 'тз', 'tz-sborka-lista.docx')
 
 SYSTEM = 'Система оценки имущества'
 MODULE = 'Модуль «Сборка листа из сканов»'
@@ -268,7 +268,7 @@ def safe_out():
         who = '?'
     if who not in ('', 'python-docx'):
         OUT = OUT.replace('.docx', '.sborka.docx')
-        print('docs/tz-sborka-lista.docx правил «%s» — не перезаписываю, сборка рядом' % who)
+        print('docs/тз/tz-sborka-lista.docx правил «%s» — не перезаписываю, сборка рядом' % who)
 
 
 if __name__ == '__main__':

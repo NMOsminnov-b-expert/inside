@@ -98,7 +98,7 @@ body[data-page="insp"] .content {
   color: var(--ink);
   line-height: 1.25;
   /* Адрес длинный: две строки показываем, дальше многоточие — правило макета
-     о длинных значениях (docs/tz/60-pul-zadach.md, пункт 2). */
+     о длинных значениях (docs/тз/60-pul-zadach.md, пункт 2). */
   display: -webkit-box;
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;

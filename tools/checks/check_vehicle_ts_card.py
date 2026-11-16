@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Карточка ОЦ «Транспортные средства» по категоризации «база + модуль».
 
-Карточка перестроена 23.09.2026 под справочник docs/kategorii-ts-baza-modul.xlsx
+Карточка перестроена 23.09.2026 под справочник docs/поля-и-справочники/kategorii-ts-baza-modul.xlsx
 (данные — app/modules/vehicle/data/tsCatalog.js, собираются скриптом
 tools/data/build_ts_catalog.py). Сценарий держит то, что легко сломать правкой:
 

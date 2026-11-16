@@ -8,7 +8,7 @@
 каждый шаблон с составом, «Типом ТС» и другими названиями. Источник наборов —
 tools/data/ts_templates.py (CARRIERS).
 
-    python tools/docs/build_shablony_ts.py   # docs/shablony-ts.xlsx
+    python tools/docs/build_shablony_ts.py   # docs/поля-и-справочники/shablony-ts.xlsx
 """
 import json
 import os
@@ -20,7 +20,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'shablony-ts.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'поля-и-справочники', 'shablony-ts.xlsx')
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'data'))
 from ts_templates import CARRIER  # noqa: E402
 
@@ -87,4 +87,4 @@ def build():
 
 if __name__ == '__main__':
     n, _ = build()
-    print('docs/shablony-ts.xlsx собран: шаблонов %d' % n)
+    print('docs/поля-и-справочники/shablony-ts.xlsx собран: шаблонов %d' % n)

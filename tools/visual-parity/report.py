@@ -19,7 +19,7 @@
 #       --click ".oi-land-open" --select "[data-land-buildings]|Есть" \
 #       --clip ".card" --oc land-plot --oi land --name blok-03
 #
-# Итог: docs/screens/<коммит>/oc/civil/building/floors.png
+# Итог: docs/снимки/<коммит>/oc/civil/building/floors.png
 import argparse
 import os
 import re
@@ -30,7 +30,7 @@ import time
 from playwright.sync_api import sync_playwright
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-BASE_DIR = os.path.join(ROOT, 'docs', 'screens')
+BASE_DIR = os.path.join(ROOT, 'docs', 'снимки')
 PORT = 8931
 
 # Блок системы. У снимков разных блоков разная привязка: у объектов оценки

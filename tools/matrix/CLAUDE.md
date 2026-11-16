@@ -19,4 +19,4 @@
   том же коммите. После правки — `--changed` у обеих матриц; полная матрица
   взаимодействий — только по просьбе пользователя.
 * Таблица человеку — `python tools/docs/build_matrix_report.py` →
-  `docs/matricy-i-scenarii.xlsx`.
+  `docs/реестры/matricy-i-scenarii.xlsx`.

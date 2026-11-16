@@ -19,7 +19,7 @@ import { setCrumbs, setActiveNav } from '../../shell/shell.js';
 import { persistView } from '../../kernel/viewState.js';
 
 // Вид записи: значок и подпись по-русски. Ключи (`oc`, `oi`, …) — внутренние,
-// человеку они не показываются (ТЗ docs/tz/20-arhiv.md, §8.3).
+// человеку они не показываются (ТЗ docs/тз/20-arhiv.md, §8.3).
 const KIND = {
   document: { icon: '📄', label: 'Документ' },
   oc: { icon: '🏢', label: 'Объект оценки' },

@@ -25,7 +25,7 @@
 
     python tools/docs/build_kategorii_ts.py
 
-На выходе — docs/kategorii-ts-baza-modul.xlsx (локальный файл).
+На выходе — docs/поля-и-справочники/kategorii-ts-baza-modul.xlsx (локальный файл).
 """
 import os
 
@@ -35,7 +35,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.hyperlink import Hyperlink
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'kategorii-ts-baza-modul.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'поля-и-справочники', 'kategorii-ts-baza-modul.xlsx')
 
 # --- правила отнесения ----------------------------------------------------------
 RULES = [
@@ -1895,7 +1895,7 @@ def build():
 if __name__ == '__main__':
     for k, v in build().items():
         print('  %-16s %d' % (k, v))
-    print('docs/kategorii-ts-baza-modul.xlsx собран')
+    print('docs/поля-и-справочники/kategorii-ts-baza-modul.xlsx собран')
 
 
 # Легковое — одна база (решение пользователя 06.10.2026: «Где поля не

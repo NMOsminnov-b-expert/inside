@@ -1,5 +1,5 @@
 // Смена типа объекта оценки и вида объекта имущества
-// (ТЗ docs/tz/30-uchastok-pravki.md §9).
+// (ТЗ docs/тз/30-uchastok-pravki.md §9).
 //
 // Что это на самом деле. Тип ОЦ — не поле записи, а МОДУЛЬ, в котором она
 // живёт: пять модулей изолированы друг от друга, у каждого свой список записей
@@ -81,7 +81,7 @@ function diffKeys(obj, sample, typeId, card) {
     .filter((key) => !ALWAYS.has(key) && !(key in sample))
     .map((key) => ({ key, label: labelOf(typeId, key, card), value: shownValue(obj[key], typeId, key, card) }))
     // Ключ без человеческой подписи не показываем: код в интерфейсе хуже, чем
-    // умолчание (docs/tz/20-arhiv.md §8.3).
+    // умолчание (docs/тз/20-arhiv.md §8.3).
     .filter((f) => f.value !== '' && f.label !== f.key);
 }
 
@@ -168,7 +168,7 @@ export async function lostOiFieldsOfRecord(rec, toTypeId) {
 
       const label = labelOf(rec.typeId, key, oi.card);
       // Ключ без человеческой подписи в интерфейс не выводим: показать код
-      // хуже, чем не показать ничего (docs/tz/20-arhiv.md §8.3).
+      // хуже, чем не показать ничего (docs/тз/20-arhiv.md §8.3).
       if (label === key) {
         byLabel.set('__unnamed__', {
           key: '__unnamed__',

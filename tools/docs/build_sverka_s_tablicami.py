@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """Сверка макета с исходными таблицами оценщиков — таблицей расхождений.
 
-Источники в корне проекта:
+Источники (docs/источники/, прежние версии — docs/архив/):
   «Группы движкимого имущества (параметры).xlsx» — классы, подгруппы, типы и
   параметры движимого имущества; «Спецтехника» из него живёт не в механизмах,
   а в типах ТС (решение пользователя 22.09.2026).
@@ -15,7 +15,7 @@
 
     python tools/docs/build_sverka_s_tablicami.py
 
-На выходе — docs/sverka-s-tablicami.xlsx:
+На выходе — docs/сверки/sverka-s-tablicami.xlsx:
 
     Итого                сводка: сколько расхождений в каждом разделе
     Движимое — состав    классы, подгруппы и типы — чего нет в макете и чего
@@ -39,10 +39,10 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DOCS = os.path.join(ROOT, 'docs')
+DOCS = os.path.join(ROOT, 'docs', 'сверки')
 OUT = os.path.join(DOCS, 'sverka-s-tablicami.xlsx')
-SRC_MOVABLE = os.path.join(ROOT, 'Группы движкимого имущества (параметры).xlsx')
-SRC_CLASSES = os.path.join(ROOT, 'Классы литер-помещений_Никите (сравн(капит и сост-е)).xlsx')
+SRC_MOVABLE = os.path.join(ROOT, 'docs', 'архив', 'Группы движкимого имущества (параметры).xlsx')
+SRC_CLASSES = os.path.join(ROOT, 'docs', 'источники', 'методики', 'Классы литер-помещений_Никите (сравн(капит и сост-е)).xlsx')
 
 HEAD_FILL = PatternFill('solid', fgColor='1F4E5F')
 HEAD_FONT = Font(color='FFFFFF', bold=True, size=10)
@@ -437,6 +437,6 @@ def build():
 
 if __name__ == '__main__':
     res = build()
-    print('docs/sverka-s-tablicami.xlsx собран')
+    print('docs/сверки/sverka-s-tablicami.xlsx собран')
     for k, v in res.items():
         print('  %-16s %d' % (k, v))

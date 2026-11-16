@@ -6,8 +6,8 @@
 нет. Пункты записи вида «N. Заголовок — текст» становятся разделами,
 «N.M. текст» — пунктами раздела.
 
-    python tools/docs/build_tz_osmotrschika.py      # → docs/tz-rabota-osmotrschika.docx
-    python tools/docs/build_tz_osmotrschika.py ux   # → docs/razbor-ui-ux-osmotry.docx (разбор UI/UX)
+    python tools/docs/build_tz_osmotrschika.py      # → docs/тз/tz-rabota-osmotrschika.docx
+    python tools/docs/build_tz_osmotrschika.py ux   # → docs/осмотры/razbor-ui-ux-osmotry.docx (разбор UI/UX)
 """
 import ast
 import io
@@ -28,7 +28,7 @@ DOCS = {
 import sys
 _key = sys.argv[1] if len(sys.argv) > 1 else 'tz'
 SRC = os.path.join(ROOT, 'knowledge', 'tasks', DOCS[_key][0])
-OUT = os.path.join(ROOT, 'docs', DOCS[_key][1])
+OUT = os.path.join(ROOT, 'docs', 'осмотры' if _key == 'ux' else 'тз', DOCS[_key][1])
 
 
 def record():

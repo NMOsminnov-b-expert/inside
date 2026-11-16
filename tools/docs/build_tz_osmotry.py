@@ -16,7 +16,7 @@ ekran-statistiki-osmotrov-…, ekran-osmotrschika-pererabotat-ergonomika и
 разделов, подразделов и пунктов, таблицы с номером и наименованием над
 таблицей, номера страниц.
 
-    python tools/docs/build_tz_osmotry.py        # → docs/tz-osmotry.docx
+    python tools/docs/build_tz_osmotry.py        # → docs/тз/tz-osmotry.docx
 
 Требование пользователя 14.10.2026: «нормальное ТЗ. Оформленное в
 соответствии с нормами. По осмотрам (как для регионалов, так и для
@@ -36,7 +36,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-OUT = os.path.join(ROOT, 'docs', 'tz-osmotry.docx')
+OUT = os.path.join(ROOT, 'docs', 'тз', 'tz-osmotry.docx')
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'checks'))
 
 SYSTEM = 'Система оценки имущества'
@@ -619,7 +619,7 @@ def safe_out():
         who = '?'
     if who not in ('', 'python-docx'):
         OUT = OUT.replace('.docx', '.sborka.docx')
-        print('docs/tz-osmotry.docx правил «%s» — не перезаписываю, сборка рядом' % who)
+        print('docs/тз/tz-osmotry.docx правил «%s» — не перезаписываю, сборка рядом' % who)
 
 
 def main():

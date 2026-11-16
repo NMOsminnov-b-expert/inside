@@ -8,7 +8,7 @@
 
     python tools/docs/build_render_analysis.py
 
-На выходе — docs/pererisovka-razbor.docx (локальный файл, никуда не
+На выходе — docs/аудиты-и-разборы/pererisovka-razbor.docx (локальный файл, никуда не
 выгружается).
 """
 import io
@@ -22,7 +22,7 @@ from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.shared import Pt
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DOCS = os.path.join(ROOT, 'docs')
+DOCS = os.path.join(ROOT, 'docs', 'аудиты-и-разборы')
 OUT = os.path.join(DOCS, 'pererisovka-razbor.docx')
 PORT = 5598
 

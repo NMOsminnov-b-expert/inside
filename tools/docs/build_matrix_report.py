@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Матрицы и сценарии по ролям — таблица для человека: docs/matricy-i-scenarii.xlsx.
+"""Матрицы и сценарии по ролям — таблица для человека: docs/реестры/matricy-i-scenarii.xlsx.
 
 Задача графа matricy-vzaimodeystviy-putey-i-scenarii-po-rolyam. Данные —
 записи графа с меткой «сценарии» (сценарии ролей) и последние прогоны
@@ -25,7 +25,7 @@ from openpyxl.utils import get_column_letter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-OUT = os.path.join(ROOT, 'docs', 'matricy-i-scenarii.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'реестры', 'matricy-i-scenarii.xlsx')
 MX = os.path.join(ROOT, 'tools', 'matrix', 'out')
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'matrix'))
 

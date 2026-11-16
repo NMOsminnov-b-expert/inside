@@ -10,7 +10,7 @@ form.js, sections), а значения «по документам» рядом
 Обе стороны снимаются с живого макета, поэтому сверка пересобирается
 одной командой:
 
-    python tools/docs/build_sverka_osmotra.py   # docs/sverka-osmotra-i-kartochek.xlsx
+    python tools/docs/build_sverka_osmotra.py   # docs/сверки/sverka-osmotra-i-kartochek.xlsx
 
 * осмотр — разделы формы прямо из кода экрана (sections) по типу ОЦ и ОИ
   сводных записей «-all»: подпись, перечень, обязательность и значение
@@ -29,7 +29,7 @@ import sys
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'checks'))
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'docs'))
-OUT = os.path.join(ROOT, 'docs', 'sverka-osmotra-i-kartochek.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'сверки', 'sverka-osmotra-i-kartochek.xlsx')
 
 MODULES = [
     ('apartment', 'ap', 'Жилое здание (квартира)'),

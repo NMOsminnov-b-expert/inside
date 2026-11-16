@@ -11,7 +11,7 @@
 полей, документы, категории снимков, ошибки консоли, прокрутка вбок.
 Замечания ставит по правилам ниже (RULES) — по фактам экрана, без догадок.
 
-    python tools/docs/build_audit_osmotrschika.py   # → docs/audit-ekrana-osmotrschika.xlsx
+    python tools/docs/build_audit_osmotrschika.py   # → docs/осмотры/audit-ekrana-osmotrschika.xlsx
 """
 import os
 import sys
@@ -21,7 +21,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
-OUT = os.path.join(ROOT, 'docs', 'audit-ekrana-osmotrschika.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'осмотры', 'audit-ekrana-osmotrschika.xlsx')
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'checks'))
 
 KIND = {'building': 'Литера (строение)', 'land': 'Земельный участок', 'apartment': 'Квартира', 'vehicle': 'ТС',

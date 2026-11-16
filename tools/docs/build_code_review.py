@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Реестр замечаний код-ревью приложения app/ — docs/kod-revyu.xlsx.
+"""Реестр замечаний код-ревью приложения app/ — docs/аудиты-и-разборы/kod-revyu.xlsx.
 
 Ревью 09.10.2026 по просьбе пользователя: «Проанализируй его архитектуру.
 Надо бы привести её в порядок. Нужен код ревью». Разбор шёл по частям: ядро
@@ -23,7 +23,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'kod-revyu.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'аудиты-и-разборы', 'kod-revyu.xlsx')
 
 # Очередь: 1 — видимый сбой, потеря данных или дыра, правится точечно;
 # 2 — риск или сбой реже/мельче; 3 — порядок в коде, без видимого сбоя.

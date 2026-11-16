@@ -78,7 +78,7 @@ function flagsOf(rec) {
     defects: rec.oi.some((o) => !!o.dis),
     pendingNotes: totalPendingNotes(rec) > 0,
     // Есть ли у объекта особенности — признак записи, по нему будут столбец и
-    // фильтр в реестре (Л4.5, пункт E3 в docs/tz/00-tz.md).
+    // фильтр в реестре (Л4.5, пункт E3 в docs/тз/00-tz.md).
     specials: recHasSpecials(rec),
   };
 }

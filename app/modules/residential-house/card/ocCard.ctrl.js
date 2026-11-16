@@ -209,7 +209,7 @@ export function bindOcCard(ctx) {
   const bd = s.$('#btnDelOc');
   if (bd) bd.onclick = async () => {
     // Не удаление: объект уезжает в архив вместе с литерами и документами,
-    // откуда его можно вернуть целиком (ТЗ docs/tz/20-arhiv.md, §4.2).
+    // откуда его можно вернуть целиком (ТЗ docs/тз/20-arhiv.md, §4.2).
     const ok = await ctx.host.confirm({
       title: 'Убрать объект оценки в архив?',
       text: `Вместе с «${rec.address}» уедут ${rec.oi.length} ОИ и все документы. `

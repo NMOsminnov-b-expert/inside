@@ -11,7 +11,7 @@ build_reference.py: витрина и форма каждого типа ОЦ, �
 капитальности, границы классов, шкала технического состояния). Вкладка
 «Сравнительный подход» не берётся — она спрятана и под вопросом.
 
-    python tools/docs/build_otchet_nedvizhimost.py   → docs/sostav-nedvizhimosti.xlsx
+    python tools/docs/build_otchet_nedvizhimost.py   → docs/поля-и-справочники/sostav-nedvizhimosti.xlsx
 """
 import json
 import os
@@ -23,7 +23,7 @@ ROOT = os.path.dirname(os.path.dirname(HERE))
 sys.path.insert(0, HERE)
 import build_reference as ref  # noqa: E402
 
-OUT = os.path.join(ROOT, 'docs', 'sostav-nedvizhimosti.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'поля-и-справочники', 'sostav-nedvizhimosti.xlsx')
 # Литеры с классом капитальности и шкалой состояния (civil/oi/building).
 BUILDING_KINDS = {'Гражданское здание': 'civil', 'Производственное строение': 'prod', 'Прочее строение': 'other'}
 SHEET = {'Жилое здание (квартира)': 'Квартира', 'Жилое здание (дом)': 'Жилой дом',

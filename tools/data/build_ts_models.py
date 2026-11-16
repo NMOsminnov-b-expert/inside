@@ -4,7 +4,7 @@
 Задача пользователя 06.10.2026: «в поиск добавляем по классификации с выжимки,
 что есть что: буквально чтобы можно было модель вбить, и нам уже выбралась
 база. А ещё чтобы можно было и модули, если что, подтянуть». Источник — книга
-пар docs/pary-poiska-ts.xlsx (tools/docs/build_pary_poiska_ts.py по
+пар docs/поля-и-справочники/pary-poiska-ts.xlsx (tools/docs/build_pary_poiska_ts.py по
 обезличенной книге): лист «Все сочетания» — сколько раз модель записана с
 каким типом ТС и кузовом, лист «Тип и кузов» — к какому варианту поиска
 привязана пара «тип + кузов» (привязку правит человек).
@@ -30,7 +30,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 from ts_templates import renamed  # noqa: E402 — прежние названия шаблонов
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-BOOK = os.path.join(ROOT, 'docs', 'pary-poiska-ts.xlsx')
+BOOK = os.path.join(ROOT, 'docs', 'поля-и-справочники', 'pary-poiska-ts.xlsx')
 OUT = os.path.join(ROOT, 'app', 'modules', 'vehicle', 'data', 'tsModels.js')
 EMPTY = '—'
 SHARE = 0.05
@@ -82,7 +82,7 @@ def build():
             '//\n'
             '// ФАЙЛ СОБИРАЕТСЯ СКРИПТОМ — руками не править:\n'
             '//     python tools/data/build_ts_models.py\n'
-            '// Источник — книга пар docs/pary-poiska-ts.xlsx (обезличенные записи техпаспортов).\n'
+            '// Источник — книга пар docs/поля-и-справочники/pary-poiska-ts.xlsx (обезличенные записи техпаспортов).\n'
             '//\n'
             '// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: справочник моделей, который пополняется из карточек и правится\n'
             '// без программиста; здесь он в коде макета.\n')

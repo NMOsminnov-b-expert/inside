@@ -27,7 +27,7 @@
 Повторная сборка не теряет разметку: привязки, отметки и примечания листа
 «Тип и кузов» переносятся из прежней книги по паре.
 
-    python tools/docs/build_pary_poiska_ts.py "<обезличенная книга>.xlsx"   # docs/pary-poiska-ts.xlsx
+    python tools/docs/build_pary_poiska_ts.py "<обезличенная книга>.xlsx"   # docs/поля-и-справочники/pary-poiska-ts.xlsx
 """
 import collections
 import json
@@ -45,7 +45,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(
 from ts_templates import renamed  # noqa: E402 — прежние названия шаблонов
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'pary-poiska-ts.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'поля-и-справочники', 'pary-poiska-ts.xlsx')
 SHEET = 'Основной'
 COLS = ('Тип ТС', 'Марка', 'Модель', 'Тип кузова')
 EMPTY = '—'
@@ -252,4 +252,4 @@ if __name__ == '__main__':
     sys.stdout.reconfigure(encoding='utf-8')
     for k, v in build(sys.argv[1]):
         print('%-44s %s' % (k, v))
-    print('docs/pary-poiska-ts.xlsx собран')
+    print('docs/поля-и-справочники/pary-poiska-ts.xlsx собран')

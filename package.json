@@ -15,7 +15,7 @@
     "codegen": "playwright codegen http://127.0.0.1:5500/app.html",
     "dead": "knip --no-progress",
     "clones": "jscpd app --min-lines 40 --min-tokens 150 --ignore \"app/vendor/**\" --reporters console",
-    "graph": "depcruise app --config .dependency-cruiser.cjs --output-type mermaid --collapse \"^app/(kernel|shell|pages/[^/]+|modules/[^/]+/(oi/[^/]+|card|parts/[^/]+|data|audit)|modules/[^/]+)\" --output-to docs/arhitektura.mmd"
+    "graph": "depcruise app --config .dependency-cruiser.cjs --output-type mermaid --collapse \"^app/(kernel|shell|pages/[^/]+|modules/[^/]+/(oi/[^/]+|card|parts/[^/]+|data|audit)|modules/[^/]+)\" --output-to docs/устройство/arhitektura.mmd"
   },
   "repository": {
     "type": "git",

@@ -14,7 +14,7 @@ export function bindOcForm(ctx) {
   const s = ctx.scope;
   const rec = ctx.rec;
 
-  // Смена типа объекта оценки (ТЗ docs/tz/30-uchastok-pravki.md §9).
+  // Смена типа объекта оценки (ТЗ docs/тз/30-uchastok-pravki.md §9).
   //
   // Тип ОЦ — это модуль, в котором живёт запись, поэтому смена типа означает
   // переезд между модулями (kernel/typeChange.js). Перед переездом человек

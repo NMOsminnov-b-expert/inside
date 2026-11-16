@@ -21,7 +21,7 @@
 
     python tools/docs/build_podskazki_zdaniya.py
 
-На выходе — docs/podskazki-kartochki-zdaniya.xlsx (локальный файл).
+На выходе — docs/поля-и-справочники/podskazki-kartochki-zdaniya.xlsx (локальный файл).
 """
 import os
 
@@ -31,7 +31,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.hyperlink import Hyperlink
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'podskazki-kartochki-zdaniya.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'поля-и-справочники', 'podskazki-kartochki-zdaniya.xlsx')
 
 ALL, CIV, PROD, AUX, BUILT = 'все', 'гражданская', 'производственно-складская', 'вспомогательное', 'встроенное'
 TIP, NONE = 'всплывающая', 'не нужна'
@@ -187,7 +187,7 @@ SOURCES = [
      'https://24.kg/obschestvo/376300_kyirgyizstantsam_nachali_vyidavat_tehnicheskie_pasporta_velektronnom_formate/'),
     ('Кадастровый план участка вместо госакта', 'https://gosreg.gov.kg/ru/?p=6143'),
     ('Файл пользователя «Классы литер-помещений»: лист «Шкалы», описания признаков класса',
-     'Классы литер-помещений_Никите (сравн(капит и сост-е)).xlsx — корень репозитория'),
+     'Классы литер-помещений_Никите (сравн(капит и сост-е)).xlsx — docs/источники/методики/'),
 ]
 
 HEAD_FILL = PatternFill('solid', fgColor='1F4E5F')
@@ -276,4 +276,4 @@ def build():
 if __name__ == '__main__':
     for k, v in build().items():
         print('  %-14s %d' % (k, v))
-    print('docs/podskazki-kartochki-zdaniya.xlsx собран')
+    print('docs/поля-и-справочники/podskazki-kartochki-zdaniya.xlsx собран')

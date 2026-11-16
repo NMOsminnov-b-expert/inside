@@ -8,7 +8,7 @@ app/modules/mechanisms/data/mechFields.js и меняются вместе с к
 
     python tools/docs/build_mech_fields.py
 
-На выходе — docs/mehanizmy-polya.xlsx (локальный файл, никуда не выгружается):
+На выходе — docs/поля-и-справочники/mehanizmy-polya.xlsx (локальный файл, никуда не выгружается):
 
     Обзор              классы и подгруппы: сколько типов и полей; страна
                        происхождения — у всех (решение 30.09.2026)
@@ -36,9 +36,9 @@ from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DOCS = os.path.join(ROOT, 'docs')
+DOCS = os.path.join(ROOT, 'docs', 'поля-и-справочники')
 OUT = os.path.join(DOCS, 'mehanizmy-polya.xlsx')
-SRC = os.path.join(ROOT, 'Группы движкимого имущества (параметры).xlsx')
+SRC = os.path.join(ROOT, 'docs', 'архив', 'Группы движкимого имущества (параметры).xlsx')
 
 HEAD_FILL = PatternFill('solid', fgColor='1F4E5F')
 HEAD_FONT = Font(color='FFFFFF', bold=True, size=10)

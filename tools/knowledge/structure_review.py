@@ -2,7 +2,7 @@
 """Наведение порядка в графе: виды связей и заголовки записей — через книгу
 на согласование.
 
-    python tools/knowledge/structure_review.py build   # docs/graf-struktura.xlsx
+    python tools/knowledge/structure_review.py build   # docs/устройство/graf-struktura.xlsx
     python tools/knowledge/structure_review.py apply   # применить книгу к графу
 
 Задача пользователя 28.09.2026: «граф сильно запутан — структуризацию
@@ -39,7 +39,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import graph  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-BOOK = os.path.join(ROOT, 'docs', 'graf-struktura.xlsx')
+BOOK = os.path.join(ROOT, 'docs', 'устройство', 'graf-struktura.xlsx')
 
 # Словарь видов связи: «эта запись → та запись».
 VOCAB = {

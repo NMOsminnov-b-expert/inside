@@ -44,7 +44,7 @@ CLAUDE.md 30.10.2026 при аудите настроек).
   `reranker-dlya-poiska-po-grafu-znaniy`.
 * Вместе находят больше (замер 29.09.2026: 8 и 11 из 15 по отдельности, 13
   вместе; запись `poisk-po-smyslu-codebase-mcp-s-lokalnoy-modelyu`). Поиск
-  по смыслу любит длинные `docs/tz` — запись графа в выдаче ценнее.
+  по смыслу любит длинные `docs/тз` — запись графа в выдаче ценнее.
 * PostgreSQL и Ollama — в `%LOCALAPPDATA%\semsearch`, только на localhost;
   поднимает и гасит `svc.py` (`status | up | down`), `graph.py` поднимает
   PostgreSQL сам. Всё, что ходит к ним из Python, — с

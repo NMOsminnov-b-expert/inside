@@ -11,7 +11,7 @@
 
 Коды носителей — как в tools/data/ts_templates.py (CARRIER).
 
-    python tools/docs/build_predlozheniya_shablonov_ts.py   # docs/predlozheniya-shablonov-ts.xlsx
+    python tools/docs/build_predlozheniya_shablonov_ts.py   # docs/поля-и-справочники/predlozheniya-shablonov-ts.xlsx
 """
 import os
 import sys
@@ -21,7 +21,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'predlozheniya-shablonov-ts.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'поля-и-справочники', 'predlozheniya-shablonov-ts.xlsx')
 sys.path.insert(0, os.path.join(ROOT, 'tools', 'data'))
 from ts_templates import CARRIER  # noqa: E402
 
@@ -260,4 +260,4 @@ def build():
 
 
 if __name__ == '__main__':
-    print('docs/predlozheniya-shablonov-ts.xlsx собран: модулей %d, сочетаний %d, составных %d, слов %d, сомнительного %d' % build())
+    print('docs/поля-и-справочники/predlozheniya-shablonov-ts.xlsx собран: модулей %d, сочетаний %d, составных %d, слов %d, сомнительного %d' % build())

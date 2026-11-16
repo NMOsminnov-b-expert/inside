@@ -4,7 +4,7 @@
 // ФАЙЛ СОБИРАЕТСЯ СКРИПТОМ — руками не править:
 //     python tools/data/build_ts_catalog.py
 // Источник — tools/docs/build_kategorii_ts.py, из него же книга
-// docs/kategorii-ts-baza-modul.xlsx.
+// docs/поля-и-справочники/kategorii-ts-baza-modul.xlsx.
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: справочник, который правят без программиста; здесь он
 // в коде макета.

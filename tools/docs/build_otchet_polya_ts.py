@@ -8,7 +8,7 @@ FINDINGS ниже: поле, причина, предложение; решен�
 пользователем. Структура согласована с пользователем 06.10.2026: базы по
 категориям; таблица «поле × категория»; перечень нелогичного.
 
-    python tools/docs/build_otchet_polya_ts.py   # docs/otchet-polya-ts.docx
+    python tools/docs/build_otchet_polya_ts.py   # docs/поля-и-справочники/otchet-polya-ts.docx
 """
 import json
 import os
@@ -21,7 +21,7 @@ from docx.oxml.ns import qn
 from docx.shared import Pt, Cm
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'otchet-polya-ts.docx')
+OUT = os.path.join(ROOT, 'docs', 'поля-и-справочники', 'otchet-polya-ts.docx')
 
 # Столбцы таблицы наличия: категория каталога → короткое имя столбца.
 COLS = [('Легковое', 'Легк.'), ('Грузовое', 'Груз.'), ('Автобусы', 'Автоб.'), ('Мототехника', 'Мото'),
@@ -215,4 +215,4 @@ def build():
 
 if __name__ == '__main__':
     n, k = build()
-    print('docs/otchet-polya-ts.docx собран: полей %d, нелогичных мест %d' % (n, k))
+    print('docs/поля-и-справочники/otchet-polya-ts.docx собран: полей %d, нелогичных мест %d' % (n, k))

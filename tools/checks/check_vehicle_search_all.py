@@ -39,7 +39,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)
 
 # Реальные записи из сверки (столбец I обезличенной книги), если книга есть.
 def sverka_values():
-    p = os.path.join(ROOT, 'docs', 'sverka-tipov-ts.xlsx')
+    p = os.path.join(ROOT, 'docs', 'сверки', 'sverka-tipov-ts.xlsx')
     if not os.path.exists(p):
         return []
     try:

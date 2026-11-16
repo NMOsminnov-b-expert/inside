@@ -2,7 +2,7 @@
 """Модели ТС в граф: запись на марку — модели и чем они записаны в техпаспортах.
 
 Задача пользователя 07.10.2026: «все модели с описанием, что это за типы, в
-граф». Источник — книга пар docs/pary-poiska-ts.xlsx (по обезличенной книге
+граф». Источник — книга пар docs/поля-и-справочники/pary-poiska-ts.xlsx (по обезличенной книге
 записей техпаспортов): лист «Все сочетания» — сколько раз модель записана с
 каким типом ТС и кузовом, лист «Тип и кузов» — к какому варианту поиска
 привязана пара «тип + кузов». Поверх — модели из внешних каталогов
@@ -31,7 +31,7 @@ import sys
 from openpyxl import load_workbook
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-BOOK = os.path.join(ROOT, 'docs', 'pary-poiska-ts.xlsx')
+BOOK = os.path.join(ROOT, 'docs', 'поля-и-справочники', 'pary-poiska-ts.xlsx')
 CATALOG = os.path.join(ROOT, 'tools', 'data', 'ts_model_catalog.json')
 TERMS = os.path.join(ROOT, 'knowledge', 'terms')
 TAG = 'модели-ТС'
@@ -128,7 +128,7 @@ def build():
     old = [f for f in os.listdir(TERMS) if f.startswith('marka_ts_') and f.endswith('.py')]
     ids, made = set(), []
     source = ('обезличенные записи техпаспортов ТС (книга «Поиск по названию и  ИНН (УНА).xlsx», лист «Основной»), '
-              'сведены в docs/pary-poiska-ts.xlsx')
+              'сведены в docs/поля-и-справочники/pary-poiska-ts.xlsx')
     if os.path.exists(CATALOG):
         source += '; внешние каталоги моделей — tools/data/ts_model_catalog.json'
     for bk, b in sorted(brands.items(), key=lambda x: -sum(sum(m['combos'].values()) for m in x[1]['models'].values())):
@@ -157,7 +157,7 @@ def build():
         'Модели ТС по маркам: что за машина каждая модель — какими типом ТС и кузовом она записана в техпаспортах, '
         'с долей записей, и к какому варианту поиска «Вида объекта» ведёт в карточке ТС. Марок %d, моделей %d.'
         % (len(made), sum(m[2] for m in made)),
-        'Собирается скриптом tools/knowledge/build_ts_models_graph.py по книге пар docs/pary-poiska-ts.xlsx '
+        'Собирается скриптом tools/knowledge/build_ts_models_graph.py по книге пар docs/поля-и-справочники/pary-poiska-ts.xlsx '
         '(tools/docs/build_pary_poiska_ts.py) и внешним каталогам моделей; тот же источник у справочника моделей '
         'карточки app/modules/vehicle/data/tsModels.js (tools/data/build_ts_models.py).',
         'Задача пользователя 07.10.2026: «все модели с описанием, что это за типы, в граф».',

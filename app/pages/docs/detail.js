@@ -252,7 +252,7 @@ export function bindDetail(scope, { doc, host, siblings, onBack, onOpen, onChang
   };
 
   // Убрать в архив: документ исчезает из реестра, но не из системы
-  // (ТЗ docs/tz/20-arhiv.md, §4.1).
+  // (ТЗ docs/тз/20-arhiv.md, §4.1).
   const arc = scope.$('[data-docs-archive]');
   if (arc) arc.onclick = async () => {
     const ok = await host.confirm({

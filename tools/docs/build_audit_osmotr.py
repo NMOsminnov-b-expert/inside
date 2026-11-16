@@ -1,6 +1,6 @@
 """Аудит приложения «Осмотр» (ветка estate-integration поверх 3.23 structure) — таблица находок и вопросов.
 
-    python tools/docs/build_audit_osmotr.py   →   docs/audit-osmotr-2026-11-03.xlsx
+    python tools/docs/build_audit_osmotr.py   →   docs/аудиты-и-разборы/audit-osmotr-2026-11-03.xlsx
 
 Повод — пользователь 03.11.2026: «Почему внутри ТС у нас недвижка и т.д.? Необходимо сделать 3 сущности. ТС,
 недвижка и опись. Документы - раздел… если есть координаты надо иметь возможность открыть в навигаторе… давай
@@ -15,7 +15,7 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from openpyxl.utils import get_column_letter
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'audit-osmotr-2026-11-03.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'аудиты-и-разборы', 'audit-osmotr-2026-11-03.xlsx')
 
 A = 'Структура объекта'
 B = 'Расхождение с макетом'

@@ -1,0 +1,3 @@
+#!/bin/sh
+# Данные проекта в push не идут: tools/hooks/commit_rules.py pre-push.
+exec python "$(git rev-parse --show-toplevel)/tools/hooks/commit_rules.py" pre-push

@@ -1,5 +1,5 @@
 // Вид литеры и класс капитальности — по категоризации литер
-// (docs/kategorii-liter-grazhd-proizv.xlsx) и методике файла пользователя
+// (docs/поля-и-справочники/kategorii-liter-grazhd-proizv.xlsx) и методике файла пользователя
 // «Классы литер-помещений» (граф знаний: ref:klassy-liter-pomescheniy,
 // decision:civil-kategorii-liter-i-ts).
 //

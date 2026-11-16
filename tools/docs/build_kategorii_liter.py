@@ -6,7 +6,7 @@
 Опора:
   * интерфейс макета — карточки ОЦ «Гражданское здание» и «Производственное
     строение» и их литеры (обход экранов 23.09.2026; справочник полей
-    docs/spravochnik-poley.xlsx, tools/docs/build_reference.py); правила
+    docs/поля-и-справочники/spravochnik-poley.xlsx, tools/docs/build_reference.py); правила
     показа и обязательности — app/modules/civil/oi/building/view.js
     (fieldRules), статусы — app/kernel/status/flow.js;
   * файл пользователя «Классы литер-помещений_Никите (сравн(капит и сост-е)).xlsx»
@@ -21,7 +21,7 @@
 
     python tools/docs/build_kategorii_liter.py
 
-На выходе — docs/kategorii-liter-grazhd-proizv.xlsx (локальный файл).
+На выходе — docs/поля-и-справочники/kategorii-liter-grazhd-proizv.xlsx (локальный файл).
 """
 import os
 
@@ -31,7 +31,7 @@ from openpyxl.utils import get_column_letter
 from openpyxl.worksheet.hyperlink import Hyperlink
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'kategorii-liter-grazhd-proizv.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'поля-и-справочники', 'kategorii-liter-grazhd-proizv.xlsx')
 
 G, P, O = 'Гражданская', 'Производственно-складская', 'Прочие'
 COD, INSP, PHOTO, SYSTEM = 'ЦОД', 'Осмотрщик', 'ЦОД или оценщик', 'Система'
@@ -313,11 +313,11 @@ QUESTIONS = [
 
 SOURCES = [
     ('Интерфейс макета: карточки ОЦ «Гражданское здание», «Производственное строение» и их литеры',
-     'обход экранов 23.09.2026; docs/spravochnik-poley.xlsx'),
+     'обход экранов 23.09.2026; docs/поля-и-справочники/spravochnik-poley.xlsx'),
     ('Правила показа и обязательности полей литеры', 'app/modules/civil/oi/building/view.js — fieldRules'),
     ('Статусы ОЦ', 'app/kernel/status/flow.js'),
     ('Классы литер-помещений (файл пользователя): признаки класса, шкала состояния, примеры литер',
-     'Классы литер-помещений_Никите (сравн(капит и сост-е)).xlsx — корень репозитория'),
+     'Классы литер-помещений_Никите (сравн(капит и сост-е)).xlsx — docs/источники/методики/'),
     ('Форма технического паспорта на здание: разделы техописания, конструктивных элементов, износа, экспликации',
      'https://base.garant.ru/2307349/8599a70d26e5983585d90ff6adf82e89/'),
     ('Классификация нежилых объектов капитального строительства по назначению',
@@ -429,4 +429,4 @@ def build():
 if __name__ == '__main__':
     for k, v in build().items():
         print('  %-18s %d' % (k, v))
-    print('docs/kategorii-liter-grazhd-proizv.xlsx собран')
+    print('docs/поля-и-справочники/kategorii-liter-grazhd-proizv.xlsx собран')

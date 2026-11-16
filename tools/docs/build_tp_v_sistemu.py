@@ -40,7 +40,7 @@ import fitz
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-SRC = os.path.join(ROOT, 'Примеры доков')
+SRC = os.path.join(ROOT, 'docs', 'источники', 'примеры-документов')
 SHOTS = os.path.join(SRC, 'Фото системы')
 PDF = os.path.join(SRC, '0190 г.Кант ул.Куттубека Тагаева 3-ДС МИС_техпаспорт.pdf')
 GOSAKT = os.path.join(SRC, 'Госакт Б 028723.pdf')

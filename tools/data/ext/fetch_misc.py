@@ -10,7 +10,7 @@
     Truck, Bus, Motorcycle, Trailer, Incomplete Vehicle (шасси). Каталог
     американский и огромный (тысячи мелких марок прицепов), поэтому берутся
     только марки, которые есть в записях техпаспортов (лист «Марка и модель»
-    книги пар docs/pary-poiska-ts.xlsx).
+    книги пар docs/поля-и-справочники/pary-poiska-ts.xlsx).
 
 Кэш — tools/data/ext/cache/carsbase.csv и vpic.json: [{make, type, model}].
 
@@ -29,7 +29,7 @@ from openpyxl import load_workbook
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(HERE)))
 CACHE = os.path.join(HERE, 'cache')
-BOOK = os.path.join(ROOT, 'docs', 'pary-poiska-ts.xlsx')
+BOOK = os.path.join(ROOT, 'docs', 'поля-и-справочники', 'pary-poiska-ts.xlsx')
 UA = 'inside-mockup-catalog/1.0 (local research; python urllib)'
 TYPES = ['Truck', 'Bus', 'Motorcycle', 'Trailer', 'Incomplete Vehicle']
 

@@ -28,7 +28,7 @@ import sys
 import time
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-DOCS = os.path.join(ROOT, 'docs')
+DOCS = os.path.join(ROOT, 'docs', 'поля-и-справочники')
 PORT = 5599
 
 MODULES = [

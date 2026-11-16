@@ -7,7 +7,7 @@ import collections as C
 from openpyxl import load_workbook
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
-SRC_DIR = os.path.join(ROOT, 'Анализ по фото регионалов')
+SRC_DIR = os.path.join(ROOT, 'docs', 'осмотры', 'анализ-фото-регионалов')
 SRC = os.path.join(SRC_DIR, 'папки_с_фото.xlsx')
 BS = chr(92)
 # общий корень всех путей в перечне; ниже него — область, район и дальше папки регионала

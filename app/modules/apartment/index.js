@@ -113,7 +113,7 @@ export function main(host) {
       pushOiDeletionLog(rec, oi, hasPhotos ? photos : null);
 
       // Литера уезжает в архив, а не удаляется: снимок уносит её площади,
-      // документы и фото, и её можно вернуть (ТЗ docs/tz/20-arhiv.md, §4.3).
+      // документы и фото, и её можно вернуть (ТЗ docs/тз/20-arhiv.md, §4.3).
       archiveOi({
         typeId: 'apartment', typeLabel: 'Квартира (жилое помещение)',
         rec, oi, movedPhotos: hasPhotos ? photos : null, today: ctx.today,

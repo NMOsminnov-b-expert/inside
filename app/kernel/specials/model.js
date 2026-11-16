@@ -27,7 +27,7 @@ export function setSpecialText(oi, id, text) {
 }
 
 // Есть ли у записи хоть одна непустая особенность. Нужно для флажка на уровне
-// таблицы ОЦ (Л4.5) и будущего фильтра — см. E3 в docs/tz/00-tz.md.
+// таблицы ОЦ (Л4.5) и будущего фильтра — см. E3 в docs/тз/00-tz.md.
 export function recHasSpecials(rec) {
   if (!rec || !Array.isArray(rec.oi)) return false;
   return rec.oi.some((o) => (o.specials || []).some((s) => (s.text || '').trim()));

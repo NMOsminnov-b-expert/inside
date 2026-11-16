@@ -2,7 +2,7 @@
 """Тип нежилого здания: как его определяет система — документ Word для чтения
 человеком (методика простыми словами, без кода).
 
-    python tools/docs/build_tip_nezhilogo_zdaniya.py [--out docs/Тип нежилого здания.docx]
+    python tools/docs/build_tip_nezhilogo_zdaniya.py [--out docs/поля-и-справочники/Тип нежилого здания.docx]
 
 Источники — решения графа tipizaciya-oc-po-vnutrenney-ploschadi,
 civil-kategorii-liter-i-ts, zony-litery и код макета: app/modules/civil/card/
@@ -21,7 +21,7 @@ from docx.shared import Cm, Pt, RGBColor
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 ap = argparse.ArgumentParser()
-ap.add_argument('--out', default=os.path.join(ROOT, 'docs', 'Тип нежилого здания.docx'))
+ap.add_argument('--out', default=os.path.join(ROOT, 'docs', 'поля-и-справочники', 'Тип нежилого здания.docx'))
 a = ap.parse_args()
 
 # --- из кода макета --------------------------------------------------------

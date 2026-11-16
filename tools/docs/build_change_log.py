@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Журнал изменений макета — docs/reestr-izmeneniy.xlsx.
+"""Журнал изменений макета — docs/реестры/reestr-izmeneniy.xlsx.
 
     python tools/docs/build_change_log.py
 
@@ -29,7 +29,7 @@ from openpyxl.utils import get_column_letter
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 ROOT = os.path.dirname(os.path.dirname(HERE))
-OUT = os.path.join(ROOT, 'docs', 'reestr-izmeneniy.xlsx')
+OUT = os.path.join(ROOT, 'docs', 'реестры', 'reestr-izmeneniy.xlsx')
 DATA = 'tools/docs/change_log_data.py'
 
 sys.path.insert(0, HERE)

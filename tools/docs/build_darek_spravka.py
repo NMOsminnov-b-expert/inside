@@ -11,7 +11,7 @@ tools/docs/build_kadastr_spravka.py.
 целиком в примере ограничен тремя объектами: сервер государственный, и
 выкачивать слой при каждой пересборке незачем.
 
-    python tools/docs/build_darek_spravka.py      # docs/darek-api.docx
+    python tools/docs/build_darek_spravka.py      # docs/api/darek-api.docx
 
 На сервер уходят только ЕНИ и точка демо-записи и служебные запросы. Личные
 данные и закрытое входом не запрашиваются.
@@ -27,7 +27,7 @@ import urllib.request
 import xml.etree.ElementTree as ET
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUT = os.path.join(ROOT, 'docs', 'darek-api.docx')
+OUT = os.path.join(ROOT, 'docs', 'api', 'darek-api.docx')
 QGIS = 'http://map.darek.kg/qgis/qgis_mapserv.fcgi.exe'
 PROJECT = 'C:/OSGeo4W64/projects/ГИСАР/ГИСАР.qgz'
 ENI = '1030700400754'
@@ -367,7 +367,7 @@ def build(path, layers, recs):
     doc.add_paragraph('ГИСАР подписывает поля сведений участка так: naznacheni — «Форма использования» («Нежилое помещение»), '
                       'propfor_name — «Целевое назначение» («Коммерческое»), propform_name — «Форма собственности», sts — «Тип участка '
                       '(1 — сельхоз)», from_gps — «GPS-съёмка», amnestied — «Амнистирован». Те же поля отдаёт cadastre.kg '
-                      '(документация docs/kadastr-api.docx).')
+                      '(документация docs/api/kadastr-api.docx).')
     doc.core_properties.author = doc.core_properties.last_modified_by = 'Сборщик макета'
     doc.save(path)
 
