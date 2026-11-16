@@ -30,12 +30,13 @@ import { foldSearch, fmtEni } from '../../kernel/fmt.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto } from '../../kernel/inspectionResults.js';
-import { startWork, myAssignsOn, finishWork, requestMove, skipReasons, logEvent, eventsOf, changed, isLive } from '../../kernel/inspections.js';
+import { startWork, myAssignsOn, finishWork, requestMove, skipReasons, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadKindLabel, cadResultLabel, answerCadRow } from '../../kernel/inspections.js';
+import { osrmKm, dayPoints } from '../inspections/route.js';
 import { markItem, markOf, addItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
 import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, FOUND_CATS } from '../inspection/tasks.js';
 import { connectBridge } from './bridge.js';
-import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay, inventoryOf } from './data.js';
+import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay, inventoryOf, titleOf } from './data.js';
 import { notesOf, markRead } from './feed.js';
 import { pwaSections, pwaDefaults } from './params.js';
 
@@ -125,6 +126,15 @@ function objRow(o) {
 }
 
 // --- экраны -------------------------------------------------------------------------------------
+// Строка «Отчёт дня»: что сдано за сегодня.
+function dayRow() {
+  const person = session.state.person;
+  const m = reportOf(person, isoDay(), 'morning');
+  const e = reportOf(person, isoDay(), 'evening');
+  const st = e ? 'сдан' : m ? 'день начат — вечерний не сдан' : 'день не начат';
+  return `<a class="om-row" href="${href({ v: 'report' })}"><span class="om-row-ico${e ? ' om-t-green' : ''}">${ico('task')}</span><span class="om-row-tx"><span>Отчёт дня</span><small>${st}</small></span>${ico('chev', 18)}</a>`;
+}
+
 function viewToday(all, q, unread) {
   // Отбор по типам — только там, где видны сами объекты (16.11.2026), на «Сегодня» его нет.
   const list = all;
@@ -158,6 +168,8 @@ function viewToday(all, q, unread) {
     ${urgent ? `<h2 class="om-cap om-sec">Срочно</h2><div class="om-group">${urgent}</div>` : ''}
     <h2 class="om-cap om-sec">Мои задачи</h2>
     <div class="om-group">
+      ${dayRow()}
+      ${waitingCad(session.state.person) ? `<a class="om-row" href="${href({ v: 'cad' })}"><span class="om-row-ico om-t-violet">${ico('docs')}</span><span class="om-row-tx">Запросы документов</span><b class="om-n om-t-violet">${waitingCad(session.state.person)}</b>${ico('chev', 18)}</a>` : ''}
       <a class="om-row" href="${href({ v: 'trips', s: 'all' })}"><span class="om-row-ico">${ico('layers')}</span><span class="om-row-tx">Все мои объекты</span><b class="om-n">${list.length}</b>${ico('chev', 18)}</a>
     </div>`;
 }
@@ -203,6 +215,8 @@ function viewMenu(all, unread) {
     <div class="om-group">
       <div class="om-row om-me"><span class="om-ava">${esc(ini)}</span><span class="om-row-tx"><b>${esc(p)}</b><small>${esc(roleLabel(session.state.role) || '')}</small></span></div>
       ${row(href({ v: 'notes' }), 'bell', 'Входящие', unread || '')}
+      ${row(href({ v: 'report' }), 'task', 'Отчёт дня')}
+      ${row(href({ v: 'cad' }), 'docs', 'Запросы документов', waitingCad(p) || '')}
     </div>
     <h2 class="om-cap om-sec">К осмотру</h2>
     <div class="om-group">${KINDS.map((k) => row(href({ v: 'trips', f: k.key }), k.key, k.label, byKind(all, k.key).filter((o) => o.state !== 'done' && !o.removed).length, { real: 'blue', vehicle: 'violet', inv: 'amber' }[k.key])).join('')}</div>
@@ -599,6 +613,19 @@ function viewItem(o, q) {
     </div>`;
 }
 
+// Осмотр не состоялся: событие регионалу (без повтора того же исхода в тот же день) и последний исход в
+// «Результатах осмотра» — как мост приложения (bridge.js, outcome). o — объект или выезд (typeId, ocId).
+function outcomeOf(o, reason, note) {
+  const person = session.state.person;
+  const text = [reason, note].filter(Boolean).join(' — ');
+  const today = isoDay();
+  const same = (a) => eventsOf({ typeId: o.typeId, ocId: o.ocId }).some((x) => x.kind === 'outcome' && x.assignId === a.id && x.text === text && String(x.at).slice(0, 10) === today);
+  myAssignsOn(person, o.typeId, o.ocId).filter((a) => !same(a)).forEach((a) => logEvent('outcome', a, { text }));
+  resultsOf(o.typeId, o.ocId).outcome = { reason, note, by: person, at: new Date().toISOString() };
+  saveResults();
+  changed();
+}
+
 // --- исход выезда: закончен, перенос, не состоялся (как в приложении «Осмотр», экран объекта) ---------------
 // «Осмотр закончен» при незаполненном обязательном — предупреждение и «неполный» (решение 03.11.2026:
 // «Предупредить, «неполный»»); исходы «не состоялся» — перечень приложения (Estate.OUTCOMES; 03.11.2026 «Нужны»);
@@ -631,6 +658,126 @@ function finishBlock(o, ui) {
       <textarea class="om-input" name="note" rows="2" maxlength="300" placeholder="Пояснение" aria-label="Пояснение"></textarea>
       <button class="om-btn" type="submit">Отправить регионалу</button></form></details>`;
   return `<section class="om-finish">${last}${ask}${mv}${fail}</section>`;
+}
+
+// --- отчёт дня (как в приложении «Осмотр», EstateDay.kt, ReportBody) -----------------------------------------
+// Утро — одометр (необязательно) или «Одометра нет»; вечер — пробег (по дорогам — подставлен, можно поправить),
+// выезды дня с исходом «Осмотрен / Частично / Не состоялся» (частично — причина обязательна; не состоялся —
+// причина из перечня приложения, уходит исходом выезда), комментарий. Сдать можно не позже 3 рабочих дней
+// (kernel/inspections.js, LATE_REPORT_WORKDAYS). Решения 06.11.2026 (пачка А).
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: пробег по дорогам считает сервер (OSRM) по точкам дня; здесь — запрос из браузера.
+const routeKmCache = new Map();
+const kmText = (km) => (km == null ? '' : String(Math.round(km * 10) / 10).replace('.', ','));
+const kmHint = (km) => (km === undefined ? 'Считается маршрут по дорогам…' : km != null ? `По дорогам (OSM): ${kmText(km)} км — можно поправить` : 'Маршрут по дорогам не посчитан — введите вручную');
+function dayTripsOf(person, date) {
+  return assignmentsOfPerson(person, { live: false }).filter((a) => a.plannedAt === date && a.state !== 'removed')
+    .map((a) => ({ assignId: a.id, objectId: `${a.typeId}|${a.ocId}`, typeId: a.typeId, ocId: a.ocId, title: titleOf(loadTask(a.typeId, a.ocId) || {}, a.ocId), state: a.state }));
+}
+function viewReport(q, rerender) {
+  const person = session.state.person;
+  const date = /^\d{4}-\d{2}-\d{2}$/.test(q.date || '') ? q.date : isoDay();
+  const morning = reportOf(person, date, 'morning');
+  const evening = reportOf(person, date, 'evening');
+  const late = date < isoDay() ? lateWorkdays(person, date) : 0;
+  const open = !!(morning && evening) || late <= LATE_REPORT_WORKDAYS;
+  const trips = dayTripsOf(person, date);
+  // Пробег по дорогам — фоном; пришёл — экран перерисуется.
+  if (!routeKmCache.has(person + '|' + date)) {
+    routeKmCache.set(person + '|' + date, undefined);
+    const pts = dayPoints(person, date);
+    const done = (km) => { routeKmCache.set(person + '|' + date, km); rerender(km); };
+    (pts ? osrmKm(pts) : Promise.resolve(null)).then(done, () => done(null));
+  }
+  const routeKm = routeKmCache.get(person + '|' + date);
+  const routeText = kmText(routeKm);
+  const ev = evening || {};
+  const done = new Set(ev.done || []);
+  const partial = new Map((ev.partial || []).map((p) => [p.assignId, p.reason]));
+  const resOf = (t) => (done.has(t.assignId) ? 'done' : partial.has(t.assignId) ? 'partial' : !evening && t.state === 'done' ? 'done' : '');
+  const dis = open ? '' : ' disabled';
+  const clock = (iso) => (iso ? String(new Date(iso).toTimeString()).slice(0, 5) : '');
+  const d = new Date(date + 'T00:00:00');
+  const prev = new Date(d); prev.setDate(d.getDate() - 1);
+  const next = new Date(d); next.setDate(d.getDate() + 1);
+  const dayLink = (x, label) => `<a class="om-btn om-btn-sm" href="${href({ v: 'report', date: isoDay(x) })}">${label}</a>`;
+  return `${back(href({ v: 'today' }), 'Сегодня')}
+    <h1 class="om-title om-title-sm">Отчёт дня</h1>
+    <div class="om-daynav">${dayLink(prev, '‹')}<b>${d.getDate()} ${MONTHS[d.getMonth()]}, ${WEEKDAYS[d.getDay()].toLowerCase()}</b>${date < isoDay() ? dayLink(next, '›') : '<span class="om-btn om-btn-sm om-off" aria-hidden="true">›</span>'}</div>
+    ${open ? '' : '<p class="om-warn">Срок сдачи отчёта за этот день прошёл</p>'}
+    ${workdayOf(person, date).ok ? '' : '<p class="om-muted">Нерабочий день</p>'}
+    <form class="om-card om-report" data-morning>
+      <h2 class="om-card-t">Утро</h2>
+      ${morning ? `<p class="om-ok-line">День начат в ${esc(clock(morning.at))}</p>` : ''}
+      <label class="om-flabel" for="om-odo">Одометр, км <span class="om-muted">(необязательно)</span></label>
+      <input class="om-input" id="om-odo" name="odometer" inputmode="decimal" value="${esc((morning || {}).odometer || '')}"${dis}${(morning || {}).noOdometer ? ' disabled' : ''}>
+      <label class="om-radio"><input type="checkbox" name="noOdometer"${(morning || {}).noOdometer ? ' checked' : ''}${dis}> Одометра нет</label>
+      <button class="om-btn om-btn-primary om-btn-wide" type="submit"${dis}>${morning ? 'Обновить' : 'Начал день'}</button>
+    </form>
+    <form class="om-card om-report" data-evening novalidate>
+      <h2 class="om-card-t">Вечер</h2>
+      ${evening ? `<p class="om-ok-line">Отчёт сдан в ${esc(clock(evening.at))}</p>` : ''}
+      <label class="om-flabel" for="om-km">Пробег, км</label>
+      <input class="om-input" id="om-km" name="km" inputmode="decimal" value="${esc(ev.km || routeText)}" aria-describedby="om-km-h"${dis}>
+      <p class="om-hint" id="om-km-h">${esc(kmHint(routeKm))}</p>
+      <input type="hidden" name="route" value="${esc(routeText)}">
+      <span class="om-flabel">Выезды дня</span>
+      ${trips.length ? trips.map((t) => {
+    const r = resOf(t);
+    return `<fieldset class="om-trip" data-trip="${esc(t.assignId)}"><legend><b>${esc(t.title || 'Объект')}</b></legend>
+        <div class="om-ms">${[['done', 'Осмотрен'], ['partial', 'Частично'], ['failed', 'Не состоялся']].map(([k, l]) => `<label class="om-opt om-opt-r"><input type="radio" name="r_${esc(t.assignId)}" value="${k}"${r === k ? ' checked' : ''}${dis}>${l}</label>`).join('')}</div>
+        <div class="om-trip-partial"><label class="om-flabel" for="om-pr-${esc(t.assignId)}">Причина <i class="om-req">*</i></label>
+          <textarea class="om-input" id="om-pr-${esc(t.assignId)}" name="p_${esc(t.assignId)}" rows="2"${dis}>${esc(partial.get(t.assignId) || '')}</textarea></div>
+        <div class="om-trip-failed"><span class="om-flabel">Причина <i class="om-req">*</i></span>${OUTCOMES.map((o) => `<label class="om-radio"><input type="radio" name="f_${esc(t.assignId)}" value="${esc(o)}"${dis}> ${esc(o)}</label>`).join('')}</div>
+        <p class="om-hint om-hint-diff om-trip-err" hidden>Укажите причину</p></fieldset>`;
+  }).join('') : '<p class="om-muted">Выездов на этот день нет</p>'}
+      <label class="om-flabel" for="om-day-note">Комментарий</label>
+      <textarea class="om-input" id="om-day-note" name="note" rows="2"${dis}>${esc(ev.note || '')}</textarea>
+      <button class="om-btn om-btn-primary om-btn-wide" type="submit"${dis}>${evening ? 'Обновить отчёт' : 'Сдать вечерний отчёт'}</button>
+    </form>`;
+}
+
+// --- запросы документов из Кадастра (как в приложении «Осмотр», EstateCadastre.kt; решения 06.11.2026, пачка Б) ---
+// Строка: что просят, по какому объекту, ЕНИ, учреждение; ответ — «Получен» (скан или PDF), «Нет», «Отказ»;
+// после разбора ЦОД — принят, возвращён или отклонён с причиной; ответ можно поправить.
+const CAD_RESULTS = [['got', 'Получен'], ['none', 'Нет'], ['refused', 'Отказ']];
+function cadRows(person) {
+  const state = (x) => (x.review ? x.review.state : x.file && x.file.docId ? 'accepted' : x.result ? 'wait' : '');
+  return allCadRequests().filter((r) => r.person === person).map((r) => ({
+    id: r.id, no: r.no, kind: cadKindLabel(r.kind), due: r.due || '', note: r.note || '', closed: !!r.closedAt,
+    rows: r.rows.map((x) => {
+      const rec = x.typeId && x.ocId ? loadTask(x.typeId, x.ocId) : null;
+      return { id: x.id, doc: x.doc || '', title: rec ? titleOf(rec, x.ocId) : '', eni: fmtEni(x.eni) || x.eni || '', inst: x.inst || '',
+        result: x.result || '', resultLabel: x.result ? cadResultLabel(x.result) : 'Ждёт', answer: x.answer || '', scanDate: x.scanDate || '',
+        file: x.file ? x.file.name || '' : '', review: state(x), note: x.note || '' };
+    }),
+  }));
+}
+const waitingCad = (person) => cadRows(person).filter((r) => !r.closed).flatMap((r) => r.rows).filter((x) => !x.result || x.review === 'returned').length;
+function viewCad(q) {
+  const list = cadRows(session.state.person);
+  const shown = list.filter((r) => (q.s === 'closed' ? r.closed : !r.closed));
+  const REVIEW = { accepted: ['Принят ЦОД', 'green'], returned: ['Возвращён', 'amber'], rejected: ['Отклонён', 'rose'], wait: ['На разборе ЦОД', 'blue'] };
+  return `${back(href({ v: 'menu' }), 'Меню')}
+    <h1 class="om-title om-title-sm">Запросы документов</h1>
+    <div class="om-tabs3 om-tabs2">${[['', 'Открытые', list.filter((r) => !r.closed).length], ['closed', 'Закрытые', list.filter((r) => r.closed).length]].map(([k, l, n]) => `<a class="om-tab3${(q.s || '') === k ? ' on' : ''}" href="${href({ v: 'cad', s: k })}">${l} <b>${n}</b></a>`).join('')}</div>
+    ${shown.length ? shown.map((r) => `<section class="om-card om-cad">
+      <h2 class="om-card-t">№ ${esc(String(r.no))} · ${esc(r.kind)}</h2>
+      ${r.due || r.note ? `<p class="om-muted">${[r.due ? 'срок ' + shortDate(r.due) : '', r.note].filter(Boolean).map(esc).join(' · ')}</p>` : ''}
+      ${r.rows.map((x) => {
+    const [rw, tone] = REVIEW[x.review] || ['Ждёт ответа', 'blue'];
+    return `<form class="om-cadrow" data-cad="${esc(r.id)}" data-row="${esc(x.id)}">
+        <div class="om-member-head"><b>${esc(x.doc || 'Документ')}</b><span class="om-chip om-t-${tone}">${esc(x.result ? (x.review === 'wait' ? x.resultLabel + ' · на разборе' : rw) : 'Ждёт ответа')}</span></div>
+        <dl class="om-dl">${[['Объект', x.title], ['ЕНИ', x.eni], ['Учреждение', x.inst], ['Ответ', x.result ? x.resultLabel + (x.file ? ' · ' + x.file : '') : ''], ['Пояснение', x.answer], ['Причина ЦОД', x.note]].filter(([, v]) => v).map(([l, v]) => `<dt>${esc(l)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+        ${r.closed ? '' : `<details class="om-cad-answer"${x.result && x.review !== 'returned' ? '' : ' open'}><summary>${x.result ? 'Поправить ответ' : 'Ответить'}</summary>
+          <div class="om-ms" role="group" aria-label="Ответ">${CAD_RESULTS.map(([k, l]) => `<label class="om-opt om-opt-r"><input type="radio" name="result" value="${k}"${x.result === k ? ' checked' : ''}>${l}</label>`).join('')}</div>
+          <div class="om-cad-got"><label class="om-btn">${ico('camera', 18)}Скан или PDF<input type="file" name="file" accept="image/*,application/pdf" capture="environment" hidden data-cad-file></label>
+            <span class="om-muted om-cad-fname"></span>
+            <label class="om-flabel" for="om-cd-${esc(x.id)}">Дата документа</label><input class="om-input" type="date" id="om-cd-${esc(x.id)}" name="scanDate" value="${esc(x.scanDate)}"></div>
+          <textarea class="om-input" name="answer" rows="2" maxlength="300" placeholder="Пояснение" aria-label="Пояснение">${esc(x.answer)}</textarea>
+          <p class="om-hint om-hint-diff" data-cad-err hidden></p>
+          <button class="om-btn om-btn-primary" type="submit">Отправить ответ</button></details>`}
+      </form>`;
+  }).join('')}</section>`).join('') : `<div class="om-card om-empty">${q.s === 'closed' ? 'Закрытых запросов нет' : 'Открытых запросов нет'}</div>`}`;
 }
 
 // Вкладки ОИ — «Сведения» (разделы осмотра) и «Фото», как у литеры на стенде.
@@ -768,6 +915,7 @@ export function mountOsmotr(host) {
 
   function render() {
     const v = q.v || 'today';
+    dirty = false;
     if (q.oi && q.s) opened.add(q.oi + '|' + q.s);
     if (v === 'app') return renderApp();
     if (disconnect) { disconnect(); disconnect = null; }
@@ -784,6 +932,7 @@ export function mountOsmotr(host) {
     const screen = v === 'trips' ? viewTrips(all, q, unread) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
         : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
+          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q)
           : v === 'inv' ? viewInv(o, q, sel, ui.filters) : v === 'item' ? viewItem(o, q) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'
@@ -795,7 +944,7 @@ export function mountOsmotr(host) {
     const ae = document.activeElement;
     const focus = ae && ae.id && scope.root.contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
     const top0 = (scope.$('.om-app') || {}).dataset?.v === v ? (scope.$('.om-scr') || {}).scrollTop || 0 : 0;
-    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${inObj ? '' : bottomNav(v, todayN)}</div>`);
+    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${inObj || v === 'report' || v === 'cad' ? '' : bottomNav(v, todayN)}</div>`);
     if (top0) scope.$('.om-scr').scrollTop = top0;
     const el = focus && document.getElementById(focus.id);
     if (el && scope.root.contains(el)) { el.focus({ preventScroll: true }); try { if (focus.a != null) el.setSelectionRange(focus.a, focus.b); } catch { /* у списка выделения нет */ } }
@@ -990,6 +1139,62 @@ export function mountOsmotr(host) {
     input._t = setTimeout(() => { q = { ...q, q: input.value.trim() }; history.replaceState(null, '', href(q)); render(); }, 250);
   });
 
+  // --- отчёт дня ---
+  scope.on('change', '[data-morning] input[name=noOdometer]', (e, cb) => { const f = cb.form.odometer; f.disabled = cb.checked; if (cb.checked) f.value = ''; });
+  scope.on('submit', '[data-morning]', (e, form) => {
+    e.preventDefault();
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(q.date || '') ? q.date : isoDay();
+    const r = saveReport({ person: session.state.person, date, kind: 'morning', odometer: form.odometer.value.trim(), noOdometer: form.noOdometer.checked });
+    if (r) changed();
+    render();
+  });
+  scope.on('submit', '[data-evening]', (e, form) => {
+    e.preventDefault();
+    const person = session.state.person;
+    const date = /^\d{4}-\d{2}-\d{2}$/.test(q.date || '') ? q.date : isoDay();
+    const trips = dayTripsOf(person, date);
+    let bad = false;
+    const doneIds = [];
+    const partial = [];
+    const failed = [];
+    trips.forEach((t) => {
+      const box = form.querySelector(`[data-trip="${CSS.escape(t.assignId)}"]`);
+      const r = (box.querySelector(`input[name="r_${CSS.escape(t.assignId)}"]:checked`) || {}).value || '';
+      const why = r === 'partial' ? form[`p_${t.assignId}`].value.trim() : r === 'failed' ? (box.querySelector(`input[name="f_${CSS.escape(t.assignId)}"]:checked`) || {}).value || '' : 'ok';
+      box.querySelector('.om-trip-err').hidden = !!why;
+      if (!why) bad = true;
+      if (r === 'done') doneIds.push(t.assignId);
+      if (r === 'partial') partial.push({ assignId: t.assignId, reason: why });
+      if (r === 'failed') failed.push({ t, reason: why });
+    });
+    if (bad) { const x = form.querySelector('.om-trip-err:not([hidden])'); if (x) x.closest('fieldset').scrollIntoView({ block: 'center' }); return; }
+    failed.forEach(({ t, reason }) => outcomeOf(t, reason, ''));
+    const km = form.km.value.trim();
+    const r = saveReport({ person, date, kind: 'evening', km, kmByRoute: !!km && km === form.route.value, done: doneIds, partial, note: form.note.value.trim() });
+    if (r) changed();
+    render();
+  });
+
+  // --- запросы документов из Кадастра ---
+  scope.on('change', '[data-cad-file]', (e, input) => {
+    const n = input.closest('form').querySelector('.om-cad-fname');
+    if (n) n.textContent = input.files && input.files[0] ? input.files[0].name : '';
+  });
+  scope.on('submit', '[data-cad]', async (e, form) => {
+    e.preventDefault();
+    const err = form.querySelector('[data-cad-err]');
+    const result = (form.querySelector('input[name=result]:checked') || {}).value || '';
+    const file = form.file.files && form.file.files[0];
+    const say = (t) => { err.textContent = t; err.hidden = !t; };
+    if (!result) return say('Выберите ответ: получен, нет или отказ');
+    if (result === 'got' && !file) return say('Нужен скан или PDF документа');
+    say('');
+    const row = await answerCadRow(form.dataset.cad, form.dataset.row, { result, scanDate: form.scanDate.value, answer: form.answer.value.trim(), file: file || null, fileName: file ? file.name : '' });
+    if (!row) return say('Строка запроса не найдена');
+    changed();
+    render();
+  });
+
   // --- исход выезда ---
   const mine = () => myAssignsOn(session.state.person, cur.typeId, cur.ocId);
   scope.on('click', '[data-finish-ask]', () => { ui.asking = true; ui.askFor = q.id; render(); });
@@ -1009,15 +1214,7 @@ export function mountOsmotr(host) {
   scope.on('submit', '[data-outcome]', (e, form) => {
     e.preventDefault();
     if (!cur) return;
-    const reason = (form.querySelector('[name=reason]:checked') || {}).value || OUTCOMES[0];
-    const note = form.note.value.trim();
-    const text = [reason, note].filter(Boolean).join(' — ');
-    const today = isoDay();
-    const same = (a) => eventsOf({ typeId: cur.typeId, ocId: cur.ocId }).some((x) => x.kind === 'outcome' && x.assignId === a.id && x.text === text && String(x.at).slice(0, 10) === today);
-    mine().filter((a) => !same(a)).forEach((a) => logEvent('outcome', a, { text }));
-    resultsOf(cur.typeId, cur.ocId).outcome = { reason, note, by: session.state.person, at: new Date().toISOString() };
-    saveResults();
-    changed();
+    outcomeOf(cur, (form.querySelector('[name=reason]:checked') || {}).value || OUTCOMES[0], form.note.value.trim());
   });
 
   scope.on('submit', '[data-found]', (e, form) => {
@@ -1058,8 +1255,20 @@ export function mountOsmotr(host) {
   }
 
   // Регионал назначил, снял, вернул; участок подтянулся — перерисовать.
+  // Пробег по дорогам пришёл — подсказка и пустое поле пробега, без перерисовки (введённое не теряется).
+  function routeCame(km) {
+    if ((q.v || '') !== 'report') return;
+    const h = scope.$('#om-km-h'); if (h) h.textContent = kmHint(km);
+    const f = scope.$('[data-evening]'); if (!f) return;
+    f.route.value = kmText(km);
+    if (!f.km.value && !f.km.disabled) f.km.value = kmText(km);
+  }
+  // Форма отчёта или ответа на запрос заполняется — фоновая перерисовка ждёт (иначе введённое пропадёт).
+  let dirty = false;
+  scope.on('input', '[data-morning], [data-evening], [data-cad]', () => { dirty = true; });
+  scope.on('change', '[data-morning], [data-evening], [data-cad]', () => { dirty = true; });
   let t = 0;
-  const onChanged = () => { clearTimeout(t); t = setTimeout(() => { if ((q.v || 'today') !== 'app') render(); }, 300); };
+  const onChanged = () => { clearTimeout(t); t = setTimeout(() => { const v = q.v || 'today'; if (v !== 'app' && !(dirty && (v === 'report' || v === 'cad'))) render(); }, 300); };
   window.addEventListener('inside:inspections', onChanged);
   const unsub = session.subscribe(onChanged);
   const offGeo = onGeoDone(onChanged);

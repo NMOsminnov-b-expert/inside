@@ -325,3 +325,29 @@ textarea.om-input{resize:vertical;line-height:1.4}
 .om-fgroup .om-segs-line{margin:0}
 .om-price{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px}
 .om-price .om-input{font-variant-numeric:tabular-nums;text-align:right}
+
+/* Отчёт дня */
+.om-app[data-v="report"] .om-scr,.om-app[data-v="cad"] .om-scr{padding-top:12px;padding-bottom:32px}
+.om-daynav{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 0 12px}
+.om-btn-sm{min-height:40px;min-width:44px;padding:0 12px;font-size:18px}
+.om-report{display:flex;flex-direction:column;gap:8px;margin-bottom:12px}
+.om-card-t{margin:0 0 2px;font-size:17px;font-weight:700}
+.om-ok-line{margin:0;color:#1f7a35;font-weight:600;font-size:14px}
+.om-trip{border:1px solid #e3eaf2;border-radius:12px;padding:10px 12px;margin:0;display:flex;flex-direction:column;gap:8px;background:#f9fbfd}
+.om-trip legend{padding:0 4px;font-size:15px}
+.om-opt-r{position:relative;display:inline-flex;align-items:center;cursor:pointer}
+.om-opt-r input{position:absolute;opacity:0;pointer-events:none}
+.om-opt-r:has(input:checked){background:var(--om-blue-50);border-color:var(--om-blue);color:var(--om-blue-700)}
+.om-opt-r:has(input:focus-visible){outline:2px solid #1668c9;outline-offset:2px}
+.om-trip-partial,.om-trip-failed{display:none}
+.om-trip:has(input[value="partial"]:checked) .om-trip-partial,.om-trip:has(input[value="failed"]:checked) .om-trip-failed{display:block}
+/* Запросы документов */
+.om-tabs2{grid-template-columns:repeat(2,1fr)}
+.om-cad{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
+.om-cadrow{display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:1px solid #e3eaf2}
+.om-cad-answer>summary{min-height:40px;display:flex;align-items:center;font-weight:600;color:var(--om-blue-700);cursor:pointer}
+.om-cad-answer[open]{display:flex;flex-direction:column;gap:8px}
+.om-cad-got{display:none;flex-direction:column;gap:6px}
+.om-cad-answer:has(input[value="got"]:checked) .om-cad-got{display:flex}
+.om-trip .om-ms{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.om-trip .om-opt-r{justify-content:center;text-align:center;padding:0 6px;font-size:13px;line-height:1.2;min-height:44px}
