@@ -5,7 +5,8 @@
 (pages/inspection/form.js, sections), значения — в «Результаты осмотра».
 
 Что ловит сценарий:
-  * строка «Состава объекта» не ведёт в осмотр ОИ (механизмы — описью, этап 3, здесь не проверяются);
+  * строка «Состава объекта» не ведёт в осмотр ОИ; раздел не раскрывается на месте
+    или сворачивается после правки; у ТС поля разложены по разделам (механизмы — описью, этап 3, здесь не проверяются);
   * у какого-то вида ОИ (строение нежилое, производственное, жилое; квартира;
     участок; ТС) разделов или полей на экране не столько,
     сколько в схеме осмотра;
@@ -92,15 +93,24 @@ def run(t):
         link.click()
         t.ck(t.wait_until("() => !!document.querySelector('.om-app[data-v=\"oi\"] .om-secrow')"), 'строка состава не открыла осмотр ОИ')
 
-    # --- у каждого вида ОИ разделы и поля — как в схеме осмотра ---
+    # --- у каждого вида ОИ разделы и поля — как в схеме осмотра; разделы раскрываются на месте, у ТС — без разделов ---
     for kind, x in sorted(kinds.items()):
         t.ck(go(t, qs(x['obj'], x['oi']), '.om-app[data-v="oi"] .om-title'), '%s: экран ОИ не открылся' % kind)
-        n = pg.locator('.om-secrow').count()
+        if kind == 'vehicle':
+            t.ck(pg.locator('.om-acc').count() == 0, 'у ТС поля разложены по разделам (16.11.2026: «Там их мало»)')
+            got = pg.locator('.om-accs .om-field').count()
+            t.ck(got == sum(s['n'] for s in x['secs']), 'ТС: полей на экране %d, в схеме %d' % (got, sum(s['n'] for s in x['secs'])))
+            continue
+        n = pg.locator('.om-acc').count()
         t.ck(n == len(x['secs']), '%s: разделов на экране %d, в схеме %d' % (kind, n, len(x['secs'])))
+        t.ck(pg.locator('.om-acc[open]').count() == 0, '%s: разделы раскрыты сразу' % kind)
         for s in x['secs']:
-            ok = go(t, qs(x['obj'], x['oi'], s['key']), '.om-app[data-v="sec"] .om-form')
-            got = pg.locator('.om-field').count() if ok else -1
+            summ = pg.locator('.om-acc[data-sec="%s"] > summary' % s['key'])
+            summ.click()
+            ok = t.wait_until("(k) => document.querySelector('.om-acc[data-sec=\"' + k + '\"]').open", s['key'])
+            got = pg.locator('.om-acc[data-sec="%s"] .om-field:visible' % s['key']).count() if ok else -1
             t.ck(got == s['n'], '%s, раздел %s: полей на экране %d, в схеме %d' % (kind, s['key'], got, s['n']))
+        t.ck(t.wait_until("() => /v=oi/.test(location.hash)"), '%s: раскрытие раздела увело с экрана ОИ' % kind)
 
     # --- правка полей строения: список, число, тип объекта, мультивыбор ---
     go(t, qs(obj, oi, 'general'), '.om-app[data-v="sec"] .om-form')
@@ -128,6 +138,7 @@ def run(t):
         kind_sel.select_option(label=other)
         t.ck(t.wait_until("() => [...document.querySelectorAll('.om-flabel')].some((l) => l.textContent.startsWith('Назначение по факту'))"),
              'выбор типа объекта имущества не открыл «Назначение по факту»')
+        t.ck(pg.locator('.om-acc[data-sec="capclass"][open]').count() == 1, 'раздел свернулся после правки')
 
     go(t, qs(obj, oi, 'nets'), '.om-app[data-v="sec"] .om-form')
     opt_btn = pg.locator('.om-ms .om-opt').first
@@ -202,7 +213,7 @@ def run(t):
     # --- законченный осмотр — только просмотр ---
     pg.evaluate(FINISH, [obj, True])
     go(t, qs(obj, oi, 'general'), '.om-app[data-v="sec"] .om-form')
-    t.ck(t.wait_until("() => !!document.querySelector('.om-warn') && [...document.querySelectorAll('.om-form [data-f], .om-form [data-ms]')].every((e) => e.disabled)"),
+    t.ck(t.wait_until("() => document.querySelector('.om-idrow').textContent.includes('только просмотр') && [...document.querySelectorAll('.om-form [data-f], .om-form [data-ms]')].every((e) => e.disabled)"),
          'у законченного осмотра поля правятся')
 
     # --- ширины ---

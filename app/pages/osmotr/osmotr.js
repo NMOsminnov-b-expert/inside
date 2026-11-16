@@ -16,7 +16,7 @@
 // Экраны — адресом #/osmotr?v=…: today (главная «Сегодня»), trips («Выезды»,
 // &f — отбор по типам: real, vehicle, inv; &s — open, done, all, back, late), search, menu, notes, obj (&id —
 // «typeId|ocId», &tab — task, docs), doc (&id, &doc — документ), oi (&id, &oi — объект имущества: разделы
-// осмотра), sec (&id, &oi, &s — раздел: поля осмотра), app —
+// осмотра раскрываемыми блоками), sec (&id, &oi, &s — тот же экран ОИ с раскрытым разделом), app —
 // приложение «Осмотр» в рамке (пока перенос не закончен).
 //
 // Прежний экран осмотрщика (#/insp, pages/inspector) убран 16.11.2026; его
@@ -330,31 +330,39 @@ function progressOf(ctx) {
 const progressText = (p) => `заполнено ${p.filled} из ${p.total}${p.requiredLeft ? ` · обязательных осталось ${p.requiredLeft}` : ''}`;
 const shown = (v) => (Array.isArray(v) ? v.filter(Boolean).join(', ') : String(v == null ? '' : v).trim());
 
-function viewOi(o, q) {
+// Разделы — раскрываемыми блоками прямо на экране ОИ, без перехода внутрь (пользователь 16.11.2026: «эти
+// категории лучше раскрываемыми делать. Иначе выходит слишком много усложнений»). У ТС полей мало — без
+// разделов, одним списком («В ТС ты зря закинул в категории пункты. Там их мало»). Комментарий — полем под
+// разделами («В комментарии не обязательно проваливаться»). Подпись — над полем: на узком экране длинные
+// значения перечней не обрезаются; под полем — значение в карточке или «РАСХОДИТСЯ».
+function viewOi(o, q, opened, savedAt) {
   const ctx = o && oiCtx(o, q.oi);
   if (!ctx) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Объект имущества не назначен</div>`;
   const h = oiHead(ctx.row, 'om-sq-lg');
   const p = progressOf(ctx);
   const returned = (o.returned || []).filter((r) => r.oiIds.includes(ctx.row.id))
     .map((r) => `<p class="om-warn"><b>На доосмотр</b>${r.reason ? ' — ' + esc(r.reason) : ''}</p>`).join('');
-  // Комментарий — не разделом, а полем прямо под разделами (пользователь 16.11.2026: «В комментарии не
-  // обязательно проваливаться. Выносим их к блокам 01 02 03 на уровень литеры»).
   const note = ctx.secs.find((s) => s.key === 'comments');
-  const rows = ctx.secs.filter((s) => s !== note).map((s, i) => {
-    const sp = sectionProgress(s, ctx.values);
-    const vals = visibleFields(s, ctx.values).map((f) => shown(getValue(ctx.values, f.path || f.key))).filter(Boolean);
-    const tone = sp.requiredLeft ? 'om-t-amber' : sp.filled ? 'om-t-teal' : 'om-t-blue';
-    return `<a class="om-row om-secrow" href="${href({ v: 'sec', id: o.id, oi: ctx.row.id, s: s.key })}">
-      <span class="om-sq om-sq-sm ${tone}">${String(i + 1).padStart(2, '0')}</span>
-      <span class="om-row-tx"><b>${esc(s.title)}</b><small>${esc(vals.length ? vals.join(', ') : 'не заполнено')}</small>${sp.requiredLeft ? `<small class="om-prog-req">обязательных осталось ${sp.requiredLeft}</small>` : ''}</span>${ico('chev', 18)}</a>`;
-  }).join('');
+  const secs = ctx.secs.filter((s) => s !== note);
+  const flat = ctx.oi.card === 'vehicle';
+  const form = flat
+    ? (secs.length ? `<div class="om-group om-form">${secs.flatMap((s) => visibleFields(s, ctx.values)).map((f) => fieldHTML(f, ctx)).join('')}</div>` : '')
+    : secs.map((s, i) => {
+      const sp = sectionProgress(s, ctx.values);
+      const vals = visibleFields(s, ctx.values).map((f) => shown(getValue(ctx.values, f.path || f.key))).filter(Boolean);
+      const tone = sp.requiredLeft ? 'om-t-amber' : sp.filled ? 'om-t-teal' : 'om-t-blue';
+      return `<details class="om-acc" data-sec="${esc(s.key)}"${opened.has(ctx.row.id + '|' + s.key) ? ' open' : ''}>
+        <summary class="om-row om-secrow"><span class="om-sq om-sq-sm ${tone}">${String(i + 1).padStart(2, '0')}</span>
+          <span class="om-row-tx"><b>${esc(s.title)}</b><small>${esc(vals.length ? vals.join(', ') : 'не заполнено')}</small>${sp.requiredLeft ? `<small class="om-prog-req">обязательных осталось ${sp.requiredLeft}</small>` : ''}</span>${ico('chev', 18)}</summary>
+        <div class="om-form">${visibleFields(s, ctx.values).map((f) => fieldHTML(f, ctx)).join('')}</div></details>`;
+    }).join('');
   const chipTone = p.requiredLeft ? 'om-t-amber' : p.filled === p.total ? 'om-t-green' : 'om-t-blue';
   return `${back(href({ v: 'obj', id: o.id }), o.title)}
     <div class="om-oihead">${h.sq}<div class="om-row-tx"><h1 class="om-title om-title-oi">${esc(h.name)}</h1>${h.sub ? `<small>${esc(h.sub)}</small>` : ''}</div></div>
-    <div class="om-idrow">${p.total ? `<span class="om-chip ${chipTone}" title="${esc(progressText(p))}">заполнено ${p.filled} из ${p.total}</span>` : ''}${ctx.ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}</div>
+    <div class="om-idrow">${p.total ? `<span class="om-chip ${chipTone}" title="${esc(progressText(p))}">заполнено ${p.filled} из ${p.total}</span>` : ''}${ctx.ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}<span class="om-saved" role="status" aria-live="polite">${savedAt ? 'Сохранено ' + esc(savedAt) : ''}</span></div>
     ${returned}
-    ${q.tab === 'photo' ? photosBlock(o, ctx, q) : `${rows ? `<div class="om-group">${rows}</div>` : '<div class="om-card om-empty">Полей осмотра у этого объекта нет — только снимки</div>'}
-      ${note ? `<div class="om-group om-form om-note-card">${note.fields.map((f) => fieldHTML(f, ctx)).join('')}<span class="om-saved om-saved-in" role="status" aria-live="polite"></span></div>` : ''}`}
+    ${q.tab === 'photo' ? photosBlock(o, ctx, q) : `${form ? `<div class="om-group om-accs">${form}</div>` : '<div class="om-card om-empty">Полей осмотра у этого объекта нет — только снимки</div>'}
+      ${note ? `<div class="om-group om-form om-note-card">${note.fields.map((f) => fieldHTML(f, ctx)).join('')}</div>` : ''}`}
     ${ctx.row.found && !ctx.ro && q.tab !== 'photo' ? `<button type="button" class="om-btn om-btn-danger om-found-del" data-found-del="${esc(ctx.row.id)}">${ico('trash', 18)}Убрать выявленное строение</button>` : ''}
     ${oiTabs(o, ctx, q)}`;
 }
@@ -414,29 +422,6 @@ function viewPhoto(o, q) {
       <span class="om-select"><select class="om-input" id="om-ph-cat" data-ph-cat="${esc(p.id)}"${ctx.ro ? ' disabled' : ''}>${opts.map((c) => `<option${c === p.cat ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></span>
       <p class="om-hint">${esc(new Date(p.at).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' }))}${p.place ? ' · место съёмки есть' : ''}</p>
       ${ctx.ro ? '' : `<button type="button" class="om-btn om-btn-danger" data-ph-del="${esc(p.id)}">${ico('trash', 18)}Удалить снимок</button>`}
-    </div>`;
-}
-
-// Раздел: подпись — над полем (на узком экране длинные значения перечней не обрезаются), под полем —
-// значение в карточке или «РАСХОДИТСЯ». Сохранение сразу; строка «Сохранено» — что правка дошла.
-function viewSec(o, q, savedAt) {
-  const ctx = o && oiCtx(o, q.oi);
-  // «Далее» — по разделам экрана ОИ; комментарий — на самом экране ОИ, не разделом.
-  const secs = ctx ? ctx.secs.filter((s) => s.key !== 'comments') : [];
-  const i = secs.findIndex((s) => s.key === q.s);
-  if (i < 0) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Раздела нет</div>`;
-  const s = secs[i];
-  const next = secs[i + 1];
-  const h = oiHead(ctx.row);
-  const who = h.letter ? `Литера ${h.letter} · ${h.name}` : h.name;
-  return `${back(href({ v: 'oi', id: o.id, oi: ctx.row.id }), who)}
-    <h1 class="om-title om-title-sm om-sec-title">${esc(s.title)}</h1>
-    <p class="om-sec-sub"><span>${esc(who)}</span><span class="om-saved" role="status" aria-live="polite">${savedAt ? 'Сохранено ' + esc(savedAt) : ''}</span></p>
-    ${ctx.ro ? '<p class="om-warn">Осмотр закончен — поля только для просмотра</p>' : ''}
-    <div class="om-group om-form">${visibleFields(s, ctx.values).map((f) => fieldHTML(f, ctx)).join('')}</div>
-    <div class="om-sec-act">
-      ${next ? `<a class="om-btn om-btn-next" href="${href({ v: 'sec', id: o.id, oi: ctx.row.id, s: next.key })}"><span><small>Далее</small>${esc(next.title)}</span>${ico('chev', 18)}</a>` : ''}
-      <a class="om-btn om-btn-primary" href="${href({ v: 'oi', id: o.id, oi: ctx.row.id })}">Готово</a>
     </div>`;
 }
 
@@ -524,12 +509,15 @@ export function mountOsmotr(host) {
   let map = null;
   let mapKey = '';
   let savedAt = '';
+  // Раскрытые разделы ОИ — «ОИ|раздел»; адрес с &s= (прежний экран раздела) раскрывает свой.
+  const opened = new Set();
   let cur = null; // объект на экране (obj, doc, oi, sec)
 
   const dropMap = () => { if (map) { try { map.remove(); } catch { /* уже снята */ } } map = null; mapKey = ''; };
 
   function render() {
     const v = q.v || 'today';
+    if (q.oi && q.s) opened.add(q.oi + '|' + q.s);
     if (v === 'app') return renderApp();
     if (disconnect) { disconnect(); disconnect = null; }
     const person = session.state.person;
@@ -542,7 +530,7 @@ export function mountOsmotr(host) {
     cur = o || null;
     const screen = v === 'trips' ? viewTrips(all, q, unread) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q) : v === 'doc' ? viewDoc(o, q)
-        : v === 'oi' ? viewOi(o, q) : v === 'sec' ? viewSec(o, q, savedAt) : v === 'ph' ? viewPhoto(o, q) : viewToday(all, q, unread);
+        : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'
       ? `<div class="om-asbar" role="status"><span>Вы смотрите как: осмотрщик</span><a href="#/">Вернуться</a></div>` : '';
@@ -623,8 +611,7 @@ export function mountOsmotr(host) {
   // Подсказка под полем («в карточке…», «РАСХОДИТСЯ») — на месте, без перерисовки: ввод не прерывается.
   function refreshHint(el) {
     const ctx = cur && oiCtx(cur, q.oi);
-    const s = ctx && ctx.secs.find((x) => x.key === q.s);
-    const f = s && s.fields.find((x) => (x.path || x.key) === el.dataset.f);
+    const f = ctx && ctx.secs.flatMap((x) => x.fields).find((x) => (x.path || x.key) === el.dataset.f);
     const p = f && document.getElementById(fid(f.key) + '-h');
     if (!p) return;
     const h = hintOf(f, ctx);
@@ -644,6 +631,11 @@ export function mountOsmotr(host) {
     render();
   });
 
+  // Раздел раскрыт или свёрнут — запоминается: перерисовка после правки не сворачивает его.
+  scope.on('click', '.om-acc > summary', (e, sum) => {
+    const k = q.oi + '|' + sum.parentElement.dataset.sec;
+    if (sum.parentElement.open) opened.delete(k); else opened.add(k);
+  });
   scope.on('submit', '[data-found]', (e, form) => {
     e.preventDefault();
     if (!cur) return;
