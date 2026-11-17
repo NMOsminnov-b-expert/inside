@@ -66,7 +66,7 @@ def run(t):
     t.ck(pg.locator('.ipc-sper').count() == 1, 'в «Аналитике» выбор периода не один: %d' % pg.locator('.ipc-sper').count())
     pg.click('.ip-allview [data-ip-atab="norms"]')
     t.wait_for('[data-ip-block="fields"]')
-    t.ck(pg.eval_on_selector_all('[data-ip-block]', 'els => els.map((e) => e.dataset.ipBlock)') == ['norms', 'fields'], 'блоки «Настроек» не те')
+    t.ck(pg.eval_on_selector_all('[data-ip-block]', 'els => els.map((e) => e.dataset.ipBlock)') == ['norms', 'fields', 'reasons'], 'блоки «Настроек» не те')
 
     # Сетка: уход — анимацией (.anim-out), появление — анимацией (.anim-in).
     t.open('#/inspections?s=assign&t=queue', wait='.ip-board .ip-ld-b')

@@ -30,7 +30,7 @@ import { foldSearch, fmtEni } from '../../kernel/fmt.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto } from '../../kernel/inspectionResults.js';
-import { ODO_UNITS, dayLegs, legsTotals, carryOver, nextWorkday, takeForDay, planOf, absenceOn, absenceLabel, startWork, myAssignsOn, finishWork, requestMove, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow, detachCadFile, cadFileAccepted } from '../../kernel/inspections.js';
+import { ODO_UNITS, dayLegs, legsTotals, carryOver, nextWorkday, handReasons, takeForDay, planOf, absenceOn, absenceLabel, startWork, myAssignsOn, finishWork, requestMove, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow, detachCadFile, cadFileAccepted } from '../../kernel/inspections.js';
 import { osrmKm, dayPoints } from '../inspections/route.js';
 import { markItem, markOf, addItemPhoto, removeItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
@@ -177,9 +177,10 @@ function viewPlans(all, ui) {
   const days = Array.from({ length: PLAN_DAYS }, (_, i) => addDays(today, i)).map((d) => {
     const plan = planOf(person, d);
     const ab = absenceOn(person, d);
-    const wd = new Date(d + 'T00:00:00').getDay();
+    // Нерабочий — по графику человека (находка аудита 17.11.2026: выходными считались суббота и воскресенье).
+    const w = workdayOf(person, d);
     return { d, items: live.filter((o) => o.plannedAt === d), region: plan ? [plan.region, plan.district, plan.institutions].filter(Boolean).join(' · ') : '',
-      absence: ab ? [absenceLabel(ab.kind), ab.note].filter(Boolean).join(' — ') : '', off: wd === 0 || wd === 6 };
+      absence: ab ? [absenceLabel(ab.kind), ab.note].filter(Boolean).join(' — ') : '', off: !w.ok && !ab };
   });
   return `${back(href({ v: 'menu' }), 'Меню')}
     <h1 class="om-title om-title-sm">Планы</h1>
@@ -428,7 +429,7 @@ const myContacts = (o) => (resultsOf(o.typeId, o.ocId).contacts || []).filter((c
 function contactsBlock(o, ui = {}) {
   const pre = o.contacts || [];
   const mine = myContacts(o);
-  const ro = o.state === 'done' && !(o.returned || []).length;
+  const ro = !!o.removed || (o.state === 'done' && !(o.returned || []).length);
   const pick = typeof navigator !== 'undefined' && navigator.contacts && navigator.contacts.select;
   return `<div class="om-contacts"><span class="om-cap">Контакты</span>
     ${pre.slice(0, 4).map((c) => contactLine(c)).join('')}
@@ -507,7 +508,7 @@ function oiCtx(o, oiId) {
   const values = { ...def, ...own, ...(def.f || own.f ? { f: { ...(def.f || {}), ...(own.f || {}) } } : {}) };
   const photos = (r.photos || []).filter((p) => p.oiId === oiId && !p.deleted).length;
   // Закончен — только просмотр; ОИ, возвращённый на доосмотр, снова правится.
-  const ro = o.state === 'done' && row.review !== 'returned';
+  const ro = !!o.removed || (o.state === 'done' && row.review !== 'returned');
   return { rec, oi, row, values, own, photos, ro, secs: pwaSections(oi) };
 }
 const visibleFields = (s, values) => s.fields.filter((f) => !f.visible || f.visible(values));
@@ -584,7 +585,7 @@ function viewOi(o, q, opened, savedAt) {
 function foundBlock(o) {
   if (o.entity !== 'real') return '';
   const list = foundOi(o.typeId, o.ocId);
-  const ro = o.state === 'done';
+  const ro = !!o.removed || o.state === 'done';
   return `<section class="om-card om-comp om-found"><h2 class="om-card-h">Выявлено на месте</h2>
     ${list.map((f) => oiRow(o, foundRow(f), null)).join('')}
     ${ro ? (list.length ? '' : '<p class="om-muted om-found-none">Не выявлено</p>') : `<form class="om-found-add" data-found>
@@ -706,7 +707,7 @@ function viewInv(o, q, sel, filtersOpen) {
   const onList = [q.l, q.p ? 'П' + q.p : '', min ? 'от ' + fmtSom(min) : '', max ? 'до ' + fmtSom(max) : '',
     q.sort === 'cost' ? 'по стоимости' : q.sort === 'priority' ? 'по приоритету' : ''].filter(Boolean);
   const nOn = onList.length;
-  const ro = o.state === 'done';
+  const ro = !!o.removed || o.state === 'done';
   const target = q.to ? inv.items.find((x) => x.id === q.to) : null;
   const picking = !ro && (target || sel.size);
   const bar = target ? `<div class="om-selbar"><span>В карточку «${esc(target.name)}»: отмечено ${sel.size}</span>
@@ -763,7 +764,7 @@ function viewItem(o, q) {
   if (!it) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Позиции нет</div>`;
   const members = cardOf(o, inv, it);
   const photos = photosOfCard(o, inv, members);
-  const ro = o.state === 'done' || it.own === false;
+  const ro = !!o.removed || o.state === 'done' || it.own === false;
   const dis = ro ? ' disabled' : '';
   const lead = members[0];
   const comment = rawMark(o, inv, lead).comment;
@@ -828,7 +829,14 @@ function finishBlock(o, ui) {
   const ask = ui.asking ? `<div class="om-card om-ask" role="alert"><b>${miss.length ? 'Заполнено не всё обязательное' : 'Закончить осмотр?'}</b>
       ${miss.length ? `<ul>${miss.map((m) => `<li>${esc(m)}</li>`).join('')}</ul><p class="om-muted">Осмотрено частично: выезд целиком перейдёт на ${esc(shortDate(next))} — заполненное сохранится, регионал получит уведомление.</p>` : '<p class="om-muted">Снятое уйдёт в E•state, объект — на проверку ЦОД.</p>'}
       <div class="om-shoot-act"><button type="button" class="om-btn om-btn-primary" data-finish="${miss.length ? 'partial' : 'full'}">${miss.length ? `Остаток на ${esc(shortDate(next))}` : 'Закончить'}</button>
-      <button type="button" class="om-btn" data-finish-cancel>${miss.length ? 'Дозаполнить' : 'Отмена'}</button></div></div>`
+      <button type="button" class="om-btn" data-finish-cancel>${miss.length ? 'Дозаполнить' : 'Отмена'}</button></div>
+      ${miss.length ? `<details class="om-more-act om-hand"><summary>Сдать с причиной</summary><form class="om-found-add" data-hand novalidate>
+        <label class="om-flabel" for="om-hand-r">Причина</label>
+        <span class="om-select"><select class="om-input" id="om-hand-r" name="reason">${handReasons().map((x) => `<option>${esc(x)}</option>`).join('')}<option value="">Свой вариант</option></select></span>
+        <input class="om-input" name="own" maxlength="200" placeholder="Свой вариант причины" aria-label="Свой вариант причины">
+        <p class="om-hint">Объект уйдёт на проверку с пометкой «неполный» и этой причиной — её увидят регионал и ЦОД.</p>
+        <p class="om-err" data-hand-err hidden>Выберите причину или напишите свою</p>
+        <button class="om-btn om-btn-primary" type="submit">Сдать с причиной</button></form></details>` : ''}</div>`
     : '<button type="button" class="om-btn om-btn-primary om-btn-wide" data-finish-ask>Осмотр закончен</button>';
   // «Перенести» и «Осмотр не состоялся» — один блок (пользователь 17.11.2026: «перенос и осмотр не состоялся объединяем
   // в 1 поле. осмотр не состоялся»): причина, пояснение и, если нужно, новая дата — её подтверждает регионал (06.11.2026).
@@ -838,7 +846,7 @@ function finishBlock(o, ui) {
       <fieldset class="om-radios"><legend class="om-flabel">Причина</legend>${reasons.map((x, i) => `<label class="om-radio"><input type="radio" name="reason" value="${esc(x)}"${i ? '' : ' checked'}> ${esc(x)}</label>`).join('')}</fieldset>
       <textarea class="om-input" name="note" rows="2" maxlength="300" placeholder="Пояснение" aria-label="Пояснение"></textarea>
       ${o.moveReq ? '' : `<label class="om-flabel" for="om-move-date">Перенести на дату</label><input class="om-input" id="om-move-date" name="date" type="date" min="${isoDay()}">
-      <p class="om-hint">Необязательно. Перенос подтверждает регионал; без даты выезд остаётся на своём дне.</p>`}
+      <p class="om-hint">Необязательно. Перенос на дату подтверждает регионал; без даты выезд сам перейдёт на следующий рабочий день — ${esc(shortDate(next))}.</p>`}
       <button class="om-btn" type="submit">Отправить регионалу</button></form></details>`;
   return `<section class="om-finish">${last}${ask}${mv}${fail}</section>`;
 }
@@ -1006,7 +1014,7 @@ function viewReport(q, rerender) {
       ${trips.length ? trips.map((t) => {
     const r = resOf(t);
     return `<fieldset class="om-trip" data-trip="${esc(t.assignId)}"><legend><b>${esc(t.title || 'Объект')}</b></legend>
-        <div class="om-ms">${[['done', 'Осмотрен'], ['partial', 'Частично'], ['failed', 'Не состоялся']].map(([k, l]) => `<label class="om-opt om-opt-r"><input type="radio" name="r_${esc(t.assignId)}" value="${k}"${r === k ? ' checked' : ''}${dis}>${l}</label>`).join('')}</div>
+        <div class="om-ms">${[['done', 'Осмотрен'], ['partial', 'Частично'], ['failed', 'Не состоялся']].map(([k, l]) => `<label class="om-opt om-opt-r"><input type="radio" name="r_${esc(t.assignId)}" value="${k}"${r === k ? ' checked' : ''}${dis || (k === 'done' && t.state !== 'done' ? ' disabled' : '')}>${l}</label>`).join('')}</div>
         <div class="om-trip-partial"><label class="om-flabel" for="om-pr-${esc(t.assignId)}">Причина <i class="om-req">*</i></label>
           <textarea class="om-input" id="om-pr-${esc(t.assignId)}" name="p_${esc(t.assignId)}" rows="2"${dis}>${esc(partial.get(t.assignId) || '')}</textarea></div>
         <div class="om-trip-failed"><span class="om-flabel">Причина <i class="om-req">*</i></span>${OUTCOMES.map((o) => `<label class="om-radio"><input type="radio" name="f_${esc(t.assignId)}" value="${esc(o)}"${dis}> ${esc(o)}</label>`).join('')}</div>
@@ -1615,6 +1623,8 @@ export function mountOsmotr(host) {
       const why = r === 'partial' ? form[`p_${t.assignId}`].value.trim() : r === 'failed' ? (box.querySelector(`input[name="f_${CSS.escape(t.assignId)}"]:checked`) || {}).value || '' : 'ok';
       box.querySelector('.om-trip-err').hidden = !!why;
       if (!why) bad = true;
+      // «Осмотрен» — только законченный осмотр (ответ 06.11.2026): незаконченный сдаётся «Осмотр закончен» на экране объекта.
+      if (r === 'done' && t.state !== 'done') { bad = true; const er = box.querySelector('.om-trip-err'); er.hidden = false; er.textContent = 'Осмотр не закончен — сначала «Осмотр закончен» на экране объекта'; }
       if (r === 'done') doneIds.push(t.assignId);
       if (r === 'partial') partial.push({ assignId: t.assignId, reason: why });
       if (r === 'failed') failed.push({ t, reason: why });
@@ -1658,7 +1668,7 @@ export function mountOsmotr(host) {
       repErr(form, badLeg === chain.length - 1 ? 'Одометр вечером меньше, чем в начале пути этой машины' : `Пересадка ${badLeg + 1}: одометр сданной машины меньше, чем в начале её пути`, null);
       return;
     }
-    failed.forEach(({ t, reason }) => outcomeOf(t, reason, ''));
+    failed.forEach(({ t, reason }) => { outcomeOf(t, reason, ''); carryOver(person, t.typeId, t.ocId, { reason, from: date, failed: true }); });
     // Частично — выезд целиком на следующий рабочий день (17.11.2026).
     partial.forEach((p) => { const t = trips.find((x) => x.assignId === p.assignId); if (t) carryOver(person, t.typeId, t.ocId, { reason: p.reason, from: date }); });
     const km = form.km.value.trim();
@@ -1752,6 +1762,19 @@ export function mountOsmotr(host) {
     finishWork(session.state.person, cur.typeId, cur.ocId, true);
     changed();
   });
+  // Сдать с причиной: обязательное заполнить невозможно — объект сдаётся «неполным» с причиной из перечня или
+  // своей (аудит 17.11.2026: «Сдаем с причиной. Варианты из выпадающего поля и возможность указать свой вариант текстом»).
+  scope.on('submit', '[data-hand]', (e, form) => {
+    e.preventDefault();
+    if (!cur) return;
+    const reason = form.own.value.trim() || form.reason.value;
+    form.querySelector('[data-hand-err]').hidden = !!reason;
+    if (!reason) { form.own.focus(); return; }
+    ui.asking = false;
+    finishWork(session.state.person, cur.typeId, cur.ocId, true, { incomplete: true, reason });
+    changed();
+    host.toast(`Сдано с причиной: ${reason}`, 'ok');
+  });
   scope.on('click', '[data-reopen]', () => { if (cur) { finishWork(session.state.person, cur.typeId, cur.ocId, false); changed(); } });
   // --- инструкции: переход к разделу ---
   scope.on('click', '[data-instr-go]', (e, b) => { const h = scope.$('#om-ib-' + b.dataset.instrGo); if (h) h.scrollIntoView({ block: 'start', behavior: 'smooth' }); });
@@ -1822,6 +1845,11 @@ export function mountOsmotr(host) {
     const date = form.date ? form.date.value : '';
     if (date) mine().filter(isLive).forEach((a) => requestMove(a.id, { date, reason, note }));
     outcomeOf(cur, reason, note);
+    // Без даты — сам на следующий рабочий день (аудит 17.11.2026), регионалу — уведомление с причиной.
+    if (!date) {
+      const to = carryOver(session.state.person, cur.typeId, cur.ocId, { reason: [reason, note].filter(Boolean).join(' — '), failed: true });
+      host.toast(`Выезд перенесён на ${shortDate(to)}`, 'ok');
+    }
   });
 
   scope.on('submit', '[data-found]', (e, form) => {

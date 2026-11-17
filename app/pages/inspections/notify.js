@@ -37,6 +37,8 @@ export const NOTE_KINDS = [
   { key: 'moveReq', label: 'Запрошен перенос выезда', tone: 'warn' },
   // Осмотрено частично — выезд сам ушёл на следующий рабочий день (17.11.2026).
   { key: 'carried', label: 'Остаток перенесён', tone: 'warn' },
+  // Осмотр не состоялся — с причиной; без даты выезд сам ушёл на следующий рабочий день (аудит 17.11.2026).
+  { key: 'failed', label: 'Осмотр не состоялся', tone: 'off' },
 ];
 export const noteKind = (k) => NOTE_KINDS.find((x) => x.key === k) || { key: k, label: k, tone: '' };
 
@@ -90,7 +92,12 @@ export function notifications(all, people, days = 7) {
   evs.forEach((e) => {
     if (!e.date || e.date < from) return;
     if (e.kind === 'skipped' && !undone(e)) push({ kind: 'skipped', person: e.person, date: e.date, ref: e.id, text: `${titleOf(e)} — ${e.text}`, go: { assign: e.assignId } });
-    if (e.kind === 'carried') push({ kind: 'carried', person: e.person, date: e.at ? String(e.at).slice(0, 10) : e.date, ref: e.id, text: `${titleOf(e)} — ${e.text}`, go: { assign: e.assignId } });
+    if (e.kind === 'carried' && e.failed) push({ kind: 'failed', person: e.person, date: e.at ? String(e.at).slice(0, 10) : e.date, ref: e.id, text: `${titleOf(e)} — ${e.text}`, go: { assign: e.assignId } });
+    // С датой переноса — запрос регионалу (moveReq) и сам исход: уведомление без повтора, если выезд уже перенесён сам.
+    if (e.kind === 'outcome' && !evs.some((c) => c.kind === 'carried' && c.failed && c.assignId === e.assignId && String(c.at).slice(0, 10) === String(e.at).slice(0, 10))) {
+      push({ kind: 'failed', person: e.person, date: String(e.at).slice(0, 10), ref: e.id, text: `${titleOf(e)} — ${e.text}`, go: { assign: e.assignId } });
+    }
+    if (e.kind === 'carried' && !e.failed) push({ kind: 'carried', person: e.person, date: e.at ? String(e.at).slice(0, 10) : e.date, ref: e.id, text: `${titleOf(e)} — ${e.text}`, go: { assign: e.assignId } });
     if (e.kind === 'taken') push({ kind: 'offPlan', person: e.person, date: e.date, ref: e.id, text: `${titleOf(e)} — план был ${e.was ? ddmm(e.was) : 'без даты'}`, go: { assign: e.assignId } });
   });
 
@@ -132,7 +139,7 @@ export function notifications(all, people, days = 7) {
   });
   allAssignments().forEach((a) => {
     if (a.state !== 'done' || a.demo || day(a.doneAt) < from) return;
-    push({ kind: 'handed', person: a.person, date: day(a.doneAt), ref: a.id, text: titleOf(a) + (a.incomplete ? ' — неполный' : ''),
+    push({ kind: 'handed', person: a.person, date: day(a.doneAt), ref: a.id, text: titleOf(a) + (a.incomplete ? ` — неполный${a.incompleteReason ? ': ' + a.incompleteReason : ''}` : ''),
       go: { href: `#/oc/${a.typeId}/${a.ocId}?tab=inspection` } });
   });
 

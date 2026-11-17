@@ -23,7 +23,7 @@ const key = (typeId, ocId) => `${typeId}|${ocId}`;
 export const stateLabel = (x) => {
   const k = x && typeof x === 'object' ? x.state : x;
   const label = (ASSIGN_STATES.find((s) => s.key === k) || {}).label || k;
-  return x && typeof x === 'object' && x.state === 'done' && x.incomplete ? `${label} · неполный` : label;
+  return x && typeof x === 'object' && x.state === 'done' && x.incomplete ? `${label} · неполный${x.incompleteReason ? ': ' + x.incompleteReason : ''}` : label;
 };
 
 // Сводки всех записей — одним проходом на отрисовку данных: панель смотрит
@@ -469,7 +469,19 @@ export const QUEUE_FACETS = [
   { key: 'settlement', title: 'Населённый пункт', val: settlementOf },
   { key: 'type', title: 'Тип ОЦ', val: (s) => s.typeId, label: (s) => s.typeLabel },
   { key: 'inst', title: 'Учреждение', val: (s) => s.institution },
+  // Состав (замечание пользователя 17.11.2026: «ТС — отдельные карточки… Я не вижу ТС к назначению»):
+  // отдельные карточки ТС и механизмов и ОЦ, у которых ТС или механизмы — среди ещё не назначенных ОИ.
+  { key: 'kit', title: 'Состав', val: queueKitOf, order: [{ key: 'vehicle', label: 'С ТС' }, { key: 'mech', label: 'С оборудованием' }] },
 ];
+function queueKitOf(s) {
+  const rec = loadTask(s.typeId, s.id);
+  const by = (s.cov && s.cov.by) || new Map();
+  const cards = new Set(((rec && rec.oi) || []).filter((o) => !by.has(o.id)).map((o) => o.card));
+  const out = [];
+  if (s.typeId === 'vehicle' || cards.has('vehicle')) out.push('vehicle');
+  if (s.typeId === 'mechanisms' || cards.has('mech')) out.push('mech');
+  return out;
+}
 export const QUEUE_RANGES = [
   { key: 'deadline', title: 'Срок осмотра', kind: 'date', val: (s) => s.deadline },
   { key: 'area', title: 'Площадь, м²', kind: 'number', val: (s) => (s.metrics && s.metrics.area) || 0 },

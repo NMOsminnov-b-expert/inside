@@ -1686,15 +1686,24 @@ body[data-page="inspections"] .ip-unread{animation:springIn var(--dur-enter) var
 body[data-page="inspections"] .on-scene{--c-left:calc(var(--isle-gap) + var(--list-w) + 8px);--c-right:calc(var(--isle-gap) + var(--pane-w) + 8px)}
 body[data-page="inspections"] .on-scene.hide-list{--c-left:var(--isle-gap)}
 body[data-page="inspections"] .on-scene.hide-pane{--c-right:var(--isle-gap)}
-body[data-page="inspections"] .ip-cview{position:absolute;top:var(--scene-top);left:calc(var(--c-left) + 8px);z-index:12;height:38px;padding:3px;gap:2px}
-body[data-page="inspections"] .ip-cview button{height:32px;padding:0 14px;border-radius:var(--radius-md);font-size:13px;font-weight:500;color:var(--muted)}
-body[data-page="inspections"] .ip-cview button[aria-pressed="true"]{background:var(--blue-600);color:#fff}
+/* Капсулы-переключатели «Сетка · Карта» и «План · Факт» — один вид: отступ дорожки 4 px, скругление кнопки
+   соосно краю (радиус капсулы минус отступ); наведение — малым масштабом, чтобы кнопка не упиралась в край. */
+body[data-page="inspections"] .ip-cview{position:absolute;top:var(--scene-top);left:calc(var(--c-left) + 8px);z-index:12;height:40px;padding:4px;gap:2px}
+body[data-page="inspections"] :is(.ip-cview,.ip-layer) button{height:32px;padding:0 14px;border:0;border-radius:calc(var(--radius-lg) - 4px);background:transparent;
+  font-size:13px;font-weight:500;color:var(--muted);--hover-scale:var(--hover-scale-wide)}
+body[data-page="inspections"] :is(.ip-cview,.ip-layer) button:hover{color:var(--ink);background:color-mix(in srgb,var(--ink) 6%,transparent)}
+body[data-page="inspections"] :is(.ip-cview,.ip-layer) button[aria-pressed="true"]{background:var(--blue-600);color:#fff;box-shadow:0 1px 3px rgba(20,60,110,.25)}
 body[data-page="inspections"] .ip-board{position:absolute;top:calc(var(--scene-top) + 46px);left:var(--c-left);right:var(--c-right);bottom:var(--isle-gap);z-index:9;
   pointer-events:auto;overflow:auto;padding:12px 14px;background:color-mix(in srgb,var(--bg) 94%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
   border-radius:var(--radius-lg);box-shadow:var(--card-sh)}
 body[data-page="inspections"] .ip-board .ip-load-wrap{max-height:none;background:var(--panel);border-radius:var(--radius-md)}
 body[data-page="inspections"] .ip-board .ip-ld-who{min-width:150px}
-body[data-page="inspections"] .ip-layer{width:150px;height:32px;border-radius:var(--radius-md);overflow:hidden;flex:none}
+body[data-page="inspections"] .ip-layer{display:flex;gap:2px;width:auto;height:40px;padding:4px;border:0;border-radius:var(--radius-lg);overflow:visible;flex:none;
+  background:color-mix(in srgb,var(--ink) 5%,transparent)}
+body[data-page="inspections"] .ip-layer button + button{border-left:0}
+/* Клетки сетки: отступ под увеличение кнопки при наведении и перетаскивании — иначе у крайнего столбца и нижней
+   строки кнопка выходила за край прокрутки, появлялась полоса и таблица дёргалась (замечание 17.11.2026). */
+body[data-page="inspections"] .ip-load-tbl td.ip-ld{padding:3px}
 body[data-page="inspections"] .ip-ld-day.is-today b{color:var(--blue-700)}
 body[data-page="inspections"] .ip-ld-day.is-today{box-shadow:inset 0 -3px 0 var(--blue-600)}
 body[data-page="inspections"] .ip-ld-plan{font-style:normal;font-size:10.5px;color:var(--violet-700);background:var(--violet-50);border-radius:999px;padding:0 6px;

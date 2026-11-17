@@ -249,10 +249,12 @@ export function setAssignState(id, state, extra = {}) {
   if (!a || a.state === state || !ASSIGN_STATES.some((s) => s.key === state)) return a;
   const was = a.state;
   a.state = state;
-  if (state === 'done') { a.doneAt = now(); a.incomplete = !!extra.incomplete; }
-  if (was === 'done' && state !== 'done') { a.doneAt = ''; a.incomplete = false; }
+  // Сдано с причиной (аудит 17.11.2026: «Сдаем с причиной. Варианты из выпадающего поля и возможность указать
+  // свой вариант текстом») — причина неполного осмотра видна регионалу и ЦОД.
+  if (state === 'done') { a.doneAt = now(); a.incomplete = !!extra.incomplete; a.incompleteReason = extra.incomplete ? extra.reason || '' : ''; }
+  if (was === 'done' && state !== 'done') { a.doneAt = ''; a.incomplete = false; a.incompleteReason = ''; }
   if (state === 'removed') a.removedAt = now();
-  logEvent(state, a, extra.incomplete ? { text: 'неполный осмотр' } : {});
+  logEvent(state, a, extra.incomplete ? { text: 'неполный осмотр' + (extra.reason ? ': ' + extra.reason : '') } : {});
   syncResp(a.typeId, a.ocId);
   changed();
   return a;
@@ -301,9 +303,9 @@ export function startWork(person, typeId, ocId) {
 
 // «Осмотр завершён» и снятие отметки. Объект закончен, когда закончены все
 // его назначения.
-export function finishWork(person, typeId, ocId, done, { incomplete = false } = {}) {
+export function finishWork(person, typeId, ocId, done, { incomplete = false, reason = '' } = {}) {
   const mine = myAssignsOn(person, typeId, ocId);
-  mine.forEach((a) => setAssignState(a.id, done ? 'done' : 'progress', done ? { incomplete } : {}));
+  mine.forEach((a) => setAssignState(a.id, done ? 'done' : 'progress', done ? { incomplete, reason } : {}));
   return mine.length;
 }
 
@@ -563,19 +565,41 @@ export function nextWorkday(person, from) {
 // уведомление «Остаток перенесён» (пользователь 17.11.2026: «Если осмотрено частично, переносим на следующий рабочий
 // день остатки»; ответы: к отчёту дня и к «неполному» — «К обоим», «Сами, регионалу — уведомление», «Весь выезд»).
 // Заполненное и снятое остаётся; назначение — в работе. Возвращает новую дату.
-export function carryOver(person, typeId, ocId, { reason = '', from = '' } = {}) {
+// failed — «Осмотр не состоялся» без даты переноса (аудит 17.11.2026: «Сам на след. рабочий день»; регионалу —
+// уведомление с причиной). Перенос — не в прошлое: отчёт за прошедший день, сданный позже, переносит не раньше
+// сегодняшнего рабочего дня (находка аудита 17.11.2026).
+export function carryOver(person, typeId, ocId, { reason = '', from = '', failed = false } = {}) {
   const d0 = new Date();
-  const today = from || `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`;
-  const to = nextWorkday(person, today);
+  const realToday = `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`;
+  const today = from || realToday;
+  let to = nextWorkday(person, today);
+  if (to < realToday) to = workdayOf(person, realToday).ok ? realToday : nextWorkday(person, realToday);
   myAssignsOn(person, typeId, ocId).filter(isLive).forEach((a) => {
     const was = a.plannedAt || '';
     a.plannedAt = to;
     if (a.state === 'done') setAssignState(a.id, 'progress');
     a.updatedAt = now();
-    logEvent('carried', a, { date: to, was, text: `осмотрено частично${reason ? ': ' + reason : ''} — ${was || 'без даты'} → ${to}` });
+    logEvent('carried', a, { date: to, was, failed, text: `${failed ? 'осмотр не состоялся' : 'осмотрено частично'}${reason ? ': ' + reason : ''} — ${was || 'без даты'} → ${to}` });
   });
   changed();
   return to;
+}
+
+// Причины «Сдать с причиной» — перечень правит регионал («Люди» → «Настройки»). Начальные — из перечня исходов
+// приложения «Осмотр» (Estate.OUTCOMES), без выдуманных; «Свой вариант» — всегда.
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: перечень — справочник организации на сервере (общий для регионалов и осмотрщиков);
+// сейчас — в браузере рабочего места.
+const HAND_KEY = 'inside.osmotr.handReasons';
+export const HAND_REASONS_DEFAULT = ['Нет доступа', 'Объект закрыт', 'Не на месте'];
+export function handReasons() {
+  try {
+    const v = JSON.parse(localStorage.getItem(HAND_KEY) || 'null');
+    return Array.isArray(v) ? v : HAND_REASONS_DEFAULT.slice();
+  } catch (e) { return HAND_REASONS_DEFAULT.slice(); }
+}
+export function setHandReasons(list) {
+  try { localStorage.setItem(HAND_KEY, JSON.stringify([...new Set(list.map((x) => String(x).trim()).filter(Boolean))])); } catch (e) { /* без памяти браузера */ }
+  changed();
 }
 
 // Ссылка на чат WhatsApp: номер — WhatsApp, иначе телефон; цифры с кодом

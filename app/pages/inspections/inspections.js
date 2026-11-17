@@ -24,7 +24,7 @@ import {
   allAssignments, profileOf, saveProfile, addAbsence, removeAbsence, absenceKinds, absenceLabel, WEEKDAYS, whatsappLink, absenceOn, dayReport, moveRequests, decideMove,
   deadlineOf, setDeadline, reassignMany, moveDateMany, unassignMany, restoreMany, stallOf, workdayOf,
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
-  addActivity, removeActivity, activitiesOn, activityKind, carFuels,
+  addActivity, removeActivity, activitiesOn, activityKind, carFuels, handReasons, setHandReasons,
   planOf, setPlan, assign, transferOi, isLive,
   allCadRequests, cadRequest, cadBranches, cadBranch, cadBranchFor, createCadRequest, updateCadRequest, closeCadRequest, remindCadRequest, cadDuplicateOf, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, cadDocs,
 } from '../../kernel/inspections.js';
@@ -122,7 +122,7 @@ const PERSON_TABS = [['trips', 'Выезды'], ['plan', 'План месяца'
 // карточки, внутри вида — блоки одной прокруткой; прежние ключи вкладок (адреса, «Перейти», проверки) ведут
 // к своему блоку. Карточка осмотрщика — блоки одной прокруткой с оглавлением; «Маршрут» — отдельный экран.
 const ALL_GROUPS = [['summary', 'Сводка', ['summary']], ['table', 'Таблица', ['table']], ['analytics', 'Аналитика', ['stats', 'totals', 'reports']],
-  ['settings', 'Настройки', ['norms', 'fields']]];
+  ['settings', 'Настройки', ['norms', 'fields', 'reasons']]];
 const groupOf = (k) => ALL_GROUPS.find((g) => g[2].includes(k)) || ALL_GROUPS[0];
 // Значки кнопок массовых действий: на узкой панели кнопка — только значок,
 // подпись — в подсказке и aria-label («На узких режимах ломается. Лучше на
@@ -1763,6 +1763,16 @@ export function mountInspections(host) {
     </div>`;
   }
 
+  // Перечень причин «Сдать с причиной» (аудит 17.11.2026) — его видит осмотрщик, когда обязательное заполнить
+  // невозможно; «Свой вариант» у осмотрщика есть всегда.
+  function reasonsHTML() {
+    const list = handReasons();
+    return `<div class="ip-reasons">
+      <p class="ip-hint">Осмотрщик выбирает причину из перечня или пишет свою — объект уходит на проверку «неполным» с этой причиной.</p>
+      <ul class="ip-reason-list">${list.map((x, i) => `<li><span>${esc(x)}</span><button type="button" class="isearch-clear" data-ip-reason-del="${i}" aria-label="Убрать «${esc(x)}»" title="Убрать">×</button></li>`).join('')}</ul>
+      <div class="ip-reason-add"><input class="input" data-ip-reason-new maxlength="120" placeholder="Новая причина" aria-label="Новая причина" autocomplete="off">
+        <button type="button" class="btn btn-ghost btn-sm" data-ip-reason-add>Добавить</button></div></div>`;
+  }
   function allCardHTML() {
     const list = visiblePeople();
     const sum = (k) => list.reduce((n, p) => n + p[k], 0);
@@ -1772,6 +1782,7 @@ export function mountInspections(host) {
       stats: ['Статистика', () => statsHTML({ all, people: list, person: '', period: statPeriod(), bar: false })], totals: ['Итоги', () => totalsHTML(list, false)],
       reports: ['Отчёты за день', () => allReportsHTML(list)], norms: ['Нормы осмотра', () => normsHTML()],
       fields: [`Свои поля · ${allCustomFields().length}`, () => fieldsHTML()],
+      reasons: ['Причины «Сдать с причиной»', () => reasonsHTML()],
     };
     const many = g[2].length > 1;
     // Аналитика — один выбор периода над блоками (решение 05.11.2026 «Один общий»), выгрузки — рядом с ним.
@@ -2373,6 +2384,10 @@ export function mountInspections(host) {
       .filter((x) => x.ab);
     const trips = active.map((p) => ({ p, r: dayReport(p.name, todayD) })).filter((x) => x.r.trips);
     const fresh = notes.filter((n) => !read.has(n.id) && ofMine(n.person)).slice(0, 8);
+    // Исходы за неделю (аудит 17.11.2026): не состоялся — с причиной; сдано «неполным» — с причиной.
+    const week = shiftD(todayD, -6);
+    const failedN = notes.filter((n) => n.kind === 'failed' && n.date >= week && ofMine(n.person)).slice(0, 12);
+    const handN = notes.filter((n) => n.kind === 'handed' && / — неполный/.test(n.text) && n.date >= week && ofMine(n.person)).slice(0, 12);
     // Запросы переноса — ответ прямо здесь (решение 06.11.2026: «Регионал должен подтвердить перенос»).
     const moves = moveRequests().filter((a) => ofMine(a.person) && objInSlice(objOf(a.typeId, a.ocId)));
     const moveLi = (a) => `<li class="ip-today-move"><span class="ip-today-a">${esc((all.get(a.typeId + '|' + a.ocId) || {}).title || '—')}</span>
@@ -2398,6 +2413,8 @@ export function mountInspections(host) {
         ${block('Пропущено и просрочено', late.length, `<ul class="ip-today-list">${late.map((n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`, n.date === todayD ? 'сегодня' : fmtDate(n.date))).join('')}</ul>`, 'Пропусков отчётов и выездов нет.')}
         ${block('Отсутствуют сегодня', away.length, `<ul class="ip-today-list">${away.map(({ p, ab, n }) => li(`data-ip-today-p="${esc(p.name)}"`, p.name, absenceLabel(ab.kind) + (ab.to && ab.to !== todayD ? ` до ${fmtDate(ab.to)}` : ''), n ? `<b class="ip-late">выездов на сегодня ${n} — переназначить</b>` : '')).join('')}</ul>`, 'Все осмотрщики на месте.')}
         ${block('Выезды сегодня', trips.length, `<ul class="ip-today-list">${trips.map(({ p, r }) => li(`data-ip-today-day="${esc(p.name)}"`, p.name, `${r.trips} ${r.trips === 1 ? 'выезд' : r.trips < 5 ? 'выезда' : 'выездов'}`, r.morning ? `утренний ${esc(reportTime(r.morning.at))}` : r.missingMorning ? '<b class="ip-late">нет утреннего</b>' : 'утренний ещё не сдан')).join('')}</ul>`, 'На сегодня выездов не назначено.')}
+        ${failedN.length ? block('Осмотр не состоялся', failedN.length, `<ul class="ip-today-list">${failedN.map((n) => li(`data-ip-note="${esc(n.id)}"`, n.person || 'объект', n.text, n.date === todayD ? 'сегодня' : fmtDate(n.date))).join('')}</ul>`, '') : ''}
+        ${handN.length ? block('Сдано с причиной', handN.length, `<ul class="ip-today-list">${handN.map((n) => li(`data-ip-note="${esc(n.id)}"`, n.person || 'объект', n.text, n.date === todayD ? 'сегодня' : fmtDate(n.date))).join('')}</ul>`, '') : ''}
         ${block('Новые уведомления', fresh.length, `<ul class="ip-today-list">${fresh.map((n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`)).join('')}</ul>`, 'Непрочитанных уведомлений нет.', ' <button type="button" class="btn btn-ghost btn-sm" data-ip-section="notes">Все уведомления</button>')}
       </div>
     </section>`;
@@ -3329,6 +3346,20 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-load]', (e, b) => {
     const [name, day] = b.dataset.ipLoad.split('|');
     if (view.tab === 'queue' && checked.size) assignTo(name, day); else openPday(name, day);
+  });
+  scope.on('click', '[data-ip-reason-add]', () => {
+    const el = scope.$('[data-ip-reason-new]');
+    const v = el ? el.value.trim() : '';
+    if (!v) { if (el) el.focus(); return; }
+    setHandReasons([...handReasons(), v]);
+    host.toast(`Причина добавлена: ${v}`, 'ok');
+  });
+  scope.on('keydown', '[data-ip-reason-new]', (e) => { if (e.key === 'Enter') { e.preventDefault(); scope.$('[data-ip-reason-add]').click(); } });
+  scope.on('click', '[data-ip-reason-del]', (e, b) => {
+    const list = handReasons();
+    const [gone] = list.splice(Number(b.dataset.ipReasonDel), 1);
+    setHandReasons(list);
+    host.toast(`Причина убрана: ${gone}`, 'ok', { action: { label: 'Вернуть', run: () => setHandReasons([...handReasons(), gone]) } });
   });
   scope.on('click', '[data-ip-center]', (e, b) => {
     const to = b.dataset.ipCenter;
