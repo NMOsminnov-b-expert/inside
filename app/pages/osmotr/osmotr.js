@@ -1456,14 +1456,20 @@ export function mountOsmotr(host) {
     const f = input.files && input.files[0];
     if (!box) return;
     box.hidden = !f;
-    box.innerHTML = f ? `<div class="om-file om-file-new"><span class="om-file-prev">${/pdf/i.test(f.type) ? '<span class="om-file-pdf" aria-hidden="true">PDF</span>' : `<img src="${esc(URL.createObjectURL(f))}" alt="">`}</span>
-      <span class="om-file-tx"><b>${esc(f.name)}</b><small>${esc(fileMeta({ name: f.name, mime: f.type, size: f.size }))} · будет отправлен с ответом</small></span>
-      <span class="om-file-act"><button type="button" class="om-btn om-btn-sm" data-cad-file-clear>Убрать</button></span></div>` : '';
+    // Просмотр до отправки — сам выбранный файл в новой вкладке (снимок или PDF — встроенный просмотр браузера).
+    if (box.dataset.url) { URL.revokeObjectURL(box.dataset.url); delete box.dataset.url; }
+    const url = f ? URL.createObjectURL(f) : '';
+    if (url) box.dataset.url = url;
+    const open = `href="${esc(url)}" target="_blank" rel="noopener"`;
+    box.innerHTML = f ? `<div class="om-file om-file-new"><a class="om-file-prev" ${open} aria-label="Открыть: ${esc(f.name)}">${/pdf/i.test(f.type) ? '<span class="om-file-pdf" aria-hidden="true">PDF</span>' : `<img src="${esc(url)}" alt="">`}</a>
+      <a class="om-file-tx" ${open}><b>${esc(f.name)}</b><small>${esc(fileMeta({ name: f.name, mime: f.type, size: f.size }))} · будет отправлен с ответом</small></a>
+      <span class="om-file-act"><a class="om-btn om-btn-sm" ${open}>${ico('photo', 16)}Открыть</a><button type="button" class="om-btn om-btn-sm om-btn-ghost-danger" data-cad-file-clear>${ico('trash', 16)}Убрать</button></span></div>` : '';
   });
   scope.on('click', '[data-cad-file-clear]', (e, b) => {
     const form = b.closest('form');
     form.file.value = '';
     const box = form.querySelector('.om-cad-pick');
+    if (box.dataset.url) { URL.revokeObjectURL(box.dataset.url); delete box.dataset.url; }
     box.hidden = true; box.innerHTML = '';
   });
   // Открепить: первый щелчок — подтверждение в строке; второй — само действие.

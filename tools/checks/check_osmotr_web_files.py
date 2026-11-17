@@ -9,7 +9,7 @@
   * просмотр не показывает файл; открепление без подтверждения; после открепления строка не ждёт ответа,
     скан остаётся у строки или в очереди ЦОД «Сканы с осмотров»;
   * скан, принятый ЦОД, можно открепить;
-  * выбранный, но не отправленный файл нельзя убрать до отправки;
+  * выбранный, но не отправленный файл нельзя открыть или убрать до отправки;
   * ответ «Получен» с уже прикреплённым сканом требует файл заново;
   * снимок позиции описи не открывается и не удаляется (органическая опись и механизмы);
   * на 360 пикселях экраны прокручиваются вбок.
@@ -47,6 +47,8 @@ def run(t):
     f.locator('input[value=got]').check(force=True)
     f.locator('[data-cad-file]').set_input_files([{'name': 'tp.png', 'mimeType': 'image/png', 'buffer': PNG}])
     t.ck(t.wait_until("() => /будет отправлен/.test(document.querySelector('.om-cad-pick')?.textContent || '')"), 'выбранный файл не показан карточкой')
+    t.ck(pg.evaluate("() => { const a = document.querySelectorAll('.om-cad-pick a[target=_blank]'); return a.length === 3 && [...a].every((x) => x.href.startsWith('blob:')); }"),
+         'у выбранного файла нет «Открыть» (миниатюра, имя, кнопка)')
     f.locator('[data-cad-file-clear]').click()
     t.ck(pg.evaluate("() => document.querySelector('form [data-cad-file]').files.length === 0 && document.querySelector('.om-cad-pick').hidden"), '«Убрать» не снял выбранный файл')
     f.locator('[data-cad-file]').set_input_files([{'name': 'tp.png', 'mimeType': 'image/png', 'buffer': PNG}])
