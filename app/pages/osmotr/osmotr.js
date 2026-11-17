@@ -509,6 +509,17 @@ function oiCtx(o, oiId) {
   return { rec, oi, row, values, own, photos, ro, secs: pwaSections(oi) };
 }
 const visibleFields = (s, values) => s.fields.filter((f) => !f.visible || f.visible(values));
+// Инженерные сети участка — и в литеру, если литера на участке одна (пользователь 17.11.2026: «Если у нас на участке
+// всего 1 литера, то инженерку из земельного участка копируем и в литеру»). Поля сетей у участка и литеры одни и те же
+// (params.js, раздел nets). Литеры — здания и вспомогательные постройки записи и выявленные на месте строения.
+// В литере значение не перезаписывается, если его там поменяли вручную (оно не пусто и не равно прежнему значению участка).
+const NET_KEYS = ['electricity', 'centralWater', 'sewerage', 'gasification', 'centralHeating'];
+function soleLiter(o, rec) {
+  const own = ownOis(rec).filter((x) => x.card === 'building' || x.card === 'aux');
+  const found = foundOi(o.typeId, o.ocId).filter((x) => x.card !== 'vehicle');
+  const all = [...own.map((x) => x.id), ...found.map((x) => x.id)];
+  return all.length === 1 ? all[0] : '';
+}
 // «Заполнено N из M» — как в приложении: видимые поля, кроме комментария; обязательное закрыто любым значением.
 function secProgress(s, ctx) {
   const fields = visibleFields(s, ctx.values).filter((f) => f.counted !== false);
@@ -553,7 +564,7 @@ function viewOi(o, q, opened, savedAt) {
       return `<details class="om-acc" data-sec="${esc(s.key)}"${opened.has(ctx.row.id + '|' + s.key) ? ' open' : ''}>
         <summary class="om-row om-secrow"><span class="om-sq om-sq-sm ${tone}">${String(i + 1).padStart(2, '0')}</span>
           <span class="om-row-tx"><b>${esc(s.title)}</b><small>${esc(vals.length ? vals.join(', ') : 'не заполнено')}</small>${sp.requiredLeft ? `<small class="om-prog-req">обязательных осталось ${sp.requiredLeft}</small>` : ''}</span>${ico('chev', 18)}</summary>
-        <div class="om-form">${visibleFields(s, ctx.values).map((f) => fieldHTML(f, ctx)).join('')}</div></details>`;
+        <div class="om-form">${s.key === 'nets' && ctx.oi.card === 'land' && soleLiter(o, ctx.rec) ? '<p class="om-hint">Литера на участке одна — значения переносятся и в неё</p>' : ''}${visibleFields(s, ctx.values).map((f) => fieldHTML(f, ctx)).join('')}</div></details>`;
     }).join('');
   const chipTone = p.requiredLeft ? 'om-t-amber' : p.filled === p.total ? 'om-t-green' : 'om-t-blue';
   return `${back(href({ v: 'obj', id: o.id }), o.title)}
@@ -1276,7 +1287,18 @@ export function mountOsmotr(host) {
   // Поле осмотра: значение — в «Результаты осмотра» сразу; первая правка переводит назначение «в работу».
   function saveField(key, value) {
     if (!cur || !q.oi) return;
-    setValue(valuesOf(cur.typeId, cur.ocId, q.oi), key, value);
+    const vals = valuesOf(cur.typeId, cur.ocId, q.oi);
+    const prev = getValue(vals, key);
+    setValue(vals, key, value);
+    if (NET_KEYS.includes(key)) {
+      const ctx = oiCtx(cur, q.oi);
+      const liter = ctx && ctx.oi.card === 'land' ? soleLiter(cur, ctx.rec) : '';
+      if (liter) {
+        const lv = valuesOf(cur.typeId, cur.ocId, liter);
+        const was = getValue(lv, key);
+        if (!isFilled(was) || was === prev) setValue(lv, key, value);
+      }
+    }
     startWork(session.state.person, cur.typeId, cur.ocId);
     saveResults();
     const d = new Date();
