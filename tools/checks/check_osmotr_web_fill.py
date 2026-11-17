@@ -76,6 +76,9 @@ def run(t):
     use_cadastre_fixture(pg)
     pg.set_viewport_size({'width': 400, 'height': 860})
     t.open('#/osmotr', wait='.om-app[data-v="today"]')
+    # Категории снимков ТС — без «Модули», даже у машины с модулями (пользователь 17.11.2026).
+    cats = pg.evaluate("async () => (await import('./app/pages/inspection/tasks.js')).photoCatsOf({ card: 'vehicle', vehicle: { modules: [{ kind: 'Кран' }] } })")
+    t.ck(cats == ['Машина', 'Документы на месте', 'Прочее'], 'категории снимков ТС: %s' % cats)
     kinds = {}
     for x in pg.evaluate(OIS):
         kinds.setdefault(x['kind'], x)
