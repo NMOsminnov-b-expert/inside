@@ -18,6 +18,7 @@ import { allInventories } from './inventories.js';
 import { sortedTypes, isTsHolder } from './registry.js';
 import { stepOf } from './status/flow.js';
 import { DEMO_PARCELS } from './demoParcels.js';
+import { eniRegion } from './fmt.js';
 
 function mulberry32(a) {
   return () => {
@@ -267,11 +268,107 @@ export function demoInspections({ isDefaultDoc = () => false, me = '' } = {}) {
     ev(a2, 'assigned', new Date(a2.at));
   }
 
-  const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
-  const deadlines = demoAssignDetails(names, assignments, recs, profiles, today);
+  // Результаты и ТС — до отчётов дня: отчёты и сроки строятся по уже разложенным дням (tidyDays).
   const results = demoResultsTab(demoTs(names, recs, partial, assignments, events, today, () => ++n, me),
     recs, assignments, events, today, () => ++n, me, names);
+  tidyDays(assignments, events, results, recs, today);
+  const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
+  const deadlines = demoAssignDetails(names, assignments, recs, profiles, today);
   return { resultsVer: DEMO_RESULTS_VER, assignments, results, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today, me), plans: demoPlans(names, assignments, recs, today), deadlines };
+}
+
+// День осмотрщика правдоподобен (пользователь 17.11.2026: «причеши демо данные для осмотров. Что бы не
+// получалось, что на человека на день назначено 20 обьектов в 3-х областях. Все делаем логичным»).
+// Последний проход по готовому демо: добавки (ТС, вкладка «Результаты осмотра», частичный объект) ставят
+// выезды на постоянные сдвиги от сегодня, не глядя на выходные, область и загрузку дня. Здесь:
+//   * в день — не больше DAY_MAX объектов;
+//   * день — в одной зоне: Бишкек с Чуйской областью — одна зона (соседи, день «Бишкек + Кант» обычен),
+//     прочие области — каждая своя; объект без ЕНИ (ТС) — в любой зоне;
+//   * выездов на выходные нет;
+//   * лишнее уезжает на ближайший рабочий день той же стороны от сегодня (прошлое — раньше, будущее —
+//     позже) со свободным местом и той же зоной; сегодняшние выезды не двигаются.
+// Выезд двигается целиком (все назначения объекта на этот день) — с событиями дня выезда, окончанием и
+// временем снимков в результатах осмотра; назначение, выданное позже нового дня, выдаётся за два дня до него.
+const DAY_MAX = 4;
+function tidyDays(assignments, events, results, recs, today) {
+  const t0 = isoLocalDate(today);
+  const recOf = new Map(recs.map((r) => [r.typeId + '|' + r.ocId, r]));
+  const zoneOf = (key) => {
+    const g = eniRegion((recOf.get(key) || {}).eni || '');
+    return !g ? '' : g === 'Бишкек' || g === 'Чуй' ? 'Бишкек и Чуй' : g;
+  };
+  const plus = (iso, k) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + k); return isoLocalDate(d); };
+  const weekend = (iso) => !isWorkday(new Date(iso + 'T00:00:00'));
+  const evOf = new Map();
+  events.forEach((e) => { if (!evOf.has(e.assignId)) evOf.set(e.assignId, []); evOf.get(e.assignId).push(e); });
+  const local = (at) => isoLocalDate(new Date(at));
+  const moveTime = (at, k) => { const d = new Date(at); d.setDate(d.getDate() + k); return d.toISOString(); };
+  // Выезды: человек → день → объект → назначения.
+  const plan = new Map();
+  const visits = (p, day) => {
+    if (!plan.has(p)) plan.set(p, new Map());
+    const m = plan.get(p);
+    if (!m.has(day)) m.set(day, new Map());
+    return m.get(day);
+  };
+  assignments.forEach((a) => {
+    if (!a.plannedAt || a.state === 'removed' || a.removed) return;
+    const v = visits(a.person, a.plannedAt);
+    const key = a.typeId + '|' + a.ocId;
+    if (!v.has(key)) v.set(key, []);
+    v.get(key).push(a);
+  });
+  const fits = (p, day, zone) => {
+    if (weekend(day)) return false;
+    const v = visits(p, day);
+    if (v.size >= DAY_MAX) return false;
+    return !zone || [...v.keys()].every((k) => { const z = zoneOf(k); return !z || z === zone; });
+  };
+  const relocate = (p, day, key) => {
+    const list = visits(p, day).get(key);
+    const zone = zoneOf(key);
+    const dir = day < t0 ? -1 : 1;
+    let to = '';
+    for (let k = 1; k <= 120 && !to; k++) {
+      for (const s of [dir, -dir]) {
+        const cand = plus(day, k * s);
+        if ((day < t0 && cand < t0) || (day > t0 && cand > t0)) { if (fits(p, cand, zone)) { to = cand; break; } }
+      }
+    }
+    if (!to) return;
+    const k = Math.round((new Date(to + 'T00:00:00') - new Date(day + 'T00:00:00')) / 86400000);
+    visits(p, day).delete(key);
+    visits(p, to).set(key, list);
+    list.forEach((a) => {
+      a.plannedAt = to;
+      if (a.doneAt) a.doneAt = moveTime(a.doneAt, k);
+      (evOf.get(a.id) || []).forEach((e) => { if (e.kind !== 'assigned' && local(e.at) === day) e.at = moveTime(e.at, k); });
+      if (local(a.at) >= to) {
+        a.at = dayAt(new Date(to + 'T00:00:00'), -2, 15).toISOString();
+        (evOf.get(a.id) || []).forEach((e) => { if (e.kind === 'assigned') e.at = a.at; });
+      }
+    });
+    const r = results.find((x) => x.typeId + '|' + x.ocId === key);
+    (r && r.photos || []).forEach((ph) => { if (ph.at && local(ph.at) === day) ph.at = moveTime(ph.at, k); });
+  };
+  plan.forEach((days, p) => {
+    [...days.keys()].sort().forEach((day) => {
+      if (day === t0) return;
+      const v = days.get(day);
+      if (!v || !v.size) return;
+      if (weekend(day)) { [...v.keys()].forEach((key) => relocate(p, day, key)); return; }
+      // Зона дня — та, где больше объектов; лишние и чужие зоны — на другой день.
+      const count = {};
+      [...v.keys()].forEach((key) => { const z = zoneOf(key); if (z) count[z] = (count[z] || 0) + 1; });
+      const main = Object.keys(count).sort((x, y) => count[y] - count[x])[0] || '';
+      const keep = [];
+      [...v.keys()].forEach((key) => {
+        const z = zoneOf(key);
+        if ((!z || z === main) && keep.length < DAY_MAX) keep.push(key);
+        else relocate(p, day, key);
+      });
+    });
+  });
 }
 
 // Осмотр ТС (этап А, запись графа osmotr-ts-na-meste-i-po-snimkam): записи
