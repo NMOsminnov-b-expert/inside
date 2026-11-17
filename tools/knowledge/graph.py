@@ -300,17 +300,18 @@ def check():
 
 
 def reindex_in_background():
-    """tools/hooks/reindex.py скрытым процессом: CodeGraph и поиск по смыслу (ход —
-    .graf/index-status.json, журналы — .graf/reindex-*.log)."""
+    """tools/hooks/reindex.py --code скрытым процессом: только CodeGraph (ход —
+    .graf/index-status.json, журнал — .graf/reindex-code.log). Поиск по смыслу
+    не обновляется (пользователь 17.11.2026: «от semsearch отказываемся в пользу другого сервиса»)."""
     import subprocess
     script = os.path.join(ROOT, 'tools', 'hooks', 'reindex.py')
     if not os.path.exists(script):
         return
     flags = 0x08000000 | 0x00000008 if os.name == 'nt' else 0  # без окна, отдельно от консоли
     try:
-        subprocess.Popen([sys.executable, script], cwd=ROOT, creationflags=flags,
+        subprocess.Popen([sys.executable, script, '--code'], cwd=ROOT, creationflags=flags,
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print('индексы обновляются в фоне (CodeGraph и поиск по смыслу)')
+        print('индекс CodeGraph обновляется в фоне')
     except OSError as e:
         print('индексы не запущены: %s' % e)
 

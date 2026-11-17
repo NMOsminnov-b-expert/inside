@@ -60,8 +60,10 @@ from playwright.sync_api import sync_playwright
 # параллельно (28.10.2026: «Я параллельно работать не могу. Проц задыхается»).
 # На Windows порождённые процессы (браузеры Playwright, потоки run.py)
 # наследуют «ниже обычного», и процессор достаётся сначала человеку.
+# С 17.11.2026 прогоны — обычные (пользователь: «Тестовые прогоны можно сделать спокойно обычными, раз от
+# semsearch отказываемся»); пониженный приоритет — по INSIDE_CHECKS_PRIO=low.
 def _lower_priority():
-    if os.environ.get('INSIDE_CHECKS_PRIO') == 'normal':
+    if os.environ.get('INSIDE_CHECKS_PRIO') != 'low':
         return
     try:
         if os.name == 'nt':

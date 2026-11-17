@@ -46,16 +46,13 @@ def http_ok(url):
 def tools_state():
     sys.path.insert(0, os.path.join(ROOT, 'tools', 'knowledge'))
     import store
+    # Поиск по смыслу (Ollama, реранкер) не проверяется с 17.11.2026 (пользователь 17.11.2026: «от semsearch отказываемся в пользу другого сервиса»).
     state = [('PostgreSQL', store.pg_up()),
-             ('Ollama', http_ok('http://127.0.0.1:11434/api/version')),
-             ('реранкер', http_ok('http://127.0.0.1:8091/health')),
              ('индекс CodeGraph', os.path.exists(os.path.join(ROOT, '.codegraph')))]
     down = [n for n, ok in state if not ok]
     line = 'Инструменты: ' + ', '.join('%s — %s' % (n, 'да' if ok else 'НЕТ') for n, ok in state)
     if down:
-        line += ('\n  Не поднято: %s. PostgreSQL граф поднимет сам (graph.py); поиск по смыслу поднимает '
-                 'сервер MCP semsearch при старте, вручную — "%%LOCALAPPDATA%%\\semsearch\\...\\python.exe" '
-                 'svc.py up. Сказать пользователю.' % ', '.join(down))
+        line += ('\n  Не поднято: %s. PostgreSQL граф поднимет сам (graph.py). Сказать пользователю.' % ', '.join(down))
     return line
 
 

@@ -31,7 +31,13 @@ CLAUDE.md 30.10.2026 при аудите настроек).
 * Правила — папка `rules`, группа — метка `правила-работа | -интерфейс |
   -проверки | -код`; `graph.py rules` выводит по группам.
 
-## Два поиска
+## Поиск
+
+С 17.11.2026 — только CodeGraph; поиск по смыслу (semsearch) не используется
+(пользователь: «от semsearch отказываемся в пользу другого сервиса»). Ниже про
+semsearch — прежнее устройство; PostgreSQL графа по-прежнему живёт в
+`%LOCALAPPDATA%\semsearch`.
+
 
 * **CodeGraph** — по словам: `codegraph query "<слово>"` или инструмент
   `codegraph_explore`. Индекс — `codegraph sync`.
@@ -58,8 +64,8 @@ CLAUDE.md 30.10.2026 при аудите настроек).
 
 * После коммита — хук `tools/hooks/post-commit` (подключение `git config
   core.hooksPath tools/hooks`); после правки графа — `graph.py check`. Оба
-  в фоне запускают `tools/hooks/reindex.py`: `codegraph sync` и отдельным
-  процессом дообновление индекса по смыслу (только изменённые файлы).
+  в фоне запускают `tools/hooks/reindex.py --code` — только `codegraph sync`
+  (индекс по смыслу не обновляется с 17.11.2026).
   Вручную — `reindex.py --code | --sem | --stop`, или программа «Граф
   проекта» → «Ещё».
 * Ход — `.graf/index-status.json`; журналы — `.graf/reindex-code.log`,
