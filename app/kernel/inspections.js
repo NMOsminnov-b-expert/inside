@@ -552,6 +552,32 @@ export function workdayOf(name, iso) {
   return { ok: true, reason: '' };
 }
 
+// Следующий рабочий день осмотрщика после from: по графику и отсутствиям (workdayOf).
+const plusDay = (iso, n = 1) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+export function nextWorkday(person, from) {
+  for (let i = 1; i <= 60; i++) { const d = plusDay(from, i); if (workdayOf(person, d).ok) return d; }
+  return plusDay(from, 1);
+}
+
+// Осмотрено частично — выезд целиком на следующий рабочий день осмотрщика, без подтверждения регионала; регионалу —
+// уведомление «Остаток перенесён» (пользователь 17.11.2026: «Если осмотрено частично, переносим на следующий рабочий
+// день остатки»; ответы: к отчёту дня и к «неполному» — «К обоим», «Сами, регионалу — уведомление», «Весь выезд»).
+// Заполненное и снятое остаётся; назначение — в работе. Возвращает новую дату.
+export function carryOver(person, typeId, ocId, { reason = '', from = '' } = {}) {
+  const d0 = new Date();
+  const today = from || `${d0.getFullYear()}-${String(d0.getMonth() + 1).padStart(2, '0')}-${String(d0.getDate()).padStart(2, '0')}`;
+  const to = nextWorkday(person, today);
+  myAssignsOn(person, typeId, ocId).filter(isLive).forEach((a) => {
+    const was = a.plannedAt || '';
+    a.plannedAt = to;
+    if (a.state === 'done') setAssignState(a.id, 'progress');
+    a.updatedAt = now();
+    logEvent('carried', a, { date: to, was, text: `осмотрено частично${reason ? ': ' + reason : ''} — ${was || 'без даты'} → ${to}` });
+  });
+  changed();
+  return to;
+}
+
 // Ссылка на чат WhatsApp: номер — WhatsApp, иначе телефон; цифры с кодом
 // страны (wa.me не принимает «+», пробелы и скобки).
 export function whatsappLink(name) {

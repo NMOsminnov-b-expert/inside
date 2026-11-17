@@ -30,7 +30,7 @@ import { foldSearch, fmtEni } from '../../kernel/fmt.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto } from '../../kernel/inspectionResults.js';
-import { takeForDay, planOf, absenceOn, absenceLabel, startWork, myAssignsOn, finishWork, requestMove, skipReasons, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow, detachCadFile, cadFileAccepted } from '../../kernel/inspections.js';
+import { carryOver, nextWorkday, takeForDay, planOf, absenceOn, absenceLabel, startWork, myAssignsOn, finishWork, requestMove, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow, detachCadFile, cadFileAccepted } from '../../kernel/inspections.js';
 import { osrmKm, dayPoints } from '../inspections/route.js';
 import { markItem, markOf, addItemPhoto, removeItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
@@ -824,21 +824,21 @@ function finishBlock(o, ui) {
   const last = r && r.reason ? `<p class="om-warn">Осмотр не состоялся: ${esc(r.reason)}${r.note ? ' — ' + esc(r.note) : ''} · ${esc(shortDate(String(r.at).slice(0, 10)))}</p>` : '';
   if (o.state === 'done') return `<section class="om-finish">${last}<p class="om-muted">Осмотр закончен — объект на проверке ЦОД.</p><button type="button" class="om-btn" data-reopen>Вернуть в работу</button></section>`;
   const miss = ui.asking ? missingOf(o) : [];
+  const next = nextWorkday(session.state.person, isoDay());
   const ask = ui.asking ? `<div class="om-card om-ask" role="alert"><b>${miss.length ? 'Заполнено не всё обязательное' : 'Закончить осмотр?'}</b>
-      ${miss.length ? `<ul>${miss.map((m) => `<li>${esc(m)}</li>`).join('')}</ul><p class="om-muted">Осмотр уйдёт с отметкой «неполный».</p>` : '<p class="om-muted">Снятое уйдёт в E•state, объект — на проверку ЦОД.</p>'}
-      <div class="om-shoot-act"><button type="button" class="om-btn om-btn-primary" data-finish="${miss.length ? 'incomplete' : 'full'}">${miss.length ? 'Закончить как неполный' : 'Закончить'}</button>
+      ${miss.length ? `<ul>${miss.map((m) => `<li>${esc(m)}</li>`).join('')}</ul><p class="om-muted">Осмотрено частично: выезд целиком перейдёт на ${esc(shortDate(next))} — заполненное сохранится, регионал получит уведомление.</p>` : '<p class="om-muted">Снятое уйдёт в E•state, объект — на проверку ЦОД.</p>'}
+      <div class="om-shoot-act"><button type="button" class="om-btn om-btn-primary" data-finish="${miss.length ? 'partial' : 'full'}">${miss.length ? `Остаток на ${esc(shortDate(next))}` : 'Закончить'}</button>
       <button type="button" class="om-btn" data-finish-cancel>${miss.length ? 'Дозаполнить' : 'Отмена'}</button></div></div>`
     : '<button type="button" class="om-btn om-btn-primary om-btn-wide" data-finish-ask>Осмотр закончен</button>';
-  const mv = o.moveReq ? `<p class="om-muted">Перенос запрошен на ${esc(shortDate(o.moveReq.date))}: ${esc(o.moveReq.reason)} — ждёт регионала.</p>`
-    : `<details class="om-card om-more-act"><summary>Перенести</summary><form class="om-found-add" data-move>
-      <label class="om-flabel" for="om-move-date">Дата</label><input class="om-input" id="om-move-date" name="date" type="date" required min="${isoDay()}">
-      <label class="om-flabel" for="om-move-reason">Причина</label><span class="om-select"><select class="om-input" id="om-move-reason" name="reason" required>${skipReasons().map((x) => `<option>${esc(x)}</option>`).join('')}</select></span>
-      <input class="om-input" name="note" maxlength="200" placeholder="Пояснение" aria-label="Пояснение">
-      <button class="om-btn" type="submit">Запросить перенос</button></form></details>`;
+  // «Перенести» и «Осмотр не состоялся» — один блок (пользователь 17.11.2026: «перенос и осмотр не состоялся объединяем
+  // в 1 поле. осмотр не состоялся»): причина, пояснение и, если нужно, новая дата — её подтверждает регионал (06.11.2026).
+  const mv = o.moveReq ? `<p class="om-muted">Перенос запрошен на ${esc(shortDate(o.moveReq.date))}: ${esc(o.moveReq.reason)} — ждёт регионала.</p>` : '';
   const reasons = OUTCOMES.filter((x) => x !== 'Другое ТС' || o.entity === 'vehicle' || (o.ois || []).some((y) => y.kind === 'vehicle'));
   const fail = `<details class="om-card om-more-act"><summary>Осмотр не состоялся</summary><form class="om-found-add" data-outcome>
       <fieldset class="om-radios"><legend class="om-flabel">Причина</legend>${reasons.map((x, i) => `<label class="om-radio"><input type="radio" name="reason" value="${esc(x)}"${i ? '' : ' checked'}> ${esc(x)}</label>`).join('')}</fieldset>
       <textarea class="om-input" name="note" rows="2" maxlength="300" placeholder="Пояснение" aria-label="Пояснение"></textarea>
+      ${o.moveReq ? '' : `<label class="om-flabel" for="om-move-date">Перенести на дату</label><input class="om-input" id="om-move-date" name="date" type="date" min="${isoDay()}">
+      <p class="om-hint">Необязательно. Перенос подтверждает регионал; без даты выезд остаётся на своём дне.</p>`}
       <button class="om-btn" type="submit">Отправить регионалу</button></form></details>`;
   return `<section class="om-finish">${last}${ask}${mv}${fail}</section>`;
 }
@@ -1466,6 +1466,8 @@ export function mountOsmotr(host) {
     });
     if (bad) { const x = form.querySelector('.om-trip-err:not([hidden])'); if (x) x.closest('fieldset').scrollIntoView({ block: 'center' }); return; }
     failed.forEach(({ t, reason }) => outcomeOf(t, reason, ''));
+    // Частично — выезд целиком на следующий рабочий день (17.11.2026).
+    partial.forEach((p) => { const t = trips.find((x) => x.assignId === p.assignId); if (t) carryOver(person, t.typeId, t.ocId, { reason: p.reason, from: date }); });
     const km = form.km.value.trim();
     const r = saveReport({ person, date, kind: 'evening', km, kmByRoute: !!km && km === form.route.value, done: doneIds, partial, note: form.note.value.trim() });
     if (r) changed();
@@ -1547,16 +1549,16 @@ export function mountOsmotr(host) {
   scope.on('click', '[data-finish-cancel]', () => { ui.asking = false; render(); });
   scope.on('click', '[data-finish]', (e, b) => {
     if (!cur) return;
-    finishWork(session.state.person, cur.typeId, cur.ocId, true, { incomplete: b.dataset.finish === 'incomplete' });
     ui.asking = false;
+    if (b.dataset.finish === 'partial') {
+      const to = carryOver(session.state.person, cur.typeId, cur.ocId, { reason: 'не заполнено обязательное' });
+      host.toast(`Остаток перенесён на ${shortDate(to)}`, 'ok');
+      return;
+    }
+    finishWork(session.state.person, cur.typeId, cur.ocId, true);
     changed();
   });
   scope.on('click', '[data-reopen]', () => { if (cur) { finishWork(session.state.person, cur.typeId, cur.ocId, false); changed(); } });
-  scope.on('submit', '[data-move]', (e, form) => {
-    e.preventDefault();
-    if (!cur) return;
-    mine().filter(isLive).forEach((a) => requestMove(a.id, { date: form.date.value, reason: form.reason.value, note: form.note.value.trim() }));
-  });
   // --- инструкции: переход к разделу ---
   scope.on('click', '[data-instr-go]', (e, b) => { const h = scope.$('#om-ib-' + b.dataset.instrGo); if (h) h.scrollIntoView({ block: 'start', behavior: 'smooth' }); });
 
@@ -1621,7 +1623,11 @@ export function mountOsmotr(host) {
   scope.on('submit', '[data-outcome]', (e, form) => {
     e.preventDefault();
     if (!cur) return;
-    outcomeOf(cur, (form.querySelector('[name=reason]:checked') || {}).value || OUTCOMES[0], form.note.value.trim());
+    const reason = (form.querySelector('[name=reason]:checked') || {}).value || OUTCOMES[0];
+    const note = form.note.value.trim();
+    const date = form.date ? form.date.value : '';
+    if (date) mine().filter(isLive).forEach((a) => requestMove(a.id, { date, reason, note }));
+    outcomeOf(cur, reason, note);
   });
 
   scope.on('submit', '[data-found]', (e, form) => {

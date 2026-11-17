@@ -7,7 +7,8 @@
   * «Начал день» не сохраняет утренний отчёт (одометр, «Одометра нет»);
   * вечерний отчёт сдаётся без причины у «Частично» и «Не состоялся»;
     «Не состоялся» не уходит исходом выезда; пробег, осмотренные, частичные
-    и комментарий не доходят до отчёта;
+    и комментарий не доходят до отчёта; «Частично» не переносит выезд на следующий
+    рабочий день (17.11.2026);
   * на «Сегодня» нет строки «Отчёт дня» с тем, что сдано;
   * запрос документов: ответ «Получен» без файла принимается; ответ не доходит
     до строки запроса; нет строки запросов в меню и на «Сегодня»;
@@ -73,6 +74,10 @@ def run(t):
          'вечерний отчёт не дошёл (пробег, частично с причиной, комментарий)')
     t.ck(t.wait_until("""async ([t, c]) => (await import('./app/kernel/inspections.js')).eventsOf({ typeId: t, ocId: c }).some((e) => e.kind === 'outcome' && e.text === 'Нет доступа')""", [b['typeId'], b['ocId']]),
          '«Не состоялся» не ушло исходом выезда')
+    t.ck(t.wait_until("""async (id) => { const k = await import('./app/kernel/inspections.js'); const s = (await import('./app/kernel/session.js')).session.state;
+      const a = k.allAssignments().find((x) => x.id === id); const d = new Date(); const iso = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+      return a && a.plannedAt === k.nextWorkday(s.person, iso) && k.eventsOf({ typeId: a.typeId, ocId: a.ocId }).some((e) => e.kind === 'carried'); }""", a['id']),
+         '«Частично» не перенесло выезд на следующий рабочий день')
     t.open('#/osmotr', wait='.om-app[data-v="today"]')
     t.ck('сдан' in pg.locator('.om-row', has_text='Отчёт дня').inner_text(), 'на «Сегодня» не видно, что отчёт сдан')
 

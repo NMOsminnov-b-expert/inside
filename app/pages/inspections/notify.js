@@ -35,6 +35,8 @@ export const NOTE_KINDS = [
   { key: 'retake', label: 'Скан не переснят', tone: 'warn' },
   { key: 'handed', label: 'Осмотр сдан', tone: 'ok' },
   { key: 'moveReq', label: 'Запрошен перенос выезда', tone: 'warn' },
+  // Осмотрено частично — выезд сам ушёл на следующий рабочий день (17.11.2026).
+  { key: 'carried', label: 'Остаток перенесён', tone: 'warn' },
 ];
 export const noteKind = (k) => NOTE_KINDS.find((x) => x.key === k) || { key: k, label: k, tone: '' };
 
@@ -88,6 +90,7 @@ export function notifications(all, people, days = 7) {
   evs.forEach((e) => {
     if (!e.date || e.date < from) return;
     if (e.kind === 'skipped' && !undone(e)) push({ kind: 'skipped', person: e.person, date: e.date, ref: e.id, text: `${titleOf(e)} — ${e.text}`, go: { assign: e.assignId } });
+    if (e.kind === 'carried') push({ kind: 'carried', person: e.person, date: e.at ? String(e.at).slice(0, 10) : e.date, ref: e.id, text: `${titleOf(e)} — ${e.text}`, go: { assign: e.assignId } });
     if (e.kind === 'taken') push({ kind: 'offPlan', person: e.person, date: e.date, ref: e.id, text: `${titleOf(e)} — план был ${e.was ? ddmm(e.was) : 'без даты'}`, go: { assign: e.assignId } });
   });
 
