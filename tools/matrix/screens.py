@@ -18,7 +18,7 @@ PERSON = 'Абдылдаев Айсултан Марсович'
 
 _INSP_TOUCH = ('app/pages/inspections/', 'app/kernel/inspections', 'app/kernel/grid.js', 'app/kernel/xlsx.js',
                'app/kernel/mapgl.js', 'app/kernel/cadastreLayersGL.js', 'app/vendor/maplibre/')
-_ALL = ['load', 'summary', 'table', 'reports', 'totals', 'norms', 'stats', 'fields']
+_ALL = ['summary', 'table', 'reports', 'totals', 'norms', 'stats', 'fields']
 _PERSON = ['trips', 'plan', 'route', 'reports', 'stats', 'assigns', 'profile', 'car']
 
 SCREENS = []
@@ -53,6 +53,8 @@ _add('Осмотры · Назначено · все', 'osmotry', 'rm', '#/inspe
 _add('Осмотры · Назначено · сотрудник', 'osmotry', 'rm', '#/inspections?s=assign&t=assigned&ap=' + quote(PERSON), '[data-ip-section]', _INSP_TOUCH)
 # Общий срез (ТЗ экрана регионалов 17.11.2026): область и учреждение — в адресе.
 _add('Осмотры · Планирование · срез по учреждению', 'osmotry', 'rm', '#/inspections?s=assign&t=queue&i=' + quote('Министерство'), '.ip-qswitch', _INSP_TOUCH)
+# Центр Планирования (этапы 2–3): сетка «осмотрщик × день» — слои «План» и «Факт»; карта.
+_add('Осмотры · Планирование · сетка', 'osmotry', 'rm', '#/inspections?s=assign&t=queue', '.ip-board .ip-ld-b', _INSP_TOUCH)
 for k in _ALL:
     _add('Осмотры · Все осмотрщики · ' + k, 'osmotry', 'rm', '#/inspections?s=people&t=' + k, '[data-ip-section]', _INSP_TOUCH)
 for k in _PERSON:

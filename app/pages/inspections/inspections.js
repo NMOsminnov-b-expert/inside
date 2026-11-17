@@ -58,7 +58,10 @@ const view = {
   tab: 'queue',          // в «Назначениях»: queue | assigned
   person: '',            // в «Осмотрщиках»: выбранный; пусто — все
   personTab: 'trips',    // подраздел карточки: trips | reports | stats | assigns | profile | car
-  allTab: 'load',        // подраздел «Все осмотрщики»: load | summary | reports | stats | fields
+  allTab: 'summary',     // подраздел «Все осмотрщики»: summary | reports | stats | fields («Загрузка» — в Планировании)
+  center: 'grid',        // Планирование, центр: grid — сетка «осмотрщик × день», map — карта (ТЗ 17.11.2026)
+  layer: 'plan',         // слой сетки: plan — назначено и загрузка, fact — отчёты, пробег, пропуски
+  qGroup: 'place',       // группы очереди: place — по месту выезда, inst — по учреждению (как папки ЦОД)
   loadSel: '',           // «Загрузка»: выбранная клетка «ФИО|день»
   loadDays: 10,          // «Загрузка»: рабочих дней в полосе
   assignDay: '',         // «К назначению»: день, на который назначают (из «Загрузки»)
@@ -106,7 +109,7 @@ const view = {
 // «Только по моим. Не по звездам»). ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: закрепление —
 // связь учётных записей осмотрщика и менеджера, «Мои» — по входу.
 persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'gridWidths', 'gridOrder', 'notesRead', 'notesKind', 'notesUnread', 'assignPerson', 'histPerson', 'peopleMode',
-  'region', 'inst', 'peopleSort', 'histKind', 'q', 'qs', 'qf', 'af', 'sets', 'setCur']);
+  'region', 'inst', 'center', 'layer', 'qGroup', 'loadDays', 'peopleSort', 'histKind', 'q', 'qs', 'qf', 'af', 'sets', 'setCur']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 // Подразделы карточки осмотрщика и «Все осмотрщики» — один список на
@@ -114,7 +117,7 @@ const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') 
 // разделом «Назначения» и с меткой «назн. N» календаря (разбор UI/UX 12.10.2026).
 const PERSON_TABS = [['trips', 'Выезды'], ['plan', 'План месяца'], ['route', 'Маршрут'], ['reports', 'Отчёты'], ['stats', 'Статистика'],
   ['assigns', 'Объекты'], ['profile', 'Профиль'], ['car', 'Авто']];
-const ALL_TABS = [['load', 'Загрузка'], ['summary', 'Сводка'], ['table', 'Таблица'], ['reports', 'Отчёты'], ['totals', 'Итоги'], ['norms', 'Нормы осмотра'],
+const ALL_TABS = [['summary', 'Сводка'], ['table', 'Таблица'], ['reports', 'Отчёты'], ['totals', 'Итоги'], ['norms', 'Нормы осмотра'],
   ['stats', 'Статистика'], ['fields', 'Свои поля']];
 // Значки кнопок массовых действий: на узкой панели кнопка — только значок,
 // подпись — в подсказке и aria-label («На узких режимах ломается. Лучше на
@@ -343,6 +346,26 @@ export function mountInspections(host) {
   // Пустота очереди — честно и с выходом (практика APCS «три состояния
   // блока»): отборы сузили — «Сбросить отборы»; очередь пуста — почему и
   // куда дальше.
+  // Группы очереди: по месту выезда или по учреждению — как папки ЦОД «<код>. <учреждение>» (ТЗ 17.11.2026).
+  // Ключ группы — g.place: свёртка и отметка группы работают одинаково для обоих видов.
+  const groupKey = (s) => (view.qGroup === 'inst' ? 'inst:' + (s.institution || '') : s.place);
+  function queueGroups(rows) {
+    if (view.qGroup !== 'inst') return tripGroups(rows);
+    const by = new Map();
+    rows.forEach((s) => { const k = groupKey(s); if (!by.has(k)) by.set(k, []); by.get(k).push(s); });
+    const minDue = (list) => list.map((s) => s.deadline).filter(Boolean).sort()[0] || '9999';
+    return [...by.entries()].map(([k, list]) => {
+      const name = k.slice(5);
+      const code = instCode(name);
+      return {
+        place: k, title: name ? (code ? code + '. ' : '') + name : 'Учреждение не указано',
+        where: [...new Set(list.map((s) => s.place).filter(Boolean))],
+        rows: list.sort((a, b) => (a.deadline || '9999').localeCompare(b.deadline || '9999') || String(a.place).localeCompare(String(b.place), 'ru')),
+        free: list.reduce((n, s) => n + s.cov.free, 0),
+        nearest: minDue(list),
+      };
+    }).sort((a, b) => a.nearest.localeCompare(b.nearest) || b.free - a.free || a.title.localeCompare(b.title, 'ru'));
+  }
   function queueHTML(rows, total) {
     if (!rows.length) {
       if (!total) {
@@ -354,7 +377,7 @@ export function mountInspections(host) {
         <p>В очереди ${total} — отборы и поиск их скрыли.</p>
         <button class="btn btn-primary btn-sm" data-ip-qreset>Сбросить отборы</button></div>`;
     }
-    const groups = tripGroups(rows.slice(0, Math.max(view.shown, STEP)));
+    const groups = queueGroups(rows.slice(0, Math.max(view.shown, STEP)));
     const allKeys = (g) => g.rows.map((s) => s.typeId + '|' + s.id);
     return `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-grouped">
       <colgroup><col class="c-check"><col class="c-date"><col><col class="c-cov"></colgroup>
@@ -367,12 +390,13 @@ export function mountInspections(host) {
         return `<tbody class="ip-grp-body"><tr class="ip-grp">
             <td class="c-check"><input type="checkbox" data-ip-gcheck="${esc(g.place)}" ${allOn ? 'checked' : ''} aria-label="Отметить выезд целиком" title="Отметить выезд целиком"></td>
             <td colspan="3"><button class="ip-grp-t" data-ip-gtoggle="${esc(g.place)}" aria-expanded="${open}">
-              <span class="ip-grp-chev">${open ? '▾' : '▸'}</span><b>${esc(g.place)}</b>
+              <span class="ip-grp-chev">${open ? '▾' : '▸'}</span><b>${esc(g.title || g.place)}</b>
+              ${g.where ? `<span class="ip-grp-where">${esc(g.where.slice(0, 3).join(', '))}${g.where.length > 3 ? ` и ещё ${g.where.length - 3}` : ''}</span>` : ''}
               <span>${g.rows.length} ${plural(g.rows.length, 'объект', 'объекта', 'объектов')} · свободных ОИ ${g.free}</span>
               ${g.nearest !== '9999' ? `<span class="ip-due due-${dueOf(g.nearest)}">срок с ${esc(fmtDate(g.nearest))}</span>` : ''}</button></td></tr>
           ${open ? g.rows.map((s) => {
             const k = s.typeId + '|' + s.id;
-            return `<tr data-ip-row="${esc(k)}" data-cov="${s.cov.state}" class="${current === k ? 'cur' : ''} ${checked.has(k) ? 'sel' : ''}" aria-selected="${current === k}">
+            return `<tr data-ip-row="${esc(k)}" draggable="true" data-cov="${s.cov.state}" class="${current === k ? 'cur' : ''} ${checked.has(k) ? 'sel' : ''}" aria-selected="${current === k}">
               <td class="c-check"><input type="checkbox" data-ip-check="${esc(k)}" ${checked.has(k) ? 'checked' : ''} aria-label="Отметить"></td>
               <td class="num">${dueCell(s)}</td>
               <td>${objCell(s, [s.typeLabel, s.institution, s.eniAll || s.eni].filter(Boolean).join(' · '), s.partial ? 'частично осмотрен' : '')}</td>
@@ -416,7 +440,7 @@ export function mountInspections(host) {
       ? `<span class="ip-obj"><span class="ip-obj-t">${esc(addrRest(s) || s.typeLabel || 'Объект целиком')}</span>
         <span class="ip-obj-s">${esc([who, addrRest(s) ? s.typeLabel : '', s.institution, eniOfAssign(a, s)].filter(Boolean).join(' · '))}</span></span>`
       : objCell(s, [who, s.typeLabel, s.institution, eniOfAssign(a, s)].filter(Boolean).join(' · '));
-    return `<tr data-ip-row="${esc(a.id)}" class="${inGroup ? 'ip-in-grp' : ''} ${current === a.id ? 'cur' : ''} ${checked.has(a.id) ? 'sel' : ''}" aria-selected="${current === a.id}">
+    return `<tr data-ip-row="${esc(a.id)}" draggable="true" class="${inGroup ? 'ip-in-grp' : ''} ${current === a.id ? 'cur' : ''} ${checked.has(a.id) ? 'sel' : ''}" aria-selected="${current === a.id}">
       <td class="c-check"><input type="checkbox" data-ip-acheck="${esc(a.id)}" ${checked.has(a.id) ? 'checked' : ''} aria-label="Отметить"></td>
       <td class="num ${picks.has('late') ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
       <td>${obj}</td>
@@ -526,13 +550,15 @@ export function mountInspections(host) {
   // Строка среза — рядом с меню.
   // Подсказки учреждений с кодами — один раз на сводку: код ищется по справочнику, а перерисовок бывает
   // десятки подряд (массовое переназначение — по одной на назначение; замер 17.11.2026: 2,0 → 7,6 с без кэша).
+  const codeMemo = new Map();
+  const instCode = (n) => { if (!codeMemo.has(n)) codeMemo.set(n, n ? codeByName(n) : ''); return codeMemo.get(n); };
   const instCache = { key: '', html: '' };
   function instOptions() {
     const names = [...new Set([...all.values()].map((s) => s.institution).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'ru'));
     const key = names.join('|');
     if (instCache.key !== key) {
       instCache.key = key;
-      instCache.html = names.map((n) => { const c = codeByName(n); return `<option value="${esc(n)}"${c ? ` label="${esc(c)}"` : ''}></option>`; }).join('');
+      instCache.html = names.map((n) => { const c = instCode(n); return `<option value="${esc(n)}"${c ? ` label="${esc(c)}"` : ''}></option>`; }).join('');
     }
     return instCache.html;
   }
@@ -577,7 +603,7 @@ export function mountInspections(host) {
     const liveAll = assignedRows(all, { q: '' }).filter(({ a, s: o }) => objInSlice(o) && ofMineOnly(a.person, mine));
     const assigned = applyFilter(liveAll, ASSIGNED_FACETS, ASSIGNED_RANGES, view.af, view.tab === 'assigned' && view.aPerson ? view.q : '')
       .sort((x, y) => String(x.a.plannedAt || '9999').localeCompare(String(y.a.plannedAt || '9999')));
-    const keys = view.tab === 'queue' ? tripGroups(queue.slice(0, Math.max(view.shown, STEP))).flatMap((g) => (collapsed.has(g.place) ? [] : g.rows.map((s) => s.typeId + '|' + s.id)))
+    const keys = view.tab === 'queue' ? queueGroups(queue.slice(0, Math.max(view.shown, STEP))).flatMap((g) => (collapsed.has(g.place) ? [] : g.rows.map((s) => s.typeId + '|' + s.id)))
       : !view.aPerson ? [] : addrGroups(assigned.filter(({ a }) => view.aPerson === '*' || a.person === view.aPerson))
         .flatMap((g) => g.rows.map((r) => r.a.id));
     if (!keys.includes(current)) { current = keys[0] || ''; confirmRemove = false; }
@@ -597,11 +623,19 @@ export function mountInspections(host) {
           ${search(view.tab === 'queue' ? 'ЕНИ, адрес, учреждение' : view.aPerson ? 'ЕНИ, адрес' : 'Фамилия сотрудника')}
           ${bare ? '' : (() => { const f = curFilter(); const n = Object.values(f.facets).reduce((k, v) => k + (v ? v.length : 0), 0) + Object.values(f.ranges).filter((r) => r && (r[0] || r[1])).length;
             return `<button class="btn btn-ghost btn-sm ip-fbtn ${facetsOpen ? 'on' : ''}" data-ip-ftoggle aria-expanded="${facetsOpen}" title="Отборы и наборы отборов">Отбор${n ? ` <b>${n}</b>` : ''}</button>`; })()}
+          ${view.tab === 'queue' && !bare ? `<select class="select ip-qgroup" data-ip-qgroup aria-label="Группы очереди">
+            <option value="place" ${view.qGroup !== 'inst' ? 'selected' : ''}>По месту</option>
+            <option value="inst" ${view.qGroup === 'inst' ? 'selected' : ''}>По учреждению</option></select>` : ''}
           ${bulkHTML()}
         </div>
         ${bare ? '' : chipsHTML(rowsAll)}
         ${view.tab === 'queue' ? queueHTML(queue, base.length) : assignedHTML(assigned)}
-      </section>${bare ? '' : pane()}` };
+      </section>
+      <div class="ip-isl ip-cview" role="group" aria-label="Вид">
+        <button type="button" data-ip-center="grid" aria-pressed="${view.center === 'grid'}">Сетка</button>
+        <button type="button" data-ip-center="map" aria-pressed="${view.center === 'map'}">Карта</button></div>
+      ${view.center === 'grid' ? `<section class="ip-board" aria-label="Осмотрщики по дням">${loadBoardHTML(visiblePeople().filter((p) => !p.fired))}</section>` : ''}
+      ${bare ? '' : detail.length ? detailHTML(all, people, allAssignments(), detail) : pane()}` };
   }
 
   // Вставки планирования в панель назначения: «Кого назначить», доступность
@@ -1648,66 +1682,76 @@ export function mountInspections(host) {
   // и осмотр по нормам, как в «Кого назначить»); перегруз — больше 100%.
   // Касание клетки — день под полосой: объекты дня, «Маршрут дня»,
   // «Назначить на этот день»; назначение сразу меняет клетку.
+  // Сетка «осмотрщик × день» — центр Планирования (ТЗ 17.11.2026; раньше — вкладка «Загрузка» у «Людей»).
+  // Слой «План»: объектов на день, доля рабочего дня, область из плана месяца. Слой «Факт»: сданы ли утренний
+  // и вечерний отчёты, пробег — по прошедшим дням. Отмечены объекты очереди — подходящие клетки выделены
+  // (место и время дня, fitsDay), щелчок по клетке назначает; без отметок — «День осмотрщика» справа.
+  const regionShort = (r) => String(r || '').replace(/\s*область$/i, '').replace(/^г\.\s*/, '');
   function loadBoardHTML(list) {
-    if (!list.length) return '<p class="ip-hint ip-empty">В отборе нет осмотрщиков — измените «Мои / Все» или область.</p>';
+    if (!list.length) return '<p class="ip-hint ip-empty">В срезе нет осмотрщиков — измените «Мои / Все» или область.</p>';
     const fact = factNorms(all);
     const rows = list.map((p) => ({ p, days: availability(p.name, view.loadDays) }));
     const days = rows[0].days.map((d) => d.day);
     const wd = (iso) => WDL[new Date(iso + 'T00:00:00').getDay()];
-    const cells = new Map();
+    const top = detail[detail.length - 1];
+    const selKey = top && top.kind === 'pday' ? top.name + '|' + top.date : '';
+    const objs = view.tab === 'queue' ? [...checked.keys()].map((k) => all.get(k)).filter(Boolean) : [];
+    const fitAll = (name, day) => objs.length > 0 && objs.every((o) => fitsDay(o, name, day))
+      && (objs.length === 1 || (() => { const L = dayLoad(all, name, day, objs.map((o) => ({ typeId: o.typeId, ocId: o.id })), fact); return L.total <= L.avail; })());
+    const factLayer = view.layer === 'fact';
     const cell = (p, d) => {
       const key = p.name + '|' + d.day;
-      const on = view.loadSel === key;
+      const on = selKey === key;
+      const plan = planOf(p.name, d.day);
+      const planTag = plan && plan.region ? `<i class="ip-ld-plan" title="План месяца: ${esc([plan.region, plan.district].filter(Boolean).join(', '))}">${esc(regionShort(plan.region))}</i>` : '';
+      const drop = `data-ip-load="${esc(key)}" aria-pressed="${on}"`;
       if (d.off) {
-        cells.set(key, { p, d, off: d.off });
-        return `<td class="ip-ld is-off ${on ? 'on' : ''}"><button type="button" class="ip-ld-b" data-ip-load="${esc(key)}" aria-pressed="${on}"
+        return `<td class="ip-ld is-off ${on ? 'on' : ''}"><button type="button" class="ip-ld-b" ${drop}
           title="${esc(`${p.name} · ${wd(d.day)} ${fmtDate(d.day)} · ${d.off}`)}"><span class="ip-ld-off">${esc(d.off)}</span></button></td>`;
       }
       const L = dayLoad(all, p.name, d.day, [], fact);
       const pct = L.avail ? Math.round((L.total / L.avail) * 100) : 0;
       const lvl = pct > 100 ? 'over' : pct >= 80 ? 'full' : d.load ? 'some' : 'free';
-      cells.set(key, { p, d, pct, lvl });
-      return `<td class="ip-ld is-${lvl} ${on ? 'on' : ''}"><button type="button" class="ip-ld-b" data-ip-load="${esc(key)}" aria-pressed="${on}"
-        title="${esc(`${p.name} · ${wd(d.day)} ${fmtDate(d.day)} · объектов ${d.load} · загрузка ${pct}%${d.act ? ' · ' + d.act : ''}`)}">
+      const fit = objs.length && fitAll(p.name, d.day);
+      if (factLayer && d.day <= todayD) {
+        const r = dayReport(p.name, d.day);
+        const mark = (rep, miss, letter, what) => `<span class="ip-fx ${rep ? 'ok' : miss ? 'no' : 'wait'}" title="${esc(`${what}: ${rep ? 'сдан' : miss ? 'не сдан' : 'ещё не сдан'}`)}">${letter}</span>`;
+        const bad = (!r.morning && r.missingMorning) || (!r.evening && r.missingEvening);
+        return `<td class="ip-ld is-fact ${bad ? 'is-bad' : r.trips ? 'is-some' : 'is-free'} ${on ? 'on' : ''}"><button type="button" class="ip-ld-b" ${drop}
+          title="${esc(`${p.name} · ${wd(d.day)} ${fmtDate(d.day)} · выездов ${r.trips || 0}${r.km !== null ? ` · ${r.km} км` : ''}`)}">
+          <b>${r.trips || '—'}</b><span class="ip-fxs">${r.work || r.morning || r.evening ? mark(r.morning, r.missingMorning, 'У', 'Утренний отчёт') + mark(r.evening, r.missingEvening, 'В', 'Вечерний отчёт') : ''}</span>
+          <small>${r.km !== null ? `${numFmt(r.km)} км` : r.trips ? 'км нет' : ''}</small></button></td>`;
+      }
+      return `<td class="ip-ld is-${lvl} ${on ? 'on' : ''} ${fit ? 'is-fit' : ''} ${factLayer ? 'is-ahead' : ''}"><button type="button" class="ip-ld-b" ${drop}
+        title="${esc(`${p.name} · ${wd(d.day)} ${fmtDate(d.day)} · объектов ${d.load} · загрузка ${pct}%${d.act ? ' · ' + d.act : ''}${fit ? ' · отмеченные помещаются' : ''}`)}">
         <b>${d.load || '—'}</b><span class="ip-ld-bar" aria-hidden="true"><i style="width:${Math.min(100, pct)}%"></i></span>
-        <small>${d.load ? `${pct}%` : 'свободен'}</small></button></td>`;
+        <small>${d.load ? `${pct}%` : 'свободен'}</small>${planTag}</button></td>`;
     };
     const body = rows.map(({ p, days: ds }) => `<tr><th scope="row" class="ip-ld-who">
         <button type="button" class="ip-ld-name" data-ip-person="${esc(p.name)}" title="Карточка осмотрщика">${esc(p.name)}</button>
         <small>в работе ${p.live}${p.late ? ` · <span class="ip-late">просрочено ${p.late}</span>` : ''}</small></th>
         ${ds.map((d) => cell(p, d)).join('')}</tr>`).join('');
-    const sel = cells.get(view.loadSel);
+    const hint = objs.length ? `Отмечено <b>${objs.length}</b> — щелчок по клетке назначит на осмотрщика и день; подходящие выделены.`
+      : factLayer ? 'По прошедшим дням: У — утренний отчёт, В — вечерний, пробег за день. Клетка — день осмотрщика справа.'
+        : 'Объектов на день и доля рабочего дня. Клетка — день осмотрщика справа; строку списка можно перетащить на клетку.';
     return `<div class="ip-load">
       <div class="ip-load-bar-top">
-        <p class="ip-hint">Объектов на день и доля рабочего дня, занятая выездами. Касание клетки — объекты дня, маршрут и назначение на этот день.</p>
+        <div class="ip-seg ip-layer" role="group" aria-label="Слой">
+          <button type="button" data-ip-layer="plan" aria-pressed="${!factLayer}">План</button>
+          <button type="button" data-ip-layer="fact" aria-pressed="${factLayer}">Факт</button></div>
+        <p class="ip-hint" role="status">${hint}</p>
         <div class="seg ip-load-span" role="group" aria-label="Сколько дней показать">
           ${[[5, 'Неделя'], [10, '2 недели'], [20, 'Месяц']].map(([n, l]) => `<button type="button" class="${view.loadDays === n ? 'on' : ''}" data-ip-load-days="${n}" aria-pressed="${view.loadDays === n}">${l}</button>`).join('')}
         </div>
       </div>
       <div class="ip-load-wrap"><table class="ip-load-tbl">
-        <thead><tr><th scope="col" class="ip-ld-who">Осмотрщик</th>${days.map((d) => `<th scope="col" class="ip-ld-day" title="${esc(wd(d))}"><span>${wd(d).slice(0, 2)}</span><b>${d.slice(8, 10)}.${d.slice(5, 7)}</b></th>`).join('')}</tr></thead>
+        <thead><tr><th scope="col" class="ip-ld-who">Осмотрщик</th>${days.map((d) => `<th scope="col" class="ip-ld-day ${d === todayD ? 'is-today' : ''}" title="${esc(wd(d))}"><span>${wd(d).slice(0, 2)}</span><b>${d.slice(8, 10)}.${d.slice(5, 7)}</b></th>`).join('')}</tr></thead>
         <tbody>${body}</tbody>
       </table></div>
-      <p class="ip-load-legend"><span class="is-free">свободен</span><span class="is-some">есть объекты</span><span class="is-full">80–100%</span><span class="is-over">перегруз</span><span class="is-off">не работает</span></p>
-      ${sel ? loadDayHTML(sel) : ''}
+      <p class="ip-load-legend">${factLayer
+    ? '<span class="ip-fx ok">У</span> сдан <span class="ip-fx no">У</span> не сдан <span class="ip-fx wait">У</span> ещё не сдан <span class="is-off">не работает</span>'
+    : '<span class="is-free">свободен</span><span class="is-some">есть объекты</span><span class="is-full">80–100%</span><span class="is-over">перегруз</span><span class="is-off">не работает</span><span class="is-fit">подходит</span>'}</p>
     </div>`;
-  }
-
-  // Выбранный день осмотрщика под полосой загрузки.
-  function loadDayHTML({ p, d, pct, off }) {
-    const list = allAssignments().filter((a) => a.person === p.name && a.plannedAt === d.day && isLive(a));
-    const wd = WDL[new Date(d.day + 'T00:00:00').getDay()];
-    return `<section class="ip-load-day" aria-label="${esc(`${p.name}, ${fmtDate(d.day)}`)}">
-      <header><h3>${esc(p.name)} · ${esc(wd)} ${fmtDate(d.day)}</h3>
-        <p>${off ? `<span class="ip-late">${esc(off)}</span>` : `объектов <b>${list.length}</b> · загрузка <b>${pct}%</b>`}${d.act ? ` · ${esc(d.act)}` : ''}</p>
-        <div class="ip-load-day-act">
-          <button type="button" class="btn btn-ghost btn-sm" data-ip-load-route="${esc(p.name + '|' + d.day)}">Маршрут дня</button>
-          ${off ? '' : `<button type="button" class="btn btn-primary btn-sm" data-ip-load-assign="${esc(p.name + '|' + d.day)}">Назначить на этот день</button>`}
-        </div></header>
-      ${list.length ? `<ul class="ip-load-objs">${list.map((a) => { const s = all.get(a.typeId + '|' + a.ocId) || {};
-        return `<li><button type="button" data-ip-dp-open="assign:${esc(a.id)}">${objCell(s, [s.typeLabel, s.institution].filter(Boolean).join(' · '))}</button></li>`; }).join('')}</ul>`
-    : `<p class="ip-hint">${off ? 'В этот день осмотрщик не работает — назначать нельзя.' : 'На этот день объектов нет.'}</p>`}
-    </section>`;
   }
 
   function allCardHTML() {
@@ -1720,7 +1764,7 @@ export function mountInspections(host) {
           ${tile('Свободных дней', sum('free'), '', 'Сумма рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', sum('done'))}</div>
       </header>
       ${subTabs('data-ip-atab', view.allTab, ALL_TABS.map(([k, l]) => (k === 'fields' ? [k, l, allCustomFields().length] : [k, l])))}
-      <div class="ip-card-body">${view.allTab === 'load' ? loadBoardHTML(list) : view.allTab === 'stats' ? statsHTML({ all, people: list, person: '', period: statPeriod() }) : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'table' ? tableHTML() : view.allTab === 'totals' ? totalsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
+      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML({ all, people: list, person: '', period: statPeriod() }) : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'table' ? tableHTML() : view.allTab === 'totals' ? totalsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
     </section>`;
   }
 
@@ -2330,7 +2374,7 @@ export function mountInspections(host) {
         ${block('Горит срок', hot.length, `<ul class="ip-today-list">${hot.map((s) => li(`data-ip-today-q="${esc(s.typeId + '|' + s.id)}"`, s.title, `${s.deadline < todayD ? 'срок прошёл' : 'срок'} ${fmtDate(s.deadline)}`, s.cov && s.cov.state === 'part' ? 'частично назначен' : 'не назначен')).join('')}</ul>`, 'Объектов со сроком в ближайшие три дня без назначения нет.')}
         ${block('Пропущено и просрочено', late.length, `<ul class="ip-today-list">${late.map((n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`, n.date === todayD ? 'сегодня' : fmtDate(n.date))).join('')}</ul>`, 'Пропусков отчётов и выездов нет.')}
         ${block('Отсутствуют сегодня', away.length, `<ul class="ip-today-list">${away.map(({ p, ab, n }) => li(`data-ip-today-p="${esc(p.name)}"`, p.name, absenceLabel(ab.kind) + (ab.to && ab.to !== todayD ? ` до ${fmtDate(ab.to)}` : ''), n ? `<b class="ip-late">выездов на сегодня ${n} — переназначить</b>` : '')).join('')}</ul>`, 'Все осмотрщики на месте.')}
-        ${block('Выезды сегодня', trips.length, `<ul class="ip-today-list">${trips.map(({ p, r }) => li(`data-ip-today-p="${esc(p.name)}"`, p.name, `${r.trips} ${r.trips === 1 ? 'выезд' : r.trips < 5 ? 'выезда' : 'выездов'}`, r.morning ? `утренний ${esc(reportTime(r.morning.at))}` : r.missingMorning ? '<b class="ip-late">нет утреннего</b>' : 'утренний ещё не сдан')).join('')}</ul>`, 'На сегодня выездов не назначено.')}
+        ${block('Выезды сегодня', trips.length, `<ul class="ip-today-list">${trips.map(({ p, r }) => li(`data-ip-today-day="${esc(p.name)}"`, p.name, `${r.trips} ${r.trips === 1 ? 'выезд' : r.trips < 5 ? 'выезда' : 'выездов'}`, r.morning ? `утренний ${esc(reportTime(r.morning.at))}` : r.missingMorning ? '<b class="ip-late">нет утреннего</b>' : 'утренний ещё не сдан')).join('')}</ul>`, 'На сегодня выездов не назначено.')}
         ${block('Новые уведомления', fresh.length, `<ul class="ip-today-list">${fresh.map((n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`)).join('')}</ul>`, 'Непрочитанных уведомлений нет.', ' <button type="button" class="btn btn-ghost btn-sm" data-ip-section="notes">Все уведомления</button>')}
       </div>
     </section>`;
@@ -2421,6 +2465,8 @@ export function mountInspections(host) {
     view.peopleMode = q.m === 'mine' ? 'mine' : 'all';
     view.region = q.r || '';
     view.inst = q.i || '';
+    // Прежние адреса «Загрузки» (s=people&t=load) — в сетку Планирования.
+    if (q.s === 'people' && !q.p && q.t === 'load') { view.section = 'assign'; view.center = 'grid'; return true; }
     if (q.s === 'people') {
       view.person = q.p || '';
       if (q.t) { if (view.person) view.personTab = q.t; else view.allTab = q.t; }
@@ -2640,6 +2686,7 @@ export function mountInspections(host) {
 
   let lastAnim = { sec: '', det: '', cur: '' };
   function render() {
+    if (view.allTab === 'load') view.allTab = 'summary';
     const vkey = urlOf();
     if (shownKey) {
       memo.set(shownKey, { scroll: SCROLLERS.map((x) => (scope.$(x) ? scope.$(x).scrollTop : 0)), current, draft: draftOf() });
@@ -3014,6 +3061,7 @@ export function mountInspections(host) {
     render();
   });
   scope.on('click', '[data-ip-today-p]', (e, b) => nav({ section: 'people', person: b.dataset.ipTodayP, personTab: 'trips' }));
+  scope.on('click', '[data-ip-today-day]', (e, b) => { nav({ section: 'assign', center: 'grid' }); openPday(b.dataset.ipTodayDay, todayD); });
   scope.on('click', '[data-ip-move-ok]', (e, b) => { decideMove(b.dataset.ipMoveOk, true); toast('Перенос разрешён', 'ok'); redraw(); });
   // Отказ — с обязательной причиной (пользователь 09.11.2026: «Да, обязательна»): поле прямо в строке, без окна.
   scope.on('click', '[data-ip-move-no]', (e, b) => { moveRefusing = b.dataset.ipMoveNo; redraw(); const f = scope.$(`[data-ip-move-why="${CSS.escape(moveRefusing)}"]`); if (f) f.focus(); });
@@ -3223,7 +3271,51 @@ export function mountInspections(host) {
     detail = []; resetList(); render();
   });
   // «Загрузка»: клетка — выбранный день; «Маршрут дня»; «Назначить на этот день».
-  scope.on('click', '[data-ip-load]', (e, b) => { view.loadSel = view.loadSel === b.dataset.ipLoad ? '' : b.dataset.ipLoad; detail = []; render(); });
+  // Клетка сетки: отмечены объекты очереди — назначить на осмотрщика и день (панель справа с подставленными
+  // осмотрщиком и датой); иначе — «День осмотрщика» справа (ТЗ 17.11.2026).
+  const openPday = (name, day) => {
+    const plan = planOf(name, day);
+    const w = workdayOf(name, day);
+    detail = [{ kind: 'pday', name, date: day, plan: plan ? [plan.region, plan.district].filter(Boolean).join(', ') : '', off: w.ok ? '' : w.reason }];
+    redraw();
+  };
+  const assignTo = (name, day) => {
+    if (checked.size === 1) current = [...checked.keys()][0];
+    view.assignPerson = name; view.assignDay = day; view.assignAll = true;
+    draft = { key: '' }; detail = []; hidePane = false; redraw();
+  };
+  scope.on('click', '[data-ip-load]', (e, b) => {
+    const [name, day] = b.dataset.ipLoad.split('|');
+    if (view.tab === 'queue' && checked.size) assignTo(name, day); else openPday(name, day);
+  });
+  scope.on('click', '[data-ip-center]', (e, b) => { view.center = b.dataset.ipCenter; render(); });
+  scope.on('click', '[data-ip-layer]', (e, b) => { view.layer = b.dataset.ipLayer; redraw(); });
+  scope.on('change', '[data-ip-qgroup]', (e, el) => { view.qGroup = el.value; collapsed.clear(); resetList(); redraw(); });
+  // Перетаскивание строки списка на клетку: из очереди — назначить (отмеченные целиком, если строка отмечена);
+  // из «Назначено» — перенести на осмотрщика и день с отменой.
+  let dragKeys = null;
+  scope.on('dragstart', '[data-ip-row]', (e, tr) => {
+    const k = tr.dataset.ipRow;
+    dragKeys = { tab: view.tab, keys: checked.has(k) ? [...checked.keys()] : [k] };
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', dragKeys.keys.join('\n'));
+    scope.$$('.ip-board').forEach((x) => x.classList.add('is-dragging'));
+  });
+  scope.on('dragend', '[data-ip-row]', () => { dragKeys = null; scope.$$('.is-dragging, .is-drop').forEach((x) => x.classList.remove('is-dragging', 'is-drop')); });
+  scope.on('dragover', '[data-ip-load]', (e, b) => { if (!dragKeys) return; e.preventDefault(); e.dataTransfer.dropEffect = 'move'; b.classList.add('is-drop'); });
+  scope.on('dragleave', '[data-ip-load]', (e, b) => b.classList.remove('is-drop'));
+  scope.on('drop', '[data-ip-load]', (e, b) => {
+    if (!dragKeys) return;
+    e.preventDefault();
+    const [name, day] = b.dataset.ipLoad.split('|');
+    const { tab, keys } = dragKeys;
+    dragKeys = null;
+    if (tab === 'queue') {
+      checked.clear();
+      keys.forEach((k) => { const t = target(k); if (t) checked.set(k, t); });
+      assignTo(name, day);
+    } else moveWithUndo(keys, name, day, `Перенесено на ${name}, ${fmtDate(day)}`);
+  });
   scope.on('click', '[data-ip-load-days]', (e, b) => { view.loadDays = Number(b.dataset.ipLoadDays) || 10; render(); });
   scope.on('click', '[data-ip-load-route]', (e, b) => {
     const [name, day] = b.dataset.ipLoadRoute.split('|');
@@ -3341,7 +3433,8 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-dp-close]', () => { detail = []; redraw(); });
   scope.onDocument('keydown', (e) => { if (e.key === 'Escape' && detail.length && view.section === 'people') { detail = []; redraw(); } });
   scope.on('click', '[data-ip-dp-history]', (e, b) => {
-    view.section = 'history'; view.histPerson = view.person; view.histDay = b.dataset.ipDpHistory; detail = []; resetList(); render();
+    const [x, y] = b.dataset.ipDpHistory.split('|');
+    view.section = 'history'; view.histPerson = y ? x : view.person; view.histDay = y || x; detail = []; resetList(); render();
   });
   scope.on('click', '[data-ip-dp-edit]', (e, b) => { detail = []; gotoAssign(b.dataset.ipDpEdit); });
 
@@ -3505,7 +3598,7 @@ export function mountInspections(host) {
       tb.querySelectorAll('[data-ip-check]').forEach((x) => { const k = x.dataset.ipCheck; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
     });
     // Свёрнутая группа: отмечаем по данным, а не по строкам на экране.
-    if (collapsed.has(place)) applyFilter(queueBase(all).filter(objInSlice), QUEUE_FACETS, QUEUE_RANGES, view.qf, view.q).filter((s) => s.place === place).forEach((s) => { const k = s.typeId + '|' + s.id; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
+    if (collapsed.has(place)) applyFilter(queueBase(all).filter(objInSlice), QUEUE_FACETS, QUEUE_RANGES, view.qf, view.q).filter((s) => groupKey(s) === place).forEach((s) => { const k = s.typeId + '|' + s.id; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
     redraw();
   });
   scope.on('change', '[data-ip-adcheck]', (e, el) => {
@@ -3544,19 +3637,36 @@ export function mountInspections(host) {
     redraw();
     host.toast(d ? `Срок ${d.split('-').reverse().join('.')} поставлен: ${checked.size}` : `Срок снят: ${checked.size}`, 'ok');
   });
+  // Перенос и переназначение — с отменой (ТЗ 17.11.2026: «массовые действия с отменой»). Переназначение в
+  // ядре — снятие и новое назначение, поэтому отмена — обратное переназначение; в истории видны оба шага.
+  function moveWithUndo(ids, person, day, what) {
+    const before = ids.map((id) => allAssignments().find((a) => a.id === id)).filter((a) => a && isLive(a))
+      .map((a) => ({ id: a.id, person: a.person, date: a.plannedAt || '' }));
+    if (!before.length) return;
+    const after = before.map((x) => {
+      const n = person && person !== x.person ? reassignMany([x.id], person)[0] : null;
+      return { ...x, now: n ? n.id : x.id };
+    });
+    if (day) moveDateMany(after.map((x) => x.now), day);
+    checked.clear(); current = ''; redraw();
+    host.toast(`${what}: ${after.length}`, 'ok', { action: { label: 'Отменить', run: () => {
+      after.forEach((x) => {
+        const back = person && person !== x.person ? reassignMany([x.now], x.person)[0] : allAssignments().find((a) => a.id === x.now);
+        if (back && back.plannedAt !== x.date) moveDateMany([back.id], x.date);
+      });
+      redraw();
+      host.toast(`Отменено: ${after.length}`, 'ok');
+    } } });
+  }
   scope.on('click', '[data-ip-ba-reassign]', () => {
     const to = scope.$('[data-ip-ba-person]').value;
     if (!to) { scope.$('[data-ip-ba-person]').focus(); return; }
-    const n = reassignMany([...checked.keys()], to).length;
-    checked.clear(); current = ''; redraw();
-    host.toast(`Переназначено ${n} → ${to}`, 'ok');
+    moveWithUndo([...checked.keys()], to, '', `Переназначено → ${to}`);
   });
   scope.on('click', '[data-ip-ba-move]', () => {
     const d = scope.$('[data-ip-ba-date]').value;
     if (!d) { scope.$('[data-ip-ba-date]').focus(); return; }
-    moveDateMany([...checked.keys()], d);
-    const n = checked.size; checked.clear(); redraw();
-    host.toast(`Перенесено на ${d.split('-').reverse().join('.')}: ${n}`, 'ok');
+    moveWithUndo([...checked.keys()], '', d, `Перенесено на ${d.split('-').reverse().join('.')}`);
   });
   scope.on('click', '[data-ip-ba-remove]', () => {
     const n = checked.size; const was = unassignMany([...checked.keys()]); checked.clear(); current = ''; redraw();
@@ -3591,11 +3701,13 @@ export function mountInspections(host) {
     if (e.target.closest('.c-check')) return;
     current = tr.dataset.ipRow;
     confirmRemove = false;
+    if (view.section === 'assign') detail = [];
     redraw();
   });
   scope.on('change', '[data-ip-check]', (e, el) => {
     const k = el.dataset.ipCheck;
     if (el.checked) checked.set(k, target(k)); else checked.delete(k);
+    if (checked.size) detail = [];   // отмечают — чтобы назначить: справа панель назначения
     redraw();
   });
   scope.on('change', '[data-ip-all]', (e, el) => {

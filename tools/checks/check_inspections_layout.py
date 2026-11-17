@@ -43,14 +43,16 @@ def run(t):
     t.ck(got[0] == '2099-05-05', 'поправленный день строки не дошёл до назначения: %s' % got)
     t.ck(all(got[1:]) and got[1:] == [days[k] for k in keys[1:]], 'дни раскладки не дошли до назначений: %s vs %s' % (got, days))
 
-    # «Назначить на этот день» из «Загрузки» — очередь только подходящих.
-    pg.click('[data-ip-section="people"]')
-    pg.locator('.ip-person-main[data-ip-person=""]').click()
-    pg.click('[data-ip-atab="load"]')
+    # «Назначить на этот день» из сетки Планирования (бывшая «Загрузка», 17.11.2026) — очередь только подходящих.
+    pg.click('[data-ip-section="assign"]')
+    if pg.locator('[data-ip-bulk-clear]').count():
+        pg.click('[data-ip-bulk-clear]')
+    if pg.locator('[data-ip-center="grid"][aria-pressed="false"]').count():
+        pg.click('[data-ip-center="grid"]')
     t.wait_for('[data-ip-load]')
     # Клетка рабочего дня с назначениями или без — у нерабочего дня кнопки назначения нет.
     pg.locator('[data-ip-load]').nth(1).click()
-    if not t.ck(t.wait_for('[data-ip-load-assign]', timeout=5000), 'в «Загрузке» нет «Назначить на этот день»'):
+    if not t.ck(t.wait_for('[data-ip-load-assign]', timeout=5000), 'в «Дне осмотрщика» нет «Назначить на этот день»'):
         return
     pg.locator('[data-ip-load-assign]').first.click()
     t.ck(t.wait_for('[data-ip-assign-fit]'), 'назначение на день не показывает «подходит N из M»')

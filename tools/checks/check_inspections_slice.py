@@ -45,9 +45,10 @@ def run(t):
     t.ck(shown == min(want['queue'], 200) or pg.locator('.ip-grp-t[aria-expanded="false"]').count() > 0, 'строк очереди не по срезу: %d из %d' % (shown, want['queue']))
     t.ck(t.wait_until("(i) => decodeURIComponent(location.hash).includes('i=' + i)", inst), 'учреждение не в адресе: %s' % pg.evaluate('location.hash'))
     # Карта: подпись «На карте N из M» — M по срезу.
-    note = pg.locator('[data-ip-scene-note]')
-    if note.count() and note.is_visible():
-        t.ck(('из %d' % want['queue']) in note.inner_text(), 'карта не по срезу: %s' % note.inner_text())
+    pg.click('[data-ip-center="map"]')
+    t.ck(t.wait_until("([n]) => { const e = document.querySelector('[data-ip-scene-note]'); return !!e && (e.hidden || (e.textContent || '').includes('из ' + n)); }", [want['queue']]),
+         'карта не по срезу (ждали из %s): %s' % (want['queue'], pg.evaluate("() => (document.querySelector('[data-ip-scene-note]') || {}).textContent")))
+    pg.click('[data-ip-center="grid"]')
 
     # Переход и возврат — срез держится; перезагрузка — из адреса.
     pg.click('[data-ip-section="people"]')

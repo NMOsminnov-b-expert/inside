@@ -1679,3 +1679,50 @@ body[data-page="inspections"] input[type="checkbox"]:checked{animation:ipTick va
 @keyframes ipRing{0%,100%{rotate:0deg}20%{rotate:14deg}45%{rotate:-10deg}70%{rotate:5deg}}
 @media (hover:hover) and (pointer:fine){body[data-page="inspections"] .ip-bell:hover svg{animation:ipRing .6s ease}}
 body[data-page="inspections"] .ip-unread{animation:springIn var(--dur-enter) var(--ease-spring) both}
+
+/* --- Планирование: центр между списком и панелью (ТЗ 17.11.2026, этап 2) ------
+   Сетка «осмотрщик × день» — поверхностью над картой; «Сетка · Карта» —
+   островок над центром. Спрятанный список или панель — центр шире. */
+body[data-page="inspections"] .on-scene{--c-left:calc(var(--isle-gap) + var(--list-w) + 8px);--c-right:calc(var(--isle-gap) + var(--pane-w) + 8px)}
+body[data-page="inspections"] .on-scene.hide-list{--c-left:var(--isle-gap)}
+body[data-page="inspections"] .on-scene.hide-pane{--c-right:var(--isle-gap)}
+body[data-page="inspections"] .ip-cview{position:absolute;top:var(--scene-top);left:calc(var(--c-left) + 8px);z-index:12;height:38px;padding:3px;gap:2px}
+body[data-page="inspections"] .ip-cview button{height:32px;padding:0 14px;border-radius:var(--radius-md);font-size:13px;font-weight:500;color:var(--muted)}
+body[data-page="inspections"] .ip-cview button[aria-pressed="true"]{background:var(--blue-600);color:#fff}
+body[data-page="inspections"] .ip-board{position:absolute;top:calc(var(--scene-top) + 46px);left:var(--c-left);right:var(--c-right);bottom:var(--isle-gap);z-index:9;
+  pointer-events:auto;overflow:auto;padding:12px 14px;background:color-mix(in srgb,var(--bg) 94%,transparent);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
+  border-radius:var(--radius-lg);box-shadow:var(--card-sh)}
+body[data-page="inspections"] .ip-board .ip-load-wrap{max-height:none;background:var(--panel);border-radius:var(--radius-md)}
+body[data-page="inspections"] .ip-board .ip-ld-who{min-width:150px}
+body[data-page="inspections"] .ip-layer{width:150px;height:32px;border-radius:var(--radius-md);overflow:hidden;flex:none}
+body[data-page="inspections"] .ip-ld-day.is-today b{color:var(--blue-700)}
+body[data-page="inspections"] .ip-ld-day.is-today{box-shadow:inset 0 -3px 0 var(--blue-600)}
+body[data-page="inspections"] .ip-ld-plan{font-style:normal;font-size:10.5px;color:var(--violet-700);background:var(--violet-50);border-radius:999px;padding:0 6px;
+  max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+/* Подходящая клетка — зелёная рамка; место сброса — пружинный «вдох». */
+body[data-page="inspections"] .ip-ld.is-fit .ip-ld-b{box-shadow:inset 0 0 0 2px var(--teal-600);background:var(--teal-50)}
+body[data-page="inspections"] .ip-load-legend .is-fit::before{background:var(--teal-600)}
+body[data-page="inspections"] .ip-board.is-dragging .ip-ld:not(.is-off) .ip-ld-b{outline:1px dashed var(--blue-300);outline-offset:-4px}
+body[data-page="inspections"] .ip-ld-b.is-drop{scale:1.08;background:var(--blue-100);box-shadow:var(--lift-sh)}
+body[data-page="inspections"] tr[data-ip-row][draggable="true"]{cursor:grab}
+body[data-page="inspections"] tr[data-ip-row][draggable="true"]:active{cursor:grabbing}
+/* Слой «Факт»: У и В — утренний и вечерний отчёты. */
+body[data-page="inspections"] .ip-fxs{display:flex;gap:3px}
+body[data-page="inspections"] .ip-fx{display:inline-grid;place-items:center;width:17px;height:17px;border-radius:5px;font-size:10px;font-weight:700;font-style:normal}
+body[data-page="inspections"] .ip-fx.ok{background:var(--teal-100);color:var(--teal-700)}
+body[data-page="inspections"] .ip-fx.no{background:#fde2e2;color:var(--danger)}
+body[data-page="inspections"] .ip-fx.wait{background:var(--slate-50);color:var(--ink-dim)}
+body[data-page="inspections"] .ip-ld.is-bad .ip-ld-b{background:#fff5f5}
+body[data-page="inspections"] .ip-ld.is-ahead .ip-ld-b{opacity:.55}
+body[data-page="inspections"] .ip-load-legend .ip-fx{margin:0 3px 0 10px}
+body[data-page="inspections"] .ip-qgroup{height:32px;width:auto;flex:none}
+body[data-page="inspections"] .ip-grp-where{color:var(--muted);font-size:11.5px}
+body[data-page="inspections"] .ip-dp-acts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}
+body[data-page="inspections"] .ip-page:has(.ip-board) .ip-scene-note{display:none}
+body[data-page="inspections"] .on-scene .ip-assign .ip-facets.open{z-index:13}
+/* В режиме сетки список и панель уже — центру больше дней. */
+body[data-page="inspections"] .on-scene:has(.ip-board){--list-w:clamp(330px,27%,460px);--pane-w:clamp(300px,23%,380px)}
+body[data-page="inspections"] .ip-board .ip-load-bar-top{flex-wrap:nowrap;gap:10px}
+body[data-page="inspections"] .ip-board .ip-load-bar-top .ip-hint{flex:1 1 0;min-width:0;font-size:12px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+body[data-page="inspections"] .ip-board .ip-load-span button{padding:0 10px}
+body[data-page="inspections"] .ip-board .ip-ld{min-width:58px}

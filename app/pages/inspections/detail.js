@@ -43,7 +43,7 @@ function shell(title, sub, body, canBack, foot = '') {
 }
 
 // Выезды дня: по осмотрщику, если он выбран, иначе — всех.
-function dayHTML(all, sel, canBack) {
+function dayParts(all, sel) {
   const trips = tripsOfDay(all, sel.person || '', sel.day);
   const objects = new Set(trips.map((t) => t.a.typeId + '|' + t.a.ocId)).size;
   const sub = `${sel.person ? esc(sel.person) + (trips.length ? ' · ' : '') : ''}${trips.length ? `${objects} ${plural(objects, 'объект', 'объекта', 'объектов')} · назначений ${trips.length}` : ''}`;
@@ -57,8 +57,12 @@ function dayHTML(all, sel, canBack) {
         ${t.notes.map((n) => `<div class="ip-dp-note">${esc(n)}</div>`).join('')}` : ''}
     </li>`).join('')}</ul>` : '<p class="ip-hint">В этот день выездов нет.</p>';
   const acts = sel.person ? activitiesHTML(sel.person, sel.day) : { list: '', form: '' };
+  return { sub, body, acts, trips: trips.length, objects };
+}
+function dayHTML(all, sel, canBack) {
+  const { sub, body, acts, trips } = dayParts(all, sel);
   return shell(esc(dayTitle(sel.day)), sub, acts.list + body + acts.form, canBack,
-    trips.length ? `<button class="btn btn-ghost btn-sm" data-ip-dp-history="${esc(sel.day)}">Вся история дня</button>` : '');
+    trips ? `<button class="btn btn-ghost btn-sm" data-ip-dp-history="${esc((sel.person ? sel.person + '|' : '') + sel.day)}">Вся история дня</button>` : '');
 }
 
 // Работа вне выездов в этот день (ТЗ рабочего дня, раздел 4): записи —
@@ -173,7 +177,7 @@ function personHTML(p, canBack) {
 // Отчёты осмотрщика за день (ТЗ рабочего дня, раздел 3): утренний — куда и
 // одометр со снимком; вечерний — что осмотрено, одометр или маршрут;
 // пробег и литры с расчётом.
-function reportHTML(all, sel, assignments, canBack) {
+function reportParts(all, sel, assignments) {
   const d = dayReport(sel.name, sel.date);
   // Передвижение за день — цепочка отрезков «Авто» и «Такси» (17.11.2026): у авто — одометр в начале и в конце со
   // снимками и единицей машины (км, мили, ч), у такси — причина.
@@ -215,7 +219,29 @@ function reportHTML(all, sel, assignments, canBack) {
       <div class="ip-dp-line"><span>Литры</span><span class="ip-dp-v">${d.litres === null ? (d.kmBy === 'taxi' ? '<span class="ip-muted">весь день на такси — не считаются</span>' : d.km !== null ? '<span class="ip-muted">расход авто не указан</span>' : '—') : `<b class="ip-num">${d.litres.toLocaleString('ru-RU')} л</b> <span class="ip-muted">${d.km} × ${d.consumption} / 100</span>`}</span></div>
       <div class="ip-dp-line"><span>Авто</span><span class="ip-dp-v">${esc(d.car || '—')}${d.fuel ? ` · ${esc(d.fuel)}` : ''}</span></div>
     </section>`;
-  return shell('Отчёты за день', `${esc(sel.name)} · ${esc(dayTitle(sel.date))}`, body, canBack,
+  return body;
+}
+function reportHTML(all, sel, assignments, canBack) {
+  return shell('Отчёты за день', `${esc(sel.name)} · ${esc(dayTitle(sel.date))}`, reportParts(all, sel, assignments), canBack,
+    `<button class="btn btn-ghost btn-sm" data-ip-person="${esc(sel.name)}">Карточка осмотрщика</button>`);
+}
+
+// День осмотрщика (ТЗ экрана регионалов 17.11.2026, этап 3): выезды, работа вне выездов, утренний и вечерний
+// отчёты, передвижение и пробег — одной панелью по клетке сетки «осмотрщик × день» (раньше — четыре вкладки:
+// «Выезды», «Маршрут», «Отчёты», «Загрузка»). sel: { name, date, plan — область плана дня, off — почему не работает }.
+function pdayHTML(all, sel, assignments, canBack) {
+  const day = dayParts(all, { person: sel.name, day: sel.date });
+  const key = esc(sel.name + '|' + sel.date);
+  const sub = [esc(dayTitle(sel.date)), sel.plan ? `план: ${esc(sel.plan)}` : '', sel.off ? `<span class="ip-late">${esc(sel.off)}</span>` : '',
+    day.trips ? `${day.objects} ${plural(day.objects, 'объект', 'объекта', 'объектов')}` : ''].filter(Boolean).join(' · ');
+  const acts = `<div class="ip-dp-acts">
+      ${sel.off ? '' : `<button type="button" class="btn btn-primary btn-sm" data-ip-load-assign="${key}">Назначить на этот день</button>`}
+      <button type="button" class="btn btn-ghost btn-sm" data-ip-load-route="${key}">Маршрут дня</button>
+      <button type="button" class="btn btn-ghost btn-sm" data-ip-dp-history="${key}">История дня</button></div>`;
+  const body = `${acts}
+    <section class="ip-sec"><h3>Выезды</h3>${day.acts.list}${day.body}${day.acts.form}</section>
+    ${reportParts(all, sel, assignments)}`;
+  return shell(esc(sel.name), sub, body, canBack,
     `<button class="btn btn-ghost btn-sm" data-ip-person="${esc(sel.name)}">Карточка осмотрщика</button>`);
 }
 
@@ -226,6 +252,7 @@ export function detailHTML(all, people, assignments, stack) {
   const canBack = stack.length > 1;
   if (sel.kind === 'day') return dayHTML(all, sel, canBack);
   if (sel.kind === 'report') return reportHTML(all, sel, assignments, canBack);
+  if (sel.kind === 'pday') return pdayHTML(all, sel, assignments, canBack);
   if (sel.kind === 'assign') {
     const a = assignments.find((x) => x.id === sel.id);
     return a ? assignHTML(all, a, canBack) : '';
