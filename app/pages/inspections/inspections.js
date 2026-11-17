@@ -25,7 +25,7 @@ import {
   FIELD_KINDS, allCustomFields, addCustomField, removeCustomField, poaDaysLeft, reportTime, profileNames,
   addActivity, removeActivity, activitiesOn, activityKind, carFuels,
   planOf, setPlan, assign, transferOi, isLive,
-  allCadRequests, cadRequest, createCadRequest, updateCadRequest, closeCadRequest, remindCadRequest, cadDuplicateOf, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, cadDocs,
+  allCadRequests, cadRequest, cadBranches, cadBranch, cadBranchFor, createCadRequest, updateCadRequest, closeCadRequest, remindCadRequest, cadDuplicateOf, cadSummary, cadResultLabel, cadKindLabel, cadFileName, CAD_KINDS, cadDocs,
 } from '../../kernel/inspections.js';
 import { downloadXlsx, readXlsx } from '../../kernel/xlsx.js';
 import { mountGrid, cellText, parseCell } from '../../kernel/grid.js';
@@ -2171,7 +2171,7 @@ export function mountInspections(host) {
     return `<section class="ip-work ip-card" aria-label="Запрос № ${r.no}">
       <header class="ip-card-head">
         <div class="ip-card-title"><h1>${esc(cadKindLabel(r.kind))} № ${r.no}</h1>
-          <p class="ip-card-contacts">${esc(r.person)} · создан ${esc(fmtDate(r.at))}${r.by ? `, ${esc(r.by)}` : ''}${r.due ? ` · срок <b class="${r.due < todayD && t.wait ? 'ip-late' : ''}">${esc(fmtDate(r.due))}</b>` : ''}${r.note ? ` · ${esc(r.note)}` : ''}</p></div>
+          <p class="ip-card-contacts">${esc(r.person)} · создан ${esc(fmtDate(r.at))}${r.by ? `, ${esc(r.by)}` : ''}${r.due ? ` · срок <b class="${r.due < todayD && t.wait ? 'ip-late' : ''}">${esc(fmtDate(r.due))}</b>` : ''}${r.note ? ` · ${esc(r.note)}` : ''}${cadBranch(r.branch) ? ` · ${esc(cadBranch(r.branch).name)}` : ''}</p></div>
         <div class="ip-tiles ip-tiles-head">${tile('Получено', `${t.got} из ${t.total}`)}${tile('Нет в кадастре', t.none, t.none ? 'warn' : '')}${tile('Отказ', t.refused, t.refused ? 'warn' : '')}${tile('Ждёт', t.wait)}</div>
         <div class="ip-head-act">
           ${r.closedAt ? `<button class="btn btn-ghost btn-sm" data-ip-cad-reopen="${esc(r.id)}">Открыть снова</button>`
@@ -2221,6 +2221,11 @@ export function mountInspections(host) {
           <div class="field"><label for="ip-cad-due">Срок</label><input class="input" type="date" id="ip-cad-due" data-ip-cadf="due" value="${esc(d.due)}"></div>
           <div class="field"><label for="ip-cad-note">Комментарий к запросу</label><input class="input" id="ip-cad-note" data-ip-cadf="note" value="${esc(d.note)}"></div>
         </div>
+        ${d.kind === 'cadastre' ? `<div class="ip-prow">
+          <div class="field"><label for="ip-cad-branch">Филиал Кадастра</label><select class="select" id="ip-cad-branch" data-ip-cadf="branch"><option value="">—</option>
+            ${cadBranches().map((b) => `<option value="${esc(b.id)}" ${d.branch === b.id ? 'selected' : ''}>${esc(b.name)} — ${esc(b.region)}</option>`).join('')}</select></div>
+          <div class="field">${cadBranch(d.branch) ? `<span class="ip-flabel">Адрес и ответственный</span><p class="ip-hint">${esc(cadBranch(d.branch).address)} · ${esc(cadBranch(d.branch).person)}, ${esc(cadBranch(d.branch).phone)}</p>` : ''}</div>
+        </div>` : ''}
         <div class="field ip-cad-find"><label for="ip-cad-q">Добавить объект — ЕНИ или адрес</label>
           <span class="isearch">${SEARCH_ICON}<input id="ip-cad-q" data-ip-cad-q value="${esc(d.q || '')}" autocomplete="off" placeholder="не меньше двух знаков"></span>
           ${found.length ? `<ul class="ip-cad-found">${found.map((s) => `<li><button data-ip-cad-add="${esc(s.typeId + '|' + s.id)}"><span class="mono">${esc(fmtEni(s.eni) || s.eni || '')}</span> ${esc(s.title)}<span class="ip-sub">${esc([s.typeLabel, s.institution].filter(Boolean).join(' · '))}</span></button></li>`).join('')}</ul>` : ''}
@@ -2815,12 +2820,12 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-act-del]', (e, b) => { removeActivity(b.dataset.ipActDel); redraw(); });
   // Кадастр: выбор запроса, новый запрос, строки, создание, отчёт.
   scope.on('click', '[data-ip-cad]', (e, b) => { view.cadSel = b.dataset.ipCad; cadDraft = null; redraw(); });
-  scope.on('click', '[data-ip-cad-new]', () => { cadDraft = { kind: 'cadastre', person: '', due: '', note: '', q: '', rows: [] }; redraw(); scope.$('[data-ip-cad-q]').focus(); });
+  scope.on('click', '[data-ip-cad-new]', () => { cadDraft = { kind: 'cadastre', person: '', due: '', note: '', branch: '', q: '', rows: [] }; redraw(); scope.$('[data-ip-cad-q]').focus(); });
   scope.on('click', '[data-ip-cad-cancel]', () => { cadDraft = null; redraw(); });
   scope.on('change', '[data-ip-cadf]', (e, el) => {
     cadDraft[el.dataset.ipCadf] = el.value;
     if (el.dataset.ipCadf === 'kind' && el.value === 'cadastre' && cadDraft.person && !profileOf(cadDraft.person).cadastre) cadDraft.person = '';
-    if (el.dataset.ipCadf === 'kind') redraw();
+    if (el.dataset.ipCadf === 'kind' || el.dataset.ipCadf === 'branch') redraw();
   });
   scope.on('input', '[data-ip-cadf="note"]', (e, el) => { cadDraft.note = el.value; });
   scope.on('input', '[data-ip-cad-q]', (e, el) => { cadDraft.q = el.value; redraw(); keepFocus('[data-ip-cad-q]'); });
@@ -2829,6 +2834,8 @@ export function mountInspections(host) {
     // Повтор пары «объект + документ» в самом запросе не добавляется: второй раз — следующий документ перечня.
     const used = new Set(cadDraft.rows.filter((x) => s && x.ocId === s.id).map((x) => x.doc.trim().toLowerCase()));
     const doc = cadDocs().find((x) => !used.has(x.toLowerCase()));
+    // Филиал по умолчанию — филиал района первого объекта; регионал может сменить.
+    if (s && doc && !cadDraft.branch) cadDraft.branch = (cadBranchFor(s.eni, districtOf(s)) || {}).id || '';
     if (s && doc) cadDraft.rows.push({ typeId: s.typeId, ocId: s.id, inst: s.institution || '', eni: s.eni || '', title: s.title || '', doc, note: '' });
     else if (s) host.toast('Все документы перечня по этому объекту уже в запросе', 'warn');
     cadDraft.q = '';
@@ -2842,6 +2849,7 @@ export function mountInspections(host) {
     const d = cadDraft;
     if (!d.rows.length) { err.textContent = 'Добавьте хотя бы один объект'; scope.$('[data-ip-cad-q]').focus(); return; }
     if (!d.person) { err.textContent = 'Выберите осмотрщика'; scope.$('[data-ip-cadf="person"]').focus(); return; }
+    if (d.kind === 'cadastre' && !d.branch) { err.textContent = 'Выберите филиал Кадастра'; scope.$('[data-ip-cadf="branch"]').focus(); return; }
     const empty = d.rows.findIndex((x) => !x.doc.trim());
     if (empty >= 0) { err.textContent = 'Укажите документ в каждой строке'; scope.$(`[data-ip-cad-row="${empty}"][data-k="doc"]`).focus(); return; }
     // Без повторов (решение пользователя 05.11.2026): одна пара «объект + документ» — один раз в запросе и не
@@ -2857,8 +2865,9 @@ export function mountInspections(host) {
       return;
     }
     const rows = d.rows.map((x) => ({ ...x, doc: x.doc.trim(), note: x.note.trim() }));
-    const r = d.editId ? updateCadRequest(d.editId, { person: d.person, kind: d.kind, due: d.due, note: d.note.trim(), rows })
-      : createCadRequest({ person: d.person, kind: d.kind, due: d.due, note: d.note.trim(), rows });
+    const branch = d.kind === 'cadastre' ? d.branch : '';
+    const r = d.editId ? updateCadRequest(d.editId, { person: d.person, kind: d.kind, due: d.due, note: d.note.trim(), branch, rows })
+      : createCadRequest({ person: d.person, kind: d.kind, due: d.due, note: d.note.trim(), branch, rows });
     cadDraft = null;
     view.cadSel = r.id;
     redraw();
@@ -2867,7 +2876,7 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-cad-edit]', (e, b) => {
     const r = cadRequest(b.dataset.ipCadEdit);
     if (!r) return;
-    cadDraft = { editId: r.id, kind: r.kind, person: r.person, due: r.due || '', note: r.note || '', q: '',
+    cadDraft = { editId: r.id, kind: r.kind, person: r.person, due: r.due || '', note: r.note || '', branch: r.branch || '', q: '',
       rows: r.rows.filter((x) => !x.result).map((x) => ({ id: x.id, typeId: x.typeId, ocId: x.ocId, inst: x.inst, eni: x.eni,
         title: (all.get(x.typeId + '|' + x.ocId) || {}).title || '', doc: x.doc, note: x.note || '' })) };
     redraw();

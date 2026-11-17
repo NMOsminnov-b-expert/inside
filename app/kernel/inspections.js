@@ -973,23 +973,70 @@ export const CAD_RESULTS = [
 ];
 export const cadResultLabel = (k) => (CAD_RESULTS.find((x) => x.key === k) || { label: 'Ждёт' }).label;
 
+// --- филиалы Кадастра (решение пользователя 16.11.2026 на вопрос «Откуда адрес филиала и ответственный»:
+// «Справочник филиалов»; «Один запрос — один филиал») -------------------------------------------------
+//
+// Филиал — область и районы, которые он обслуживает, адрес, точка на карте (для навигатора) и ответственный
+// от филиала (ФИО, телефон). Регионал выбирает филиал при создании запроса; по умолчанию — филиал района
+// первого объекта. Осмотрщик видит адрес, ответственного и маршрут.
+//
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: справочник ведёт ЦОД; в макете — демо-записи (выдуманные ФИО и телефоны).
+const DEMO_BRANCHES = [
+  { id: 'kb-bish-1', name: 'Бишкекский филиал № 1', region: 'Бишкек', districts: ['Октябрьский р-н', 'Ленинский р-н'], address: 'г. Бишкек, ул. Примерная, 1', lat: 42.8746, lon: 74.5698, person: 'Асанова Гульнара Т.', phone: '+996 312 000 101' },
+  { id: 'kb-bish-2', name: 'Бишкекский филиал № 2', region: 'Бишкек', districts: ['Первомайский р-н', 'Свердловский р-н'], address: 'г. Бишкек, пр. Демонстрационный, 2', lat: 42.8800, lon: 74.6100, person: 'Токтогулов Бакыт С.', phone: '+996 312 000 102' },
+  { id: 'kb-chui', name: 'Чуйский филиал', region: 'Чуй', districts: [], address: 'г. Сокулук, ул. Образцовая, 3', lat: 42.8600, lon: 74.3000, person: 'Иманалиева Айгуль К.', phone: '+996 3134 000 103' },
+  { id: 'kb-ik', name: 'Иссык-Кульский филиал', region: 'Иссык-Куль', districts: [], address: 'г. Каракол, ул. Пробная, 4', lat: 42.4907, lon: 78.3936, person: 'Садыков Эрлан М.', phone: '+996 3922 000 104' },
+  { id: 'kb-naryn', name: 'Нарынский филиал', region: 'Нарын', districts: [], address: 'г. Нарын, ул. Учебная, 5', lat: 41.4287, lon: 75.9911, person: 'Жумабаева Нургуль А.', phone: '+996 3522 000 105' },
+  { id: 'kb-talas', name: 'Таласский филиал', region: 'Талас', districts: [], address: 'г. Талас, ул. Тестовая, 6', lat: 42.5228, lon: 72.2427, person: 'Мамытов Азамат Р.', phone: '+996 3422 000 106' },
+  { id: 'kb-ja', name: 'Жалал-Абадский филиал', region: 'Жалал-Абад', districts: [], address: 'г. Жалал-Абад, ул. Макетная, 7', lat: 40.9333, lon: 73.0000, person: 'Абдыкадырова Жылдыз Б.', phone: '+996 3722 000 107' },
+  { id: 'kb-osh', name: 'Ошский филиал', region: 'Ош', districts: [], address: 'г. Ош, ул. Демонстрационная, 8', lat: 40.5283, lon: 72.7985, person: 'Ташиев Улан Ж.', phone: '+996 3222 000 108' },
+  { id: 'kb-batken', name: 'Баткенский филиал', region: 'Баткен', districts: [], address: 'г. Баткен, ул. Образцовая, 9', lat: 40.0629, lon: 70.8194, person: 'Исакова Мээрим Н.', phone: '+996 3622 000 109' },
+];
+const cadBranchList = DEMO_BRANCHES.map((b) => ({ ...b, districts: [...b.districts] }));
+registerPersisted('inspections.cadBranches', {
+  snapshot: () => cadBranchList,
+  restore: (saved) => {
+    if (!Array.isArray(saved) || !saved.length) return;
+    cadBranchList.splice(0, cadBranchList.length, ...saved.filter((x) => x && x.id));
+  },
+});
+export const cadBranches = () => cadBranchList;
+export const cadBranch = (id) => cadBranchList.find((b) => b.id === id) || null;
+// Филиал объекта: по району (если филиал области делит районы), иначе первый филиал области.
+export function cadBranchFor(eni, district = '') {
+  const region = eniRegion(eni);
+  const inRegion = cadBranchList.filter((b) => b.region === region);
+  return inRegion.find((b) => district && b.districts.includes(district)) || inRegion[0] || null;
+}
+
 const cadRequests = demo.cadastre || [];
+// Демо-запросам без филиала — филиал области большинства строк (запрос в кадастр — один филиал).
+function seedBranch(r) {
+  if (!r || r.branch || r.kind !== 'cadastre' || !r.rows || !r.rows.length) return;
+  const n = {};
+  r.rows.forEach((x) => { const reg = eniRegion(x.eni); if (reg) n[reg] = (n[reg] || 0) + 1; });
+  const top = Object.keys(n).sort((a, b) => n[b] - n[a])[0];
+  const b = top && cadBranchList.find((x) => x.region === top);
+  if (b) r.branch = b.id;
+}
+cadRequests.forEach(seedBranch);
 registerPersisted('inspections.cadastre', {
   snapshot: () => cadRequests,
   restore: (saved) => {
     if (!Array.isArray(saved)) return;
     cadRequests.splice(0, cadRequests.length, ...saved.filter((x) => x && x.id));
+    cadRequests.forEach(seedBranch);
   },
 });
 
 export const allCadRequests = () => cadRequests;
 export const cadRequest = (id) => cadRequests.find((r) => r.id === id) || null;
 
-export function createCadRequest({ person, kind = 'cadastre', due = '', note = '', rows = [] }) {
+export function createCadRequest({ person, kind = 'cadastre', due = '', note = '', branch = '', rows = [] }) {
   if (!person || !rows.length) return null;
   const r = {
     id: nextId('cr'), no: cadRequests.reduce((m, x) => Math.max(m, x.no || 0), 0) + 1,
-    person, kind, due, note, at: now(), by: session.state.person,
+    person, kind, due, note, branch, at: now(), by: session.state.person,
     rows: rows.map((x) => ({ id: nextId('cl'), typeId: x.typeId || '', ocId: x.ocId || '', inst: x.inst || '', eni: x.eni || '', doc: x.doc || '', note: x.note || '', result: '' })),
   };
   cadRequests.unshift(r);
@@ -1000,7 +1047,7 @@ export function createCadRequest({ person, kind = 'cadastre', due = '', note = '
 // Правка открытого запроса, закрытие и напоминание (решение пользователя 05.11.2026 на вопрос «Изменение
 // запроса кадастра и повторы строк»: «Правка и без повторов»). Строки с ответом не трогаются: правятся и
 // убираются только ждущие ответа; rows — ждущие строки после правки (у прежних — их id).
-export function updateCadRequest(id, { person, kind, due = '', note = '', rows = [] }) {
+export function updateCadRequest(id, { person, kind, due = '', note = '', branch, rows = [] }) {
   const r = cadRequest(id);
   if (!r || r.closedAt) return null;
   const answered = r.rows.filter((x) => x.result);
@@ -1014,7 +1061,8 @@ export function updateCadRequest(id, { person, kind, due = '', note = '', rows =
   if ((due || '') !== (r.due || '')) changes.push(`срок ${r.due || '—'} → ${due || '—'}`);
   const before = r.rows.filter((x) => !x.result).length;
   if (before !== wait.length) changes.push(`строк без ответа ${before} → ${wait.length}`);
-  Object.assign(r, { person: person || r.person, kind: kind || r.kind, due, note, rows: [...answered, ...wait] });
+  if (branch !== undefined && (branch || '') !== (r.branch || '')) changes.push(`филиал ${(cadBranch(r.branch) || {}).name || '—'} → ${(cadBranch(branch) || {}).name || '—'}`);
+  Object.assign(r, { person: person || r.person, kind: kind || r.kind, due, note, branch: branch === undefined ? r.branch : branch, rows: [...answered, ...wait] });
   (r.log = r.log || []).push({ at: now(), by: session.state.person, kind: 'edit', text: changes.join('; ') || 'изменён' });
   changed();
   return r;

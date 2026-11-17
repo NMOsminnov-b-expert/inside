@@ -11,6 +11,10 @@
   * на «Сегодня» нет строки «Отчёт дня» с тем, что сдано;
   * запрос документов: ответ «Получен» без файла принимается; ответ не доходит
     до строки запроса; нет строки запросов в меню и на «Сегодня»;
+  * запрос на 120 документов: нет филиала с адресом, ответственным (tel:) и
+    маршрутом в 2ГИС / Apple / Google / «Другой»; строки не ограничены; поиск
+    и отбор «Отвечено» не работают; форма ответа видна без раскрытия; после
+    ответа не раскрывается следующая; осмотрщику видна «Причина ЦОД»;
   * на 360 пикселях экраны прокручиваются вбок.
 """
 import datetime
@@ -72,30 +76,53 @@ def run(t):
     t.open('#/osmotr', wait='.om-app[data-v="today"]')
     t.ck('сдан' in pg.locator('.om-row', has_text='Отчёт дня').inner_text(), 'на «Сегодня» не видно, что отчёт сдан')
 
-    # --- запрос документов: создаём сами, отвечаем ---
+    # --- запрос документов: создаём сами (120 строк, филиал), отвечаем ---
     req = pg.evaluate("""async ([t, c]) => { const k = await import('./app/kernel/inspections.js'); const s = (await import('./app/kernel/session.js')).session.state;
-      const r = k.createCadRequest({ person: s.person, rows: [{ typeId: t, ocId: c, doc: 'Технический паспорт' }, { typeId: t, ocId: c, doc: 'Выписка из ЕГРП' }] });
+      const docs = ['Технический паспорт', 'Выписка из ЕГРП']; for (let i = 3; i <= 120; i++) docs.push('Документ ' + i);
+      const r = k.createCadRequest({ person: s.person, branch: 'kb-osh', rows: docs.map((doc) => ({ typeId: t, ocId: c, doc, note: 'причина цод' })) });
       return { id: r.id, rows: r.rows.map((x) => x.id) }; }""", [a['typeId'], a['ocId']])
     t.open('#/osmotr?v=menu', wait='.om-app[data-v="menu"]')
     t.ck(pg.locator('.om-row', has_text='Запросы документов').locator('.om-n').inner_text().strip() not in ('', '0'), 'в меню нет счётчика ждущих запросов')
-    t.open('#/osmotr?v=cad', wait='[data-cad]')
-    f1 = pg.locator('[data-row="%s"]' % req['rows'][0])
+    t.open('#/osmotr?v=cad', wait='[data-req]')
+    t.ck('ответ 0 из 120' in pg.locator('[data-req="%s"]' % req['id']).inner_text(), 'в списке запросов нет сводки «ответ 0 из 120»')
+    pg.locator('[data-req="%s"]' % req['id']).click()
+    t.wait_for('.om-branch')
+    br = pg.locator('.om-branch').inner_text()
+    t.ck('Ошский филиал' in br and 'Ташиев' in br, 'нет филиала и ответственного: %r' % br)
+    t.ck(pg.locator('.om-branch a[href^="tel:"]').count() == 1, 'телефон ответственного — не ссылка tel:')
+    nav = pg.eval_on_selector_all('.om-nav a', 'l => l.map((a) => a.href)')
+    t.ck(len(nav) == 4 and '2gis' in nav[0] and 'apple' in nav[1] and 'google' in nav[2] and nav[3].startswith('geo:'),
+         'нет маршрута в 2ГИС, Apple, Google и «Другой»: %s' % nav)
+    t.ck(pg.locator('.om-cadline').count() == 60 and 'уточните поиск' in pg.locator('.om-app').inner_text(), '120 строк не ограничены 60 с подсказкой')
+    t.ck(pg.locator('form[data-cad]').count() == 0, 'форма ответа видна без раскрытия строки')
+    t.ck('причина цод' not in pg.locator('.om-app').inner_text().lower(), '«Причина ЦОД» видна осмотрщику')
+    pg.fill('#om-cad-q', 'ЕГРП')
+    t.ck(t.wait_until("() => document.querySelectorAll('.om-cadline').length === 1"), 'поиск по документу не отобрал одну строку')
+    pg.fill('#om-cad-q', '')
+    t.ck(t.wait_until("() => document.querySelectorAll('.om-cadline').length === 60"), 'сброс поиска не вернул строки')
+    pg.locator('[data-cad-open="%s"]' % req['rows'][0]).click()
+    f1 = pg.locator('form[data-row="%s"]' % req['rows'][0])
     f1.locator('input[value=got]').check(force=True)
     f1.locator('button[type=submit]').click()
-    t.ck(t.wait_until("(r) => { const e = document.querySelector('[data-row=\"' + r + '\"] [data-cad-err]'); return e && !e.hidden; }", req['rows'][0]),
+    t.ck(t.wait_until("(r) => { const e = document.querySelector('form[data-row=\"' + r + '\"] [data-cad-err]'); return e && !e.hidden; }", req['rows'][0]),
          '«Получен» без файла не остановлен')
     f1.locator('[data-cad-file]').set_input_files([{'name': 'tp.png', 'mimeType': 'image/png', 'buffer': PNG}])
     f1.locator('button[type=submit]').click()
     ROW = """async ([q, r]) => { const k = await import('./app/kernel/inspections.js'); return (k.allCadRequests().find((x) => x.id === q).rows.find((x) => x.id === r)) || {}; }"""
     t.ck(t.wait_until("async (a) => { const x = await (%s)(a); return x.result === 'got' && !!x.file; }" % ROW, [req['id'], req['rows'][0]]), 'ответ «Получен» с файлом не дошёл до запроса')
-    f2 = pg.locator('[data-row="%s"]' % req['rows'][1])
+    # После ответа раскрывается следующая ждущая строка.
+    t.ck(t.wait_until("(r) => !!document.querySelector('form[data-row=\"' + r + '\"]')", req['rows'][1]), 'после ответа не раскрылась следующая строка')
+    t.ck(pg.locator('.om-cadline').count() == 60 and 'ответ 1 из 120' in pg.locator('.om-cadprog').inner_text(), 'ход ответов не обновился')
+    f2 = pg.locator('form[data-row="%s"]' % req['rows'][1])
     f2.locator('input[value=refused]').check(force=True)
     f2.locator('textarea[name=answer]').fill('Архив закрыт')
     f2.locator('button[type=submit]').click()
     t.ck(t.wait_until("async (a) => { const x = await (%s)(a); return x.result === 'refused' && x.answer === 'Архив закрыт'; }" % ROW, [req['id'], req['rows'][1]]), 'ответ «Отказ» с пояснением не дошёл')
+    pg.locator('.om-seg', has_text='Отвечено').click()
+    t.ck(t.wait_until("() => document.querySelectorAll('.om-cadline').length === 2"), 'отбор «Отвечено» не показал две строки')
 
     pg.set_viewport_size({'width': 360, 'height': 780})
-    for route in ('#/osmotr?v=report', '#/osmotr?v=cad'):
+    for route in ('#/osmotr?v=report', '#/osmotr?v=cad', '#/osmotr?v=cad&r=' + req['id']):
         t.open(route, wait='.om-app .om-title')
         over = pg.evaluate("() => { const s = document.querySelector('.om-scr'); return s.scrollWidth - s.clientWidth; }")
         t.ck(over <= 0, '%s на 360 px прокручивается вбок на %d px' % (route, over))

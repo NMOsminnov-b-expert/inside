@@ -30,7 +30,7 @@ import { foldSearch, fmtEni } from '../../kernel/fmt.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto } from '../../kernel/inspectionResults.js';
-import { startWork, myAssignsOn, finishWork, requestMove, skipReasons, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadKindLabel, cadResultLabel, answerCadRow } from '../../kernel/inspections.js';
+import { startWork, myAssignsOn, finishWork, requestMove, skipReasons, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow } from '../../kernel/inspections.js';
 import { osrmKm, dayPoints } from '../inspections/route.js';
 import { markItem, markOf, addItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
@@ -739,45 +739,108 @@ function viewReport(q, rerender) {
 // --- запросы документов из Кадастра (как в приложении «Осмотр», EstateCadastre.kt; решения 06.11.2026, пачка Б) ---
 // Строка: что просят, по какому объекту, ЕНИ, учреждение; ответ — «Получен» (скан или PDF), «Нет», «Отказ»;
 // после разбора ЦОД — принят, возвращён или отклонён с причиной; ответ можно поправить.
-const CAD_RESULTS = [['got', 'Получен'], ['none', 'Нет'], ['refused', 'Отказ']];
 function cadRows(person) {
   const state = (x) => (x.review ? x.review.state : x.file && x.file.docId ? 'accepted' : x.result ? 'wait' : '');
   return allCadRequests().filter((r) => r.person === person).map((r) => ({
     id: r.id, no: r.no, kind: cadKindLabel(r.kind), due: r.due || '', note: r.note || '', closed: !!r.closedAt,
+    // Филиал — выбранный регионалом.
+    branch: r.kind === 'cadastre' ? cadBranch(r.branch) : null,
     rows: r.rows.map((x) => {
       const rec = x.typeId && x.ocId ? loadTask(x.typeId, x.ocId) : null;
       return { id: x.id, doc: x.doc || '', title: rec ? titleOf(rec, x.ocId) : '', eni: fmtEni(x.eni) || x.eni || '', inst: x.inst || '',
         result: x.result || '', resultLabel: x.result ? cadResultLabel(x.result) : 'Ждёт', answer: x.answer || '', scanDate: x.scanDate || '',
-        file: x.file ? x.file.name || '' : '', review: state(x), note: x.note || '' };
+        file: x.file ? x.file.name || '' : '', review: state(x) };
     }),
   }));
 }
-const waitingCad = (person) => cadRows(person).filter((r) => !r.closed).flatMap((r) => r.rows).filter((x) => !x.result || x.review === 'returned').length;
-function viewCad(q) {
+// Ждёт осмотрщика: без ответа или возвращён ЦОД.
+const cadWaits = (x) => !x.result || x.review === 'returned';
+const waitingCad = (person) => cadRows(person).filter((r) => !r.closed).flatMap((r) => r.rows).filter(cadWaits).length;
+
+// Маршрут до точки в навигаторе — на выбор осмотрщика (пользователь 16.11.2026: «предложение проложить
+// маршрут через навигатор (2гис apple, гугл или иное)»). «Другой» — geo:-ссылка: телефон предложит
+// установленные навигаторы.
+const navLinks = (p) => [
+  ['2ГИС', `https://2gis.kg/directions/points/%7C${p.lon}%2C${p.lat}`],
+  ['Apple Карты', `https://maps.apple.com/?daddr=${p.lat},${p.lon}`],
+  ['Google Карты', `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`],
+  ['Другой', `geo:${p.lat},${p.lon}?q=${p.lat},${p.lon}(${encodeURIComponent(p.name || '')})`],
+];
+function branchCard(b) {
+  return `<section class="om-card om-branch" aria-label="Филиал Кадастра">
+    <span class="om-cap">Филиал Кадастра</span>
+    <b>${esc(b.name)}</b>
+    <span>${esc(b.address)}</span>
+    <span class="om-branch-who">${esc(b.person)} · <a href="tel:${esc(b.phone.replace(/[^\d+]/g, ''))}">${esc(b.phone)}</a></span>
+    ${b.lat != null ? `<div class="om-nav" role="group" aria-label="Маршрут в навигаторе">${navLinks(b).map(([l, u]) => `<a class="om-btn" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join('')}</div>` : ''}
+  </section>`;
+}
+
+// Запросы бывают по 100–200 документов (пользователь 16.11.2026: «Бывает и по 100-200 доков за раз»):
+// список запросов — сводкой; в запросе — поиск, отбор по состоянию, строки в одну линию; форма ответа —
+// только у раскрытой строки; после ответа раскрывается следующая ждущая.
+const CAD_RESULTS = [['got', 'Получен'], ['none', 'Нет'], ['refused', 'Отказ']];
+const CAD_FILTERS = [['', 'Ждут ответа', cadWaits], ['done', 'Отвечено', (x) => x.result && x.review !== 'returned'], ['returned', 'Возвращены', (x) => x.review === 'returned'], ['all', 'Все', () => true]];
+const CAD_LIMIT = 60;
+const CAD_REVIEW = { accepted: ['Принят ЦОД', 'green'], returned: ['Возвращён', 'amber'], rejected: ['Отклонён', 'rose'], wait: ['На разборе ЦОД', 'blue'] };
+const lc = (v) => String(v || '').toLowerCase().replace(/ё/g, 'е');
+function cadChip(x) {
+  if (!x.result) return '<span class="om-chip om-t-blue">Ждёт</span>';
+  const [rw, tone] = CAD_REVIEW[x.review] || ['', 'blue'];
+  return `<span class="om-chip om-t-${tone}">${esc(x.review === 'wait' ? x.resultLabel : rw)}</span>`;
+}
+function viewCad(q, openRow) {
   const list = cadRows(session.state.person);
-  const shown = list.filter((r) => (q.s === 'closed' ? r.closed : !r.closed));
-  const REVIEW = { accepted: ['Принят ЦОД', 'green'], returned: ['Возвращён', 'amber'], rejected: ['Отклонён', 'rose'], wait: ['На разборе ЦОД', 'blue'] };
+  const r = q.r && list.find((x) => x.id === q.r);
+  if (r) return viewCadOne(r, q, openRow);
+  const shown = list.filter((x) => (q.s === 'closed' ? x.closed : !x.closed));
   return `${back(href({ v: 'menu' }), 'Меню')}
     <h1 class="om-title om-title-sm">Запросы документов</h1>
-    <div class="om-tabs3 om-tabs2">${[['', 'Открытые', list.filter((r) => !r.closed).length], ['closed', 'Закрытые', list.filter((r) => r.closed).length]].map(([k, l, n]) => `<a class="om-tab3${(q.s || '') === k ? ' on' : ''}" href="${href({ v: 'cad', s: k })}">${l} <b>${n}</b></a>`).join('')}</div>
-    ${shown.length ? shown.map((r) => `<section class="om-card om-cad">
-      <h2 class="om-card-t">№ ${esc(String(r.no))} · ${esc(r.kind)}</h2>
-      ${r.due || r.note ? `<p class="om-muted">${[r.due ? 'срок ' + shortDate(r.due) : '', r.note].filter(Boolean).map(esc).join(' · ')}</p>` : ''}
-      ${r.rows.map((x) => {
-    const [rw, tone] = REVIEW[x.review] || ['Ждёт ответа', 'blue'];
-    return `<form class="om-cadrow" data-cad="${esc(r.id)}" data-row="${esc(x.id)}">
-        <div class="om-member-head"><b>${esc(x.doc || 'Документ')}</b><span class="om-chip om-t-${tone}">${esc(x.result ? (x.review === 'wait' ? x.resultLabel + ' · на разборе' : rw) : 'Ждёт ответа')}</span></div>
-        <dl class="om-dl">${[['Объект', x.title], ['ЕНИ', x.eni], ['Учреждение', x.inst], ['Ответ', x.result ? x.resultLabel + (x.file ? ' · ' + x.file : '') : ''], ['Пояснение', x.answer], ['Причина ЦОД', x.note]].filter(([, v]) => v).map(([l, v]) => `<dt>${esc(l)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
-        ${r.closed ? '' : `<details class="om-cad-answer"${x.result && x.review !== 'returned' ? '' : ' open'}><summary>${x.result ? 'Поправить ответ' : 'Ответить'}</summary>
-          <div class="om-ms" role="group" aria-label="Ответ">${CAD_RESULTS.map(([k, l]) => `<label class="om-opt om-opt-r"><input type="radio" name="result" value="${k}"${x.result === k ? ' checked' : ''}>${l}</label>`).join('')}</div>
-          <div class="om-cad-got"><label class="om-btn">${ico('camera', 18)}Скан или PDF<input type="file" name="file" accept="image/*,application/pdf" capture="environment" hidden data-cad-file></label>
-            <span class="om-muted om-cad-fname"></span>
-            <label class="om-flabel" for="om-cd-${esc(x.id)}">Дата документа</label><input class="om-input" type="date" id="om-cd-${esc(x.id)}" name="scanDate" value="${esc(x.scanDate)}"></div>
-          <textarea class="om-input" name="answer" rows="2" maxlength="300" placeholder="Пояснение" aria-label="Пояснение">${esc(x.answer)}</textarea>
-          <p class="om-hint om-hint-diff" data-cad-err hidden></p>
-          <button class="om-btn om-btn-primary" type="submit">Отправить ответ</button></details>`}
-      </form>`;
-  }).join('')}</section>`).join('') : `<div class="om-card om-empty">${q.s === 'closed' ? 'Закрытых запросов нет' : 'Открытых запросов нет'}</div>`}`;
+    <div class="om-tabs3 om-tabs2">${[['', 'Открытые', list.filter((x) => !x.closed).length], ['closed', 'Закрытые', list.filter((x) => x.closed).length]].map(([k, l, n]) => `<a class="om-tab3${(q.s || '') === k ? ' on' : ''}" href="${href({ v: 'cad', s: k })}">${l} <b>${n}</b></a>`).join('')}</div>
+    ${shown.length ? `<div class="om-group">${shown.map((x) => {
+    const wait = x.rows.filter(cadWaits).length;
+    const done = x.rows.filter((y) => y.result).length;
+    return `<a class="om-row" href="${href({ v: 'cad', r: x.id })}" data-req="${esc(x.id)}"><span class="om-row-ico om-t-violet">${ico('docs')}</span>
+        <span class="om-row-tx"><span>№ ${esc(String(x.no))} · ${esc(x.kind)}</span><small class="om-prog">${esc([x.branch ? x.branch.name : '', x.due ? 'срок ' + shortDate(x.due) : '', `ответ ${done} из ${x.rows.length}`].filter(Boolean).join(' · '))}</small></span>
+        ${wait ? `<b class="om-n om-t-violet" title="Ждут ответа">${wait}</b>` : ''}${ico('chev', 18)}</a>`;
+  }).join('')}</div>` : `<div class="om-card om-empty">${q.s === 'closed' ? 'Закрытых запросов нет' : 'Открытых запросов нет'}</div>`}`;
+}
+function viewCadOne(r, q, openRow) {
+  const f = CAD_FILTERS.find(([k]) => k === (q.f || '')) || CAD_FILTERS[0];
+  const needle = lc(q.q);
+  const hit = (x) => !needle || lc(`${x.doc} ${x.title} ${x.eni} ${x.eni.replace(/\D/g, '')} ${x.inst}`).includes(needle);
+  const rows = r.rows.filter((x) => f[2](x) && hit(x));
+  const done = r.rows.filter((x) => x.result).length;
+  const pct = r.rows.length ? Math.round((done / r.rows.length) * 100) : 0;
+  const nextWait = (id) => { const i = rows.findIndex((x) => x.id === id); return (rows.slice(i + 1).find(cadWaits) || {}).id || ''; };
+  const line = (x) => {
+    const open = x.id === openRow && !r.closed;
+    return `<div class="om-cadline${open ? ' open' : ''}" data-row="${esc(x.id)}">
+      <button type="button" class="om-cadline-h" data-cad-open="${esc(x.id)}" aria-expanded="${open}"${r.closed ? ' disabled' : ''}>
+        <span class="om-cadline-tx"><b>${esc(x.doc || 'Документ')}</b><small>${esc([x.eni, x.title].filter(Boolean).join(' · '))}</small></span>${cadChip(x)}</button>
+      ${open ? `<form class="om-cadrow" data-cad="${esc(r.id)}" data-row="${esc(x.id)}" data-next="${esc(nextWait(x.id))}">
+        <dl class="om-dl">${[['Учреждение', x.inst], ['Ответ', x.result ? x.resultLabel + (x.file ? ' · ' + x.file : '') : ''], ['Пояснение', x.answer]].filter(([, v]) => v).map(([l, v]) => `<dt>${esc(l)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+        <div class="om-ms" role="group" aria-label="Ответ">${CAD_RESULTS.map(([k, l]) => `<label class="om-opt om-opt-r"><input type="radio" name="result" value="${k}"${x.result === k ? ' checked' : ''}>${l}</label>`).join('')}</div>
+        <div class="om-cad-got"><label class="om-btn">${ico('camera', 18)}Скан или PDF<input type="file" name="file" accept="image/*,application/pdf" capture="environment" hidden data-cad-file></label>
+          <span class="om-muted om-cad-fname"></span>
+          <label class="om-flabel" for="om-cd-${esc(x.id)}">Дата документа</label><input class="om-input" type="date" id="om-cd-${esc(x.id)}" name="scanDate" value="${esc(x.scanDate)}"></div>
+        <textarea class="om-input" name="answer" rows="2" maxlength="300" placeholder="Пояснение" aria-label="Пояснение">${esc(x.answer)}</textarea>
+        <p class="om-hint om-hint-diff" data-cad-err hidden></p>
+        <button class="om-btn om-btn-primary" type="submit">Отправить ответ</button>
+      </form>` : ''}
+    </div>`;
+  };
+  return `${back(href({ v: 'cad', s: r.closed ? 'closed' : '' }), 'Запросы документов')}
+    <p class="om-kicker">${esc(r.kind)}${r.due ? ' · срок ' + esc(shortDate(r.due)) : ''}${r.closed ? ' · закрыт' : ''}</p>
+    <h1 class="om-title om-title-sm">Запрос № ${esc(String(r.no))}</h1>
+    ${r.note ? `<p class="om-muted">${esc(r.note)}</p>` : ''}
+    ${r.branch ? branchCard(r.branch) : ''}
+    <div class="om-cadprog"><span>ответ ${done} из ${r.rows.length}</span><span class="om-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Отвечено"><i style="width:${pct}%"></i></span></div>
+    <label class="om-search">${ico('search', 18)}<input id="om-cad-q" data-invq type="search" value="${esc(q.q || '')}" placeholder="Документ, объект, ЕНИ" aria-label="Поиск по запросу: документ, объект, ЕНИ, учреждение"></label>
+    <div class="om-segs om-segs-line" role="group" aria-label="Состояние строк">${CAD_FILTERS.map(([k, l, fn]) => `<a class="om-seg${(q.f || '') === k ? ' on' : ''}" href="${href({ ...q, f: k })}" aria-current="${(q.f || '') === k}">${l}<b>${r.rows.filter((x) => fn(x) && hit(x)).length}</b></a>`).join('')}</div>
+    ${rows.length ? `<div class="om-card om-cadlist">${rows.slice(0, CAD_LIMIT).map(line).join('')}</div>
+      ${rows.length > CAD_LIMIT ? `<p class="om-muted om-found-n">Показано ${CAD_LIMIT} из ${rows.length} — уточните поиск</p>` : ''}`
+    : `<div class="om-card om-empty">${needle ? 'Ничего не найдено' : f[0] === '' ? 'Все строки отвечены' : 'Строк нет'}</div>`}`;
 }
 
 // Вкладки ОИ — «Сведения» (разделы осмотра) и «Фото», как у литеры на стенде.
@@ -903,7 +966,7 @@ export function mountOsmotr(host) {
   let mapKey = '';
   let savedAt = '';
   // Состояние экрана объекта: подтверждение «Осмотр закончен» (по объекту).
-  const ui = { asking: false, askFor: '', filters: false };
+  const ui = { asking: false, askFor: '', filters: false, cadRow: '' };
   // Выбранные позиции описи (в одну карточку) — по описи; сменилась опись — выбор снимается.
   const sel = new Set();
   let selFor = '';
@@ -932,7 +995,7 @@ export function mountOsmotr(host) {
     const screen = v === 'trips' ? viewTrips(all, q, unread) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
         : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
-          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q)
+          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow)
           : v === 'inv' ? viewInv(o, q, sel, ui.filters) : v === 'item' ? viewItem(o, q) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'
@@ -1176,6 +1239,7 @@ export function mountOsmotr(host) {
   });
 
   // --- запросы документов из Кадастра ---
+  scope.on('click', '[data-cad-open]', (e, b) => { ui.cadRow = ui.cadRow === b.dataset.cadOpen ? '' : b.dataset.cadOpen; dirty = false; render(); });
   scope.on('change', '[data-cad-file]', (e, input) => {
     const n = input.closest('form').querySelector('.om-cad-fname');
     if (n) n.textContent = input.files && input.files[0] ? input.files[0].name : '';
@@ -1191,8 +1255,13 @@ export function mountOsmotr(host) {
     say('');
     const row = await answerCadRow(form.dataset.cad, form.dataset.row, { result, scanDate: form.scanDate.value, answer: form.answer.value.trim(), file: file || null, fileName: file ? file.name : '' });
     if (!row) return say('Строка запроса не найдена');
+    // Следующая ждущая строка раскрывается сама — сотню ответов подряд не листать.
+    ui.cadRow = form.dataset.next || '';
+    dirty = false;
     changed();
     render();
+    const nx = ui.cadRow && scope.$(`.om-cadline[data-row="${CSS.escape(ui.cadRow)}"]`);
+    if (nx) nx.scrollIntoView({ block: 'nearest' });
   });
 
   // --- исход выезда ---

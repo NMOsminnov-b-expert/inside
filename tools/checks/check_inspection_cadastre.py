@@ -59,10 +59,20 @@ def run(t):
              'запрос без осмотрщика не остановился')
         pg.select_option('[data-ip-cadf="person"]', who)
         pg.fill('[data-ip-cad-row="0"][data-k="note"]', 'проверка')
+        # Филиал Кадастра (16.11.2026): по умолчанию — филиал области объекта; без филиала запрос не создаётся.
+        branch = pg.eval_on_selector('[data-ip-cadf="branch"]', 'e => e.value')
+        t.ck(branch.startswith('kb-bish'), 'филиал не подставился по объекту из Бишкека: %r' % branch)
+        pg.select_option('[data-ip-cadf="branch"]', '')
+        pg.click('[data-ip-cad-create]')
+        t.ck(t.wait_until("() => /филиал/i.test(document.querySelector('[data-ip-cad-err]')?.textContent || '')"),
+             'запрос в кадастр без филиала не остановился')
+        pg.select_option('[data-ip-cadf="branch"]', 'kb-bish-2')
+        t.ck(t.wait_until("() => /Токтогулов/.test(document.querySelector('.ip-cadform')?.textContent || '')"), 'у выбранного филиала не видно ответственного')
         pg.click('[data-ip-cad-create]')
         t.ck(t.wait_until("() => /№ \\d+/.test(document.querySelector('.ip-card h1')?.textContent || '')"), 'запрос не создан')
         req = pg.evaluate("async () => { const r = (await %s).allCadRequests()[0]; return [r.id, r.rows[0].id, r.rows[0].typeId, r.rows[0].ocId, r.rows[0].eni, r.rows[0].doc]; }" % K)
         rid, rowid, type_id, oc_id, eni, doc = req
+        t.ck(pg.evaluate("async () => (await %s).allCadRequests()[0].branch" % K) == 'kb-bish-2', 'филиал не записался в запрос')
 
         # --- правка и без повторов (решение пользователя 05.11.2026 «Правка и без повторов») ---
         pg.click('[data-ip-cad-new]')

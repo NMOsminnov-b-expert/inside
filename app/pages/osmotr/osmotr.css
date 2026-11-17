@@ -343,11 +343,25 @@ textarea.om-input{resize:vertical;line-height:1.4}
 .om-trip:has(input[value="partial"]:checked) .om-trip-partial,.om-trip:has(input[value="failed"]:checked) .om-trip-failed{display:block}
 /* Запросы документов */
 .om-tabs2{grid-template-columns:repeat(2,1fr)}
-.om-cad{display:flex;flex-direction:column;gap:6px;margin-bottom:12px}
-.om-cadrow{display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:1px solid #e3eaf2}
-.om-cad-answer>summary{min-height:40px;display:flex;align-items:center;font-weight:600;color:var(--om-blue-700);cursor:pointer}
-.om-cad-answer[open]{display:flex;flex-direction:column;gap:8px}
+/* Запросы документов: филиал, ход ответов, строки в одну линию; форма — у раскрытой строки */
+.om-branch{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.om-branch-who a{color:var(--om-blue-700);font-weight:600;white-space:nowrap}
+.om-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.om-nav .om-btn{justify-content:center}
+.om-cadprog{display:flex;align-items:center;gap:10px;margin:4px 0 10px;font-size:13px;color:var(--om-muted);font-variant-numeric:tabular-nums}
+.om-cadprog>span:first-child{white-space:nowrap}
+.om-bar{flex:1;height:6px;border-radius:3px;background:#e3eaf2;overflow:hidden}
+.om-bar>i{display:block;height:100%;background:#2e9e4f}
+.om-cadlist{padding:0;overflow:hidden}
+.om-cadline+.om-cadline{border-top:1px solid #e3eaf2}
+.om-cadline-h{display:flex;align-items:center;gap:10px;width:100%;min-height:52px;padding:8px 14px;border:0;background:none;font:inherit;color:inherit;text-align:left;cursor:pointer}
+.om-cadline-h:disabled{cursor:default}
+.om-cadline.open>.om-cadline-h{background:#f2f6fb}
+.om-cadline-tx{display:flex;flex-direction:column;min-width:0;flex:1}
+.om-cadline-tx b,.om-cadline-tx small{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.om-cadline-tx small{color:var(--om-muted);font-size:13px}
+.om-cadrow{display:flex;flex-direction:column;gap:8px;padding:10px 14px 14px;background:#f2f6fb}
 .om-cad-got{display:none;flex-direction:column;gap:6px}
-.om-cad-answer:has(input[value="got"]:checked) .om-cad-got{display:flex}
+.om-cadrow:has(input[value="got"]:checked) .om-cad-got{display:flex}
 .om-trip .om-ms{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .om-trip .om-opt-r{justify-content:center;text-align:center;padding:0 6px;font-size:13px;line-height:1.2;min-height:44px}
