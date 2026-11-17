@@ -538,7 +538,7 @@ function demoCadastre(names, recs, today, me = '') {
   if (a[0]) Object.assign(a[0], { result: 'got', scanDate: iso(-3), answer: '', answeredAt: at(-2, 16), answeredBy: names[0], file: gotFile(a[0]) });
   if (a[1]) Object.assign(a[1], { result: 'got', scanDate: iso(-2), answer: 'выписка от 2023 г.', answeredAt: at(-2, 16), answeredBy: names[0], file: gotFile(a[1]) });
   if (a[2]) Object.assign(a[2], { result: 'none', answer: 'по ЕНИ сведений в кадастре нет', answeredAt: at(-1, 11), answeredBy: names[0] });
-  out.push({ id: 'demo-cr-1', no: 1, person: names[0], kind: 'cadastre', due: iso(3), note: 'к оценке по Министерству', at: at(-6, 10), by, rows: a, demo: true });
+  out.push({ id: 'demo-cr-1', no: 1, person: names[0], kind: 'cadastre', due: iso(3), note: 'Техпаспорта — в первую очередь', at: at(-6, 10), by, rows: a, demo: true });
   if (names[1]) {
     out.push({ id: 'demo-cr-2', no: 2, person: names[1], kind: 'site', due: iso(5), note: 'запросить у завхоза на месте', at: at(-1, 15), by,
       rows: pool.slice(5, 8).map((r, i) => row(r, i + 1)), demo: true });
@@ -547,7 +547,7 @@ function demoCadastre(names, recs, today, me = '') {
   if (me && !out.some((r) => r.person === me)) {
     const c = pool.slice(0, 3).map((r, i) => ({ ...row(r, i), id: `demo-cl-me-${r.ocId}-${i}` }));
     if (c[0]) Object.assign(c[0], { result: 'got', scanDate: iso(-1), answer: '', answeredAt: at(-1, 15), answeredBy: me, file: gotFile(c[0]) });
-    out.push({ id: 'demo-cr-3', no: 3, person: me, kind: 'cadastre', due: iso(2), note: 'к оценке по Министерству', at: at(-2, 10), by, rows: c, demo: true });
+    out.push({ id: 'demo-cr-3', no: 3, person: me, kind: 'cadastre', due: iso(2), note: 'Техпаспорта — в первую очередь', at: at(-2, 10), by, rows: c, demo: true });
   }
   return out;
 }

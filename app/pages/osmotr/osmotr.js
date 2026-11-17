@@ -1057,7 +1057,7 @@ function viewCadOne(r, q, openRow, detachAsk = '') {
   return `${back(href({ v: 'cad', s: r.closed ? 'closed' : '' }), 'Запросы документов')}
     <p class="om-kicker">${esc(r.kind)}${r.due ? ' · срок ' + esc(shortDate(r.due)) : ''}${r.closed ? ' · закрыт' : ''}</p>
     <h1 class="om-title om-title-sm">Запрос № ${esc(String(r.no))}</h1>
-    ${r.note ? `<p class="om-muted">${esc(r.note)}</p>` : ''}
+    ${r.note ? `<p class="om-cad-note"><span>Комментарий регионала</span>${esc(r.note)}</p>` : ''}
     ${r.branch ? branchCard(r.branch) : ''}
     <div class="om-cadprog"><span>ответ ${done} из ${r.rows.length}</span><span class="om-bar" role="progressbar" aria-valuenow="${pct}" aria-valuemin="0" aria-valuemax="100" aria-label="Отвечено"><i style="width:${pct}%"></i></span></div>
     <label class="om-search">${ico('search', 18)}<input id="om-cad-q" data-invq type="search" value="${esc(q.q || '')}" placeholder="Документ, объект, ЕНИ" aria-label="Поиск по запросу: документ, объект, ЕНИ, учреждение"></label>

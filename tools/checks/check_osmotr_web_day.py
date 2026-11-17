@@ -79,7 +79,7 @@ def run(t):
     # --- запрос документов: создаём сами (120 строк, филиал), отвечаем ---
     req = pg.evaluate("""async ([t, c]) => { const k = await import('./app/kernel/inspections.js'); const s = (await import('./app/kernel/session.js')).session.state;
       const docs = ['Технический паспорт', 'Выписка из ЕГРП']; for (let i = 3; i <= 120; i++) docs.push('Документ ' + i);
-      const r = k.createCadRequest({ person: s.person, branch: 'kb-osh', rows: docs.map((doc) => ({ typeId: t, ocId: c, doc, note: 'причина цод' })) });
+      const r = k.createCadRequest({ person: s.person, branch: 'kb-osh', note: 'Сначала школы', rows: docs.map((doc) => ({ typeId: t, ocId: c, doc, note: 'причина цод' })) });
       return { id: r.id, rows: r.rows.map((x) => x.id) }; }""", [a['typeId'], a['ocId']])
     t.open('#/osmotr?v=menu', wait='.om-app[data-v="menu"]')
     t.ck(pg.locator('.om-row', has_text='Запросы документов').locator('.om-n').inner_text().strip() not in ('', '0'), 'в меню нет счётчика ждущих запросов')
@@ -88,6 +88,8 @@ def run(t):
     pg.locator('[data-req="%s"]' % req['id']).click()
     t.wait_for('.om-branch')
     br = pg.locator('.om-branch').inner_text()
+    t.ck('комментарий регионала' in pg.locator('.om-cad-note').inner_text().lower() and 'Сначала школы' in pg.locator('.om-cad-note').inner_text(),
+         'комментарий регионала к запросу не подписан')
     t.ck('Ошский филиал' in br and 'Ташиев' in br, 'нет филиала и ответственного: %r' % br)
     t.ck(pg.locator('.om-branch a[href^="tel:"]').count() == 1, 'телефон ответственного — не ссылка tel:')
     t.ck(pg.locator('.om-branch a.om-route').count() == 1, 'у филиала нет кнопки «Маршрут»')
