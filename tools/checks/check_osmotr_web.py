@@ -148,6 +148,18 @@ def run(t):
             bad.append(o['id'])
     t.ck(not bad, 'не открылись объекты: %s' % bad[:5])
 
+    # --- транспорт: «марка модель · госномер» на верхнем уровне (17.11.2026) ---
+    ts = pg.evaluate("""async () => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
+      const o = d.myObjects(s.person).find((x) => x.ts && x.ts.includes(' · ') && x.title !== x.ts); return o ? { id: o.id, ts: o.ts, plate: o.ts.split(' · ').pop() } : null; }""")
+    if t.ck(ts, 'нет ТС с адресом и госномером — верхний уровень не проверен'):
+        t.open('#/osmotr?v=trips&f=vehicle&s=all', wait='.om-obj')
+        t.ck(pg.locator('.om-obj .om-obj-ts', has_text=ts['ts']).count() == 1, 'в списке выездов у ТС нет «марка модель · госномер»')
+        pg.evaluate("(id) => { location.hash = '#/osmotr?v=obj&id=' + encodeURIComponent(id); }", ts['id'])
+        t.wait_for('.om-app[data-v="obj"] .om-title')
+        t.ck(pg.locator('.om-obj-ts-lg').inner_text().strip() == ts['ts'], 'в шапке ТС нет «марка модель · госномер»')
+        t.ck('Госномер' not in pg.locator('.om-facts').inner_text(), 'госномер задвоен в сведениях')
+        t.ck(ts['plate'] in pg.locator('.om-comp .om-oi').first.inner_text(), 'в составе у ТС нет госномера')
+
     # --- поиск по своим выездам ---
     t.open('#/osmotr?v=search', wait='.om-app[data-v="search"]')
     eni_obj = next((o for o in objs if o['eni']), None)

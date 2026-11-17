@@ -53,14 +53,23 @@ export function factsOf(rec) {
   const v = (rec.vehicle || {}).f || {};
   const out = [];
   const add = (label, value) => { if (value) out.push({ label, value: String(value) }); };
-  if (rec.vehicle) {
-    add('Марка и модель', [v.make, v.model].filter(Boolean).join(' '));
-    add('Госномер', v.plate);
-    add('VIN', v.vin);
-  }
+  // Марка, модель и госномер — в шапке объекта и строке списка (tsLine), здесь — только VIN.
+  if (rec.vehicle) add('VIN', v.vin);
   if (!rec.address) add('Учреждение', [rec.institution, rec.podved].filter(Boolean).join(' · '));
   return out;
 }
+
+// Транспорт: «марка модель · госномер» — на верхнем уровне просмотра (пользователь 17.11.2026: «Госномер выводим в
+// верхний уровень просмотра. К марке и модели»).
+export function tsLine(f) {
+  const v = f || {};
+  return [[v.make, v.model].filter(Boolean).join(' '), String(v.plate || '').trim()].filter(Boolean).join(' · ');
+}
+// Подпись ТС в составе — с госномером, если его в подписи ещё нет.
+const withPlate = (label, o) => {
+  const plate = String((((o.vehicle || {}).f) || {}).plate || '').trim();
+  return o.card === 'vehicle' && plate && !label.includes(plate) ? label + ' · ' + plate : label;
+};
 
 export function titleOf(rec, ocId) {
   const v = (rec.vehicle || {}).f || {};
@@ -196,7 +205,7 @@ export function myObjects(person) {
     let landNo = 0;
     const ois = ownOis(rec).filter((o) => whole || list.some((a) => coversOi(a, o.id)))
       .map((o) => ({ o, f: folderOf(o, rec, entity, o.card === 'land' ? ++landNo : 0) })).filter((x) => x.f)
-      .map(({ o, f }) => ({ id: o.id, kind: o.card, label: oiLabel(o), path: f.path, depth: f.path ? f.path.split('/').length : 0,
+      .map(({ o, f }) => ({ id: o.id, kind: o.card, label: withPlate(oiLabel(o), o), path: f.path, depth: f.path ? f.path.split('/').length : 0,
         oiType: oiTypeOf(o, typeId), eni: digits(o.eni),
         review: (reviewOf(typeId, ocId, o.id) || {}).state || '', reason: (reviewOf(typeId, ocId, o.id) || {}).reason || '' }));
     // Документы назначения: выбранные регионалом (пусто — все), у каждого — чей (ОИ) и есть ли файл.
@@ -222,7 +231,7 @@ export function myObjects(person) {
       // Сведения участка по Кадастру — строками, как подпись участка на карте макета (kernel/cadastreTip.js).
       parcel: rec.geo && rec.geo.extent ? parcelRows({ NAZNACHENI: rec.geo.purpose, PROPFOR_NAME: rec.geo.use, PROPFORM_NAME: rec.geo.ownForm, DOMCODE: rec.geo.house, ...(rec.geo.props || {}) },
         rec.geo.contour ? { type: 'MultiPolygon', coordinates: rec.geo.contour } : null, rec.geo.builds || []) : [],
-      ois, docs, contacts, returned, facts: factsOf(rec),
+      ois, docs, contacts, returned, facts: factsOf(rec), ts: rec.vehicle ? tsLine(rec.vehicle.f) : '',
       // Снято регионалом сегодня; запрос переноса и ответ на него (решения 06.11.2026).
       removed: list.every((a) => a.state === 'removed'), removedAt: list.every((a) => a.state === 'removed') ? (list[0].removedAt || '') : '',
       moveReq: (list.find((a) => a.moveReq) || {}).moveReq || null,

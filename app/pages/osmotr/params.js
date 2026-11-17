@@ -100,7 +100,7 @@ const land = () => [
 ];
 
 const vehicle = () => [
-  { key: 'ident', title: 'Осмотр', fields: [{ key: 'f.plate', label: 'Регистрационный номер', max: 40 }] },
+  // Регистрационный номер осмотрщик не редактирует (пользователь 17.11.2026) — он в шапке ТС из записи (data.js tsLine).
   { key: 'readings', title: 'Показания', fields: [
     { key: 'f.mileage', label: 'Пробег', num: true, int: true },
     { key: 'f.mileage@unit', label: 'Единица', opts: ['км', 'миль'] },
@@ -126,12 +126,11 @@ export function pwaSections(oi) {
 }
 
 // Значения по умолчанию — что приложение подставляет само (не считается заполненным осмотрщиком): тип ОИ — по
-// виду ОИ в составе, госномер — из записи ТС.
+// виду ОИ в составе.
 export function pwaDefaults(oi) {
   if (!oi) return {};
   if (oi.card === 'apartment') return { [OBJ_KIND]: FLAT };
   if (oi.card === 'aux') return { [OBJ_KIND]: AUX };
   if (oi.card === 'building') return { [OBJ_KIND]: oi.residential ? HOUSE : oi.litKind === 'other' ? OTHER : BUILDING };
-  if (oi.card === 'vehicle') { const p = ((oi.vehicle || {}).f || {}).plate; return p ? { f: { plate: p } } : {}; }
   return {};
 }

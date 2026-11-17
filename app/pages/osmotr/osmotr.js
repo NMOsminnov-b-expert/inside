@@ -136,6 +136,7 @@ function objRow(o) {
   return `<a class="om-card om-obj om-t-${stateOf(o).tone}" href="${href({ v: 'obj', id: o.id })}">
     <span class="om-obj-head"><span class="om-obj-kind">${kindIco(o)}${esc(o.typeLabel)}</span>${chip(o)}</span>
     <b class="om-obj-title">${esc(o.title)}</b>
+    ${o.ts && o.ts !== o.title ? `<span class="om-obj-ts">${esc(o.ts)}</span>` : ''}
     ${o.institution && o.address ? `<span class="om-obj-inst">${esc(o.institution)}</span>` : ''}
     ${meta ? `<span class="om-obj-meta">${meta}</span>` : ''}
   </a>`;
@@ -373,6 +374,7 @@ function viewObj(o, q, ui) {
   const head = `${back(href({ v: 'trips', f: q.f }), 'Выезды')}
     <p class="om-kicker">${esc(o.typeLabel)}</p>
     <h1 class="om-title">${esc(o.title)}</h1>
+    ${o.ts && o.ts !== o.title ? `<p class="om-obj-ts om-obj-ts-lg">${esc(o.ts)}</p>` : ''}
     <div class="om-idrow">${o.eni ? `<button type="button" class="om-eni" data-copy="${esc(o.eni)}" title="Скопировать ЕНИ">${esc(fmtEni(o.eni) || o.eni)} ${ico('copy', 14)}</button>` : ''}${chip(o)}</div>`;
   const body = tab === 'docs' ? docsBlock(o) : taskBlock(o, rec, ui);
   const tabs = [['task', 'task', 'Задача'], ['docs', 'docs', 'Документы']];
