@@ -772,7 +772,7 @@ def cmd_open(args):
 def cmd_code(path):
     """Всё знание о файле или папке: записи, у которых путь в CODE (сам файл, папка над ним
     или файл в папке), затем — записи, где путь только упомянут в тексте."""
-    path = path.replace('\\', '/').strip('/')
+    path = path.replace('\\', '/').partition(':')[0].strip('/')
     recs = load_all()
     by_code, by_text = [], []
     for folder, _, r in recs:
