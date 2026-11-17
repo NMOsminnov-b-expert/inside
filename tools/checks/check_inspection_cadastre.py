@@ -23,7 +23,7 @@ from check_archive import make_pdf
 
 NAME = 'запросы документов'
 
-TOUCHES = ('app/pages/osmotr/bridge.js', 'app/pages/inspections/*', 'app/kernel/inspections.js',
+TOUCHES = ('app/pages/osmotr/*', 'app/pages/inspections/*', 'app/kernel/inspections.js',
            'app/kernel/inspectionsDemo.js', 'app/kernel/institutions.js')
 
 K = "import('./app/kernel/inspections.js')"

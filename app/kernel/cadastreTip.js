@@ -75,7 +75,7 @@ export function buildsOfParcel(parcelCode, builds) {
 const buildWord = (pr) => [val(pr.BUILD_TYPE), val(pr.NAZNACHENI)].filter(Boolean).join(', ') || 'строение';
 
 // Сведения участка строками «подпись — значение» — одни и те же для подписи на карте макета и для карточки
-// объекта на карте приложения «Осмотр» (pages/osmotr/bridge.js).
+// объекта на карте страницы осмотрщика (pages/osmotr/).
 export function parcelRows(pr, geometry, builds = []) {
   const addr = val(pr.FULL_ADDRESS) || val(pr.ADDRESS);
   const bl = builds.map((f) => buildWord(f.properties || {}) + (val((f.properties || {}).PRIMECHANI) ? ` (${val(f.properties.PRIMECHANI)})` : ''));

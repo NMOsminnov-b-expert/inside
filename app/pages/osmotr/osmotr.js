@@ -35,14 +35,10 @@ import { osrmKm, dayPoints } from '../inspections/route.js';
 import { markItem, markOf, addItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
 import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, FOUND_CATS } from '../inspection/tasks.js';
-import { connectBridge } from './bridge.js';
 import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay, inventoryOf, titleOf } from './data.js';
 import { notesOf, markRead } from './feed.js';
 import { pwaSections, pwaDefaults } from './params.js';
 
-export const OSMOTR_SRC = './app/vendor/osmotr/index.html';
-// Есть ли сборка приложения — пишет tools/osmotr/sync_pwa.py; файл в репозитории всегда.
-const OSMOTR_INFO = './app/vendor/osmotr.json';
 const HREF = '#/osmotr';
 
 // Типы объектов к осмотру — отбор в «Выездах» и пункты меню (16.11.2026: «у нас
@@ -290,8 +286,8 @@ function viewMenu(all, unread) {
     </div>
     <h2 class="om-cap om-sec">К осмотру</h2>
     <div class="om-group">${KINDS.map((k) => row(href({ v: 'trips', f: k.key }), k.key, k.label, byKind(all, k.key).filter((o) => o.state !== 'done' && !o.removed).length, { real: 'blue', vehicle: 'violet', inv: 'amber' }[k.key])).join('')}</div>
-    <h2 class="om-cap om-sec">Приложение</h2>
-    <div class="om-group">${row(href({ v: 'app' }), 'app', 'Приложение «Осмотр»')}</div>`;
+    <h2 class="om-cap om-sec">Справка</h2>
+    <div class="om-group">${row(href({ v: 'instr' }), 'book', 'Инструкции')}</div>`;
 }
 
 function viewNotes(items) {
@@ -718,7 +714,7 @@ function viewItem(o, q) {
 }
 
 // Осмотр не состоялся: событие регионалу (без повтора того же исхода в тот же день) и последний исход в
-// «Результатах осмотра» — как мост приложения (bridge.js, outcome). o — объект или выезд (typeId, ocId).
+// «Результатах осмотра» — как прежний мост приложения (outcome). o — объект или выезд (typeId, ocId).
 function outcomeOf(o, reason, note) {
   const person = session.state.person;
   const text = [reason, note].filter(Boolean).join(' — ');
@@ -1056,7 +1052,6 @@ export function mountOsmotr(host) {
   setActiveNav('insp-field');
   setCrumbs([{ label: 'Главная', to: '#/' }, { label: 'Осмотры (осмотрщики)', current: true }]);
   let q = host.route.query || {};
-  let disconnect = null;
   let map = null;
   let mapKey = '';
   let savedAt = '';
@@ -1075,8 +1070,6 @@ export function mountOsmotr(host) {
     const v = q.v || 'today';
     dirty = false;
     if (q.oi && q.s) opened.add(q.oi + '|' + q.s);
-    if (v === 'app') return renderApp();
-    if (disconnect) { disconnect(); disconnect = null; }
     const person = session.state.person;
     const all = myObjects(person);
     const notes = notesOf(person);
@@ -1129,23 +1122,6 @@ export function mountOsmotr(host) {
     const box = rec.geo && rec.geo.extent ? ownParcelsGL(m, [rec.geo]) : null;
     if (box) m.fitBounds(box, { padding: 28, maxZoom: 18, animate: false });
     else if (o.lat != null) new gl.Marker({ color: '#1668c9' }).setLngLat([o.lon, o.lat]).addTo(m);
-  }
-
-  // Приложение «Осмотр» в рамке — пока перенос не закончен (этапы 2–3).
-  function renderApp() {
-    dropMap();
-    scope.setHTML(`<div class="om-app om-app-frame" data-v="app"><div class="om-frame-bar">${back(href({ v: 'menu' }), 'Меню')}</div><div class="om-page"></div></div>`);
-    const page = scope.$('.om-page');
-    fetch(OSMOTR_INFO, { cache: 'no-store' })
-      .then((r) => (r.ok ? r.json() : {}), () => ({}))
-      .then((info) => {
-        if (!page.isConnected) return;
-        page.innerHTML = info && info.present
-          ? `<iframe class="om-frame" src="${OSMOTR_SRC}" aria-label="Приложение «Осмотр»" allow="camera; geolocation; microphone; clipboard-write"></iframe>`
-          : '<div class="om-none"><b>Приложение «Осмотр» не подключено к макету</b><span>Нет сборки приложения в app/vendor/osmotr.</span></div>';
-        const frame = page.querySelector('.om-frame');
-        if (frame) disconnect = connectBridge(frame);
-      });
   }
 
   scope.on('submit', '[data-search]', (e, form) => {
@@ -1492,7 +1468,7 @@ export function mountOsmotr(host) {
   scope.on('input', '[data-morning], [data-evening], [data-cad], [data-ct-add]', () => { dirty = true; });
   scope.on('change', '[data-morning], [data-evening], [data-cad]', () => { dirty = true; });
   let t = 0;
-  const onChanged = () => { clearTimeout(t); t = setTimeout(() => { const v = q.v || 'today'; if (v !== 'app' && !(dirty && (v === 'report' || v === 'cad' || v === 'obj'))) render(); }, 300); };
+  const onChanged = () => { clearTimeout(t); t = setTimeout(() => { const v = q.v || 'today'; if (!(dirty && (v === 'report' || v === 'cad' || v === 'obj'))) render(); }, 300); };
   window.addEventListener('inside:inspections', onChanged);
   const unsub = session.subscribe(onChanged);
   const offGeo = onGeoDone(onChanged);
@@ -1501,7 +1477,6 @@ export function mountOsmotr(host) {
   return {
     onRoute(route) { const prevV = q.v; q = route.query || {}; render(); if ((q.v !== prevV || q.v !== 'search') && !(q.v === 'plans' && q.at)) scope.root.querySelector('.om-scr')?.scrollTo(0, 0); },
     destroy() {
-      if (disconnect) disconnect();
       dropMap();
       clearTimeout(t);
       window.removeEventListener('inside:inspections', onChanged);

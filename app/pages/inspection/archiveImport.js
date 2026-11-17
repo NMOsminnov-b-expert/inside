@@ -87,7 +87,7 @@ export async function importArchive(typeId, rec, file) {
 // oiId?, depth? }]: rel — путь от папки объекта («Недвижимое/Литера А/Фасад/…jpg»),
 // read — Blob файла; oiId — ОИ, к которому относится папка, depth — сколько
 // частей пути занимает папка этого ОИ (0 — объект и есть ОИ: объект-ТС).
-// Приложение в режиме E•state знает их из назначения (pages/osmotr/bridge.js); у
+// Приложение в режиме E•state знает их из назначения (раньше — мост pages/osmotr/bridge.js, убран 17.11.2026); у
 // архива их нет — ОИ ищется по букве литеры, ЕНИ участка и госномеру. Общий
 // разбор архива и отправки из приложения.
 //
@@ -224,7 +224,7 @@ export async function applyEntries(typeId, rec, entries, { source = SOURCE } = {
         const vals = JSON.parse(await (await e.read()).text());
         const into = valuesOf(typeId, ocId, oiId);
         Object.entries(vals).forEach(([k, v]) => {
-          // objKind — тип ОИ формы приложения: его присылает сама система (bridge.js oiTypeOf), в значения осмотра
+          // objKind — тип ОИ формы приложения: его присылает сама система (раньше — мост bridge.js, oiTypeOf), в значения осмотра
           // он не идёт — иначе ложился в них неизвестным полем (аудит приложения 03.11.2026, п. 13).
           if (k === 'objKind' || k.startsWith('carried.') || v === '' || (Array.isArray(v) && !v.length)) return;
           // Ключ с точкой («f.mileage», «ts.addr», «u.<id>.state») — вложенно, как пишет форма осмотра (fieldSchema.setValue):

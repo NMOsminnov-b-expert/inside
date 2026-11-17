@@ -4,7 +4,7 @@
 ТЗ рабочего дня осмотрщика, раздел 3 (запись графа tz-rabota-osmotrschika).
 
 Отчёты сдаются в приложении «Осмотр» (мост — saveReport, его проверяет
-check_osmotr_bridge.py); прежний экран осмотрщика #/insp с формой отчёта убран
+веб-страница осмотрщика, check_osmotr_web*.py); прежний экран осмотрщика #/insp с формой отчёта убран
 16.11.2026. Здесь отчёты дня кладутся той же функцией ядра, что вызывает мост.
 
 Что ловит сценарий:
@@ -23,7 +23,7 @@ import tempfile
 
 NAME = 'отчёты за день'
 
-TOUCHES = ('app/pages/osmotr/bridge.js', 'app/pages/inspections/*', 'app/kernel/inspections.js',
+TOUCHES = ('app/pages/osmotr/*', 'app/pages/inspections/*', 'app/kernel/inspections.js',
            'app/kernel/inspectionsDemo.js', 'app/kernel/xlsx.js')
 
 # Снимок одометра — PNG 1×1: форме важен сам факт снимка.

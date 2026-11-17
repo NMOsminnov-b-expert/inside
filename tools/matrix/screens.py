@@ -65,8 +65,8 @@ _add('Сканы с осмотров · Принято', 'osmotry', 'rm', '#/sca
 _add('Сканы с осмотров · Возвращено', 'osmotry', 'rm', '#/scans?state=returned', '.sc-main', _SCANS_TOUCH)
 
 # Осмотрщик — веб-страница осмотрщика (перенос приложения «Осмотр» в веб,
-# 16.11.2026; образец вида — мобильный вид стенда). Приложение в рамке — пока
-# перенос не закончен, экраном «Приложение «Осмотр»»; мост — check_osmotr_bridge.py.
+# 16.11.2026; образец вида — мобильный вид стенда). Приложение «Осмотр» в рамке
+# убрано 17.11.2026 (пользователь: «Старое приложение убираем»).
 _OM_TOUCH = ('app/pages/osmotr/', 'app/kernel/router.js', 'app/kernel/inspections.js', 'app/pages/inspection/tasks.js')
 _add('Осмотрщик · Сегодня', 'osmotry', 'insp', '#/osmotr', '.om-app[data-v="today"]', _OM_TOUCH)
 _add('Осмотрщик · Выезды · Недвижимое', 'osmotry', 'insp', '#/osmotr?v=trips&f=real', '.om-app[data-v="trips"]', _OM_TOUCH)
@@ -81,8 +81,6 @@ _add('Осмотрщик · Входящие', 'osmotry', 'insp', '#/osmotr?v=no
 _add('Осмотрщик · Отчёт дня', 'osmotry', 'insp', '#/osmotr?v=report', '.om-app[data-v="report"] [data-morning]', _OM_TOUCH)
 _add('Осмотрщик · Запросы документов', 'osmotry', 'insp', '#/osmotr?v=cad', '.om-app[data-v="cad"]', _OM_TOUCH)
 _add('Осмотрщик · Планы', 'osmotry', 'insp', '#/osmotr?v=plans', '.om-app[data-v="plans"] .om-days', _OM_TOUCH)
-_add('Осмотрщик · Приложение «Осмотр»', 'osmotry', 'insp', '#/osmotr?v=app', '.om-frame, .om-none',
-     ('app/pages/osmotr/', 'app/vendor/osmotr.json', 'app/kernel/router.js'))
 
 # Аналитика · Земли по айыл аймакам (04.11.2026): Дарек и Кадастр — записанными
 # ответами (harness: map.darek.kg, use_cadastre_fixture).

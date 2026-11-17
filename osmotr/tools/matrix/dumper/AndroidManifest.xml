@@ -1,7 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- Снимок экрана для матрицы путей (tools/matrix/paths.py) — постоянный, вместо «uiautomator dump» на каждый шаг. -->
-<manifest xmlns:android="http://schemas.android.com/apk/res/android" package="kg.osmotr.matrix">
-    <uses-permission android:name="android.permission.INTERNET" />
-    <application android:label="Осмотр: снимки для матрицы" android:hasCode="true" />
-    <instrumentation android:name=".Dumper" android:targetPackage="kg.osmotr.matrix" />
-</manifest>

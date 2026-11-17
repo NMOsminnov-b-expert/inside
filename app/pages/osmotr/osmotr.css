@@ -194,13 +194,6 @@ a.om-oi-link:hover{background:#f7f9fb}
 .om-btab.on{background:rgba(0,0,0,.07);border-color:var(--om-blue-200);box-shadow:inset 0 1px 0 rgba(255,255,255,.7)}
 .om-btab .om-badge{top:2px;right:calc(50% - 22px)}
 
-/* Приложение «Осмотр» в рамке (пока перенос не закончен) */
-.om-app-frame{max-width:none;box-shadow:none}
-.om-frame-bar{padding:8px 12px;flex:none}
-.om-page{display:flex;flex:1;min-height:0;background:var(--bg)}
-.om-frame{flex:1;width:100%;height:100%;min-height:0;border:0;display:block;background:var(--bg)}
-.om-none{margin:auto;display:flex;flex-direction:column;align-items:center;gap:8px;padding:28px 32px;background:#fff;border:1px solid var(--line);border-radius:12px;color:var(--muted);font-size:13px;text-align:center}
-.om-none b{color:var(--ink);font-size:15px}
 
 /* Осмотр ОИ: шапка и разделы (как «Сведения» литеры на стенде) */
 .om-oihead{display:flex;align-items:center;gap:14px;margin-top:18px}

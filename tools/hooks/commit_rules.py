@@ -6,11 +6,8 @@
     python tools/hooks/commit_rules.py commit-msg <файл описания>
     python tools/hooks/commit_rules.py pre-push   (строки «ref sha ref sha» на входе)
 
-pre-commit — журнал изменений вместе с правкой (требование пользователя
-21.09.2026, CLAUDE.md «Журнал изменений — вместе с каждой правкой»): если в
-коммите есть файлы, а tools/docs/change_log_data.py среди них нет, коммит
-останавливается. Слияние не проверяется. Разово пропустить —
-INSIDE_NO_CHANGELOG=1 git commit … (например, коммит одних снимков).
+Журнал изменений вместе с правкой больше не требуется (пользователь 17.11.2026:
+«Систему реестра изменений сносим. Тормозит нас»).
 
 Данные — не в git (пользователь 16.11.2026: «Запрещаем их отправку»):
 документы docs/, карточки data/local/, ответы Кадастра и Дарека
@@ -32,7 +29,6 @@ import subprocess
 import sys
 
 ROOT = subprocess.run(['git', 'rev-parse', '--show-toplevel'], capture_output=True, text=True).stdout.strip()
-LOG = 'tools/docs/change_log_data.py'
 FORBIDDEN = re.compile(r'^(docs/|data/local/|tools/checks/fixtures/|app/data/analytics/|knowledge/|\.claude/knowledge-graph/)'
                        r'|\.(zip|rar|7z|xlsx|docx)$', re.I)
 ZERO = '0' * 40
@@ -60,15 +56,6 @@ def forbidden(paths):
 
 def pre_commit():
     if forbidden(git_paths('diff', '--cached', '--name-only', '--diff-filter=d')):
-        return 1
-    if os.environ.get('INSIDE_NO_CHANGELOG') == '1' or os.path.exists(os.path.join(ROOT, '.git', 'MERGE_HEAD')):
-        return 0
-    files = staged()
-    if files and LOG not in files:
-        sys.stderr.write(
-            'Коммит без строки в журнале изменений (%s).\n'
-            'Каждая правка макета — строка row(...) в том же коммите (CLAUDE.md, «Журнал изменений»).\n'
-            'Разово пропустить: INSIDE_NO_CHANGELOG=1 git commit ...\n' % LOG)
         return 1
     return 0
 

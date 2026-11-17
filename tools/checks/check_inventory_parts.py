@@ -15,7 +15,7 @@
 NAME = 'опись: части и расхождения'
 
 TOUCHES = ('app/kernel/inventories.js', 'app/kernel/inspections.js', 'app/pages/inspections/assignPane.js',
-           'app/pages/inspections/inspections.js', 'app/pages/inspections/detail.js', 'app/pages/osmotr/bridge.js')
+           'app/pages/inspections/inspections.js', 'app/pages/inspections/detail.js', 'app/pages/osmotr/*')
 
 K = "await import('./app/kernel/inspections.js')"
 

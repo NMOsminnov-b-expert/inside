@@ -12,7 +12,7 @@
 """
 NAME = 'ЕНИ назначения'
 
-TOUCHES = ('app/pages/inspections/inspections.js', 'app/pages/osmotr/bridge.js', 'app/kernel/eniFold.js')
+TOUCHES = ('app/pages/inspections/inspections.js', 'app/pages/osmotr/*', 'app/kernel/eniFold.js')
 
 
 def run(t):

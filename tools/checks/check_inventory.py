@@ -2,7 +2,7 @@
 
 Отметки по описи ставит приложение «Осмотр» через мост (файлы папки описи →
 kernel/inventories.js markItem, addItemPhoto; акты — сканы описи), это ловит
-check_osmotr_bridge.py. Прежний экран осмотрщика #/insp с описью (поиск, чипы,
+веб-страница осмотрщика, check_osmotr_web*.py. Прежний экран осмотрщика #/insp с описью (поиск, чипы,
 отметки, «Нет в описи», документ на позицию) убран 16.11.2026; здесь отметки
 и документ кладутся теми же функциями ядра, что вызывает мост.
 
@@ -23,7 +23,7 @@ from urllib.parse import quote
 
 NAME = 'описи на осмотре'
 
-TOUCHES = ('app/kernel/inventories.js', 'app/kernel/allDocs.js', 'app/pages/osmotr/bridge.js', 'app/pages/inspections/*',
+TOUCHES = ('app/kernel/inventories.js', 'app/kernel/allDocs.js', 'app/pages/osmotr/*', 'app/pages/inspections/*',
            'app/kernel/scanQueue.js', 'app/pages/scans/*', 'app/pages/docs/*', 'app/kernel/documentsRegistry.js')
 
 ME = 'Осминнов Н.'

@@ -5,7 +5,7 @@
 «Каждый свою часть», «Предупреждать, разрешать», «Передать новому».
 
 Ввод и «Осмотр закончен» идут из приложения «Осмотр» через мост
-(pages/osmotr/bridge.js → kernel/inspections.js startWork / finishWork);
+(веб-страница осмотрщика pages/osmotr/osmotr.js → kernel/inspections.js startWork / finishWork);
 прежний экран осмотрщика #/insp, на котором сценарий жал кнопки, убран
 16.11.2026. Сценарий вызывает те же функции ядра, что и мост.
 
@@ -21,7 +21,7 @@
 NAME = 'ход осмотра по назначению'
 
 TOUCHES = (
-    'app/pages/osmotr/bridge.js', 'app/pages/inspections/model.js', 'app/pages/inspections/inspections.js',
+    'app/pages/osmotr/*', 'app/pages/inspections/model.js', 'app/pages/inspections/inspections.js',
     'app/pages/inspections/assignPane.js', 'app/pages/inspections/detail.js',
     'app/kernel/inspections.js', 'app/kernel/inspectionResults.js',
     'app/modules/civil/data/seed.js',
