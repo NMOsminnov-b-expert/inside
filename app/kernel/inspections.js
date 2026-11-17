@@ -895,38 +895,53 @@ const localIso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(
 export const reportTime = hm;
 const num = (v) => { const n = parseFloat(String(v ?? '').replace(',', '.')); return Number.isFinite(n) ? n : null; };
 
-// Одометр за день (пользователь 17.11.2026): утром и вечером — число и снимок; «Могла быть пересадка, тогда
-// прикладывается утреннее фото, 2 фото с пересадки и вечернее фото с одометра. Каждая пересадка — +2 фото и 2
-// значения с одометров» (одометр сданной машины и новой); «осмотрщик мог передвигаться на такси. Указываем
-// причину» — тогда одометра нет. «Нужны единицы одометра. Мили/км/ч» — по умолчанию км; единица — у машины:
-// утренняя и у новой машины на каждой пересадке. Отчёт: утренний { mode: 'car'|'taxi', taxiReason, odometer,
-// unit, photo, noOdometer }, вечерний { odometer, photo, noOdometer, transfers: [{ endOdo, endPhoto, startOdo,
-// startPhoto, unit }] }. Снимок — JPEG до 480 px (практика отчётов дня).
+// Передвижение за день (пользователь 17.11.2026): «осмотрщик мог передвигаться на такси. Указываем причину. Могла
+// быть пересадка, тогда прикладывается утреннее фото, 2 фото с пересадки и вечернее фото с одометра. Каждая
+// пересадка — +2 фото и 2 значения с одометров. Нужны единицы одометра. Мили/км/ч»; «Если у нас такси, одометр не
+// отправляем. Пересадка могла быть с авто на такси, с такси на авто. Если у нас не было авто, не просим одометр».
+//
+// День — цепочка отрезков «Авто» или «Такси». Утро открывает первый отрезок, пересадка закрывает текущий и
+// открывает следующий, вечер закрывает последний. Одометр — только у авто: в начале и в конце отрезка, у каждого
+// показания снимок; единица (км, мили, ч — моточасы; по умолчанию км) — у машины, ставится в начале её отрезка;
+// «Одометра нет» — у авто с неработающим одометром. У такси — причина.
+//   утренний  { mode: 'car'|'taxi', taxiReason, odometer, unit, photo, noOdometer }
+//   вечерний  { transfers: [{ endOdo, endPhoto, mode, taxiReason, startOdo, startPhoto, unit, noOdometer }],
+//               odometer, photo, km }
+// endOdo — одометр сданной машины (если ехал на авто с одометром), остальное — о новом отрезке.
+// Снимок — JPEG до 480 px (практика отчётов дня).
 export const ODO_UNITS = ['км', 'мили', 'ч'];
 const MILE_KM = 1.609344;
-// Единица машины, на которой осмотрщик заканчивает день: у последней пересадки, иначе утренняя.
-export const lastOdoUnit = (morning, transfers) => ((transfers || []).length ? transfers[transfers.length - 1].unit : morning && morning.unit) || 'км';
-// Отрезки пути по одометрам: утро → пересадка → … → вечер; null — если одометр не вёлся (такси, «Одометра нет»)
-// или числа неполные; bad — отрезок с концом меньше начала.
-export function odoLegs(morning, evening) {
-  if (!morning || !evening || morning.mode === 'taxi' || morning.noOdometer || evening.noOdometer) return null;
-  const legs = [];
-  let cur = { v: num(morning.odometer), unit: morning.unit || 'км' };
-  (evening.transfers || []).forEach((t) => {
-    legs.push({ from: cur.v, to: num(t.endOdo), unit: cur.unit });
-    cur = { v: num(t.startOdo), unit: t.unit || 'км' };
-  });
-  legs.push({ from: cur.v, to: num(evening.odometer), unit: cur.unit });
-  if (legs.some((l) => l.from === null || l.to === null)) return null;
-  legs.forEach((l) => { l.bad = l.to < l.from; });
+// Отрезки дня: { mode, reason, unit, noOdo, from, fromPhoto, to, toPhoto, bad }. Без утреннего — отрезков нет.
+export function dayLegs(morning, evening) {
+  if (!morning) return [];
+  const open = (s, odo, photo) => {
+    const taxi = s.mode === 'taxi';
+    return { mode: taxi ? 'taxi' : 'car', reason: taxi ? s.taxiReason || '' : '', unit: s.unit || 'км',
+      noOdo: !taxi && !!s.noOdometer, from: taxi ? null : num(odo), fromPhoto: taxi ? '' : photo || '', to: null, toPhoto: '' };
+  };
+  const legs = [open(morning, morning.odometer, morning.photo)];
+  const close = (odo, photo) => {
+    const l = legs[legs.length - 1];
+    if (l.mode === 'car' && !l.noOdo) { l.to = num(odo); l.toPhoto = photo || ''; }
+  };
+  ((evening && evening.transfers) || []).forEach((t) => { close(t.endOdo, t.endPhoto); legs.push(open(t, t.startOdo, t.startPhoto)); });
+  if (evening) close(evening.odometer, evening.photo);
+  legs.forEach((l) => { l.bad = l.from !== null && l.to !== null && l.to < l.from; });
   return legs;
 }
-// Пробег по отрезкам: км и мили — в км, моточасы — отдельно.
-export function odoTotals(legs) {
-  if (!legs || legs.some((l) => l.bad)) return null;
-  const sum = (u) => legs.filter((l) => l.unit === u).reduce((n, l) => n + l.to - l.from, 0);
-  const road = legs.some((l) => l.unit !== 'ч');
-  return { km: road ? Math.round((sum('км') + sum('мили') * MILE_KM) * 10) / 10 : null, hours: legs.some((l) => l.unit === 'ч') ? Math.round(sum('ч') * 10) / 10 : null };
+// Пробег по отрезкам: by — 'odometer' (у всех авто одометр с обоих концов; км и мили — в км, моточасы — отдельно),
+// 'route' (у какого-то авто одометра нет или он не закрыт) или 'taxi' (авто за день не было).
+export function legsTotals(legs) {
+  const cars = legs.filter((l) => l.mode === 'car');
+  if (!legs.length) return { by: '' };
+  if (!cars.length) return { by: 'taxi' };
+  if (cars.some((l) => l.noOdo || l.from === null || l.to === null || l.bad)) return { by: 'route' };
+  const sum = (u) => cars.filter((l) => l.unit === u).reduce((n, l) => n + l.to - l.from, 0);
+  return {
+    by: 'odometer',
+    km: cars.some((l) => l.unit !== 'ч') ? Math.round((sum('км') + sum('мили') * MILE_KM) * 10) / 10 : null,
+    hours: cars.some((l) => l.unit === 'ч') ? Math.round(sum('ч') * 10) / 10 : null,
+  };
 }
 
 // День осмотрщика по отчётам: что сдано, когда, пробег, литры, пропуски.
@@ -938,16 +953,17 @@ export function dayReport(person, date) {
   const nowD = new Date();
   const today = localIso(nowD);
   const nowHM = hm(nowD.toISOString());
-  // Такси — пробег по маршруту дня, бензин своей машины не расходуется: литров нет.
-  const taxi = !!morning && morning.mode === 'taxi';
-  const legs = odoLegs(morning, evening);
-  const tot = odoTotals(legs);
+  // Пробег: по одометру авто; без одометра — по маршруту дня; весь день на такси — по маршруту, литров нет
+  // (бензин машины не расходовался).
+  const legs = dayLegs(morning, evening);
+  const tot = legsTotals(legs);
+  const taxiLegs = legs.filter((l) => l.mode === 'taxi');
   let km = null;
   let kmBy = '';
-  if (tot && tot.km !== null) { km = tot.km; kmBy = 'odometer'; }
-  else if (evening && num(evening.km) !== null) { km = num(evening.km); kmBy = taxi ? 'taxi' : 'route'; }
+  if (evening && tot.by === 'odometer' && tot.km !== null) { km = tot.km; kmBy = 'odometer'; }
+  else if (evening && num(evening.km) !== null) { km = num(evening.km); kmBy = tot.by === 'taxi' ? 'taxi' : 'route'; }
   const cons = num(p.car.consumption);
-  const litres = km !== null && cons !== null && !taxi ? Math.round(km * cons) / 100 : null;
+  const litres = km !== null && cons !== null && kmBy !== 'taxi' ? Math.round(km * cons) / 100 : null;
   const late = !!morning && hm(morning.at) > p.schedule.from;
   // Отчёт обязателен только в рабочий день с выездами — назначениями с
   // плановой датой этого дня (ответ пользователя 12.10.2026 «Отчеты нужны
@@ -956,7 +972,8 @@ export function dayReport(person, date) {
   const due = work.ok && trips > 0;
   return {
     person, date, work: work.ok, reason: work.reason, morning, evening, km, kmBy, litres,
-    taxi, taxiReason: taxi ? morning.taxiReason || '' : '', legs, hours: tot ? tot.hours : null,
+    legs, taxi: taxiLegs.length > 0, taxiReason: taxiLegs.map((l) => l.reason).filter(Boolean).join('; '),
+    hours: evening && tot.by === 'odometer' ? tot.hours : null,
     transfers: evening ? (evening.transfers || []).length : 0,
     fuel: p.car.fuel, car: [p.car.make, p.car.plate].filter(Boolean).join(' · '), consumption: cons,
     late, lateFrom: p.schedule.from,

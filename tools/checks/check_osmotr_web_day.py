@@ -64,9 +64,10 @@ def run(t):
     a, b = trips
     pg.locator('[data-trip="%s"] input[value=partial]' % a['id']).check(force=True)
     pg.locator('[data-trip="%s"] input[value=failed]' % b['id']).check(force=True)
-    # Одометра вечером нет — пробег по маршруту (17.11.2026: одометр утром и вечером со снимком, иначе маршрут).
-    pg.locator('[data-evening] input[name=noOdometer]').check()
-    pg.fill('#om-km', '84')
+    # Одометр вечером со снимком (17.11.2026): пробег по одометру 120 345 → 120 429 = 84 км.
+    pg.fill('#om-odo-e', '120429')
+    pg.locator('[data-end-day] [data-odo-shot]').set_input_files([{'name': 'odo.png', 'mimeType': 'image/png', 'buffer': PNG}])
+    t.wait_until("() => !!document.querySelector('[data-evening] input[name=odometer_ph]').value")
     pg.locator('[data-evening] button[type=submit]').click()
     t.ck(pg.locator('.om-trip-err:not([hidden])').count() == 2, 'вечерний отчёт без причин не остановлен')
     t.ck(pg.evaluate(REPORT, ['evening']) is None, 'вечерний отчёт сдан без причин')
@@ -74,7 +75,7 @@ def run(t):
     pg.locator('[data-trip="%s"] input[name="f_%s"][value="Нет доступа"]' % (b['id'], b['id'])).check(force=True)
     pg.fill('#om-day-note', 'Дождь')
     pg.locator('[data-evening] button[type=submit]').click()
-    t.ck(t.wait_until("async ([a]) => { const r = await (%s)(['evening']); return r && r.km === '84' && r.note === 'Дождь' && r.partial.length === 1 && r.partial[0].assignId === a && r.partial[0].reason === 'Не пустили на второй этаж'; }" % REPORT, [a['id']]),
+    t.ck(t.wait_until("async ([a]) => { const r = await (%s)(['evening']); return r && r.odometer === '120429' && r.note === 'Дождь' && r.partial.length === 1 && r.partial[0].assignId === a && r.partial[0].reason === 'Не пустили на второй этаж'; }" % REPORT, [a['id']]),
          'вечерний отчёт не дошёл (пробег, частично с причиной, комментарий)')
     t.ck(t.wait_until("""async ([t, c]) => (await import('./app/kernel/inspections.js')).eventsOf({ typeId: t, ocId: c }).some((e) => e.kind === 'outcome' && e.text === 'Нет доступа')""", [b['typeId'], b['ocId']]),
          '«Не состоялся» не ушло исходом выезда')
