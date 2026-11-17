@@ -168,13 +168,6 @@ a.om-row:hover{background:#f7f9fb}
 .om-ct-more>summary,.om-ct-add>summary{min-height:40px;display:flex;align-items:center;font-weight:600;color:var(--om-blue-700);cursor:pointer}
 .om-ct-form{display:flex;flex-direction:column;gap:6px;padding-top:4px}
 .om-ct-form .om-btn-primary{margin-top:6px}
-/* Маршрут: кнопка раскрывает выбор навигатора на месте */
-.om-navpick{margin-top:8px}
-.om-navpick>summary{list-style:none;width:100%;justify-content:center}
-.om-navpick>summary::-webkit-details-marker{display:none}
-.om-next .om-navpick{margin-top:0}
-.om-next .om-nav{grid-template-columns:1fr}
-.om-next .om-nav .om-btn{padding:0 8px}
 .om-card.om-doclink{display:flex;margin-bottom:12px;border-left:4px solid var(--om-blue);padding:10px 14px}
 .om-comp{padding:0 0 4px;overflow:hidden;margin-bottom:12px;border-left:4px solid var(--om-blue)}
 .om-card-h{margin:0;padding:12px 16px;font-size:17px;font-weight:700;background:#f4f8fb;border-bottom:1px solid #e3eaf2}
@@ -357,9 +350,8 @@ textarea.om-input{resize:vertical;line-height:1.4}
 .om-tabs2{grid-template-columns:repeat(2,1fr)}
 /* Запросы документов: филиал, ход ответов, строки в одну линию; форма — у раскрытой строки */
 .om-branch{display:flex;flex-direction:column;gap:4px;margin-bottom:12px}
+.om-branch .om-place-act{margin-top:8px}
 .om-branch-who a{color:var(--om-blue-700);font-weight:600;white-space:nowrap}
-.om-nav{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
-.om-nav .om-btn{justify-content:center}
 .om-cadprog{display:flex;align-items:center;gap:10px;margin:4px 0 10px;font-size:13px;color:var(--om-muted);font-variant-numeric:tabular-nums}
 .om-cadprog>span:first-child{white-space:nowrap}
 .om-bar{flex:1;height:6px;border-radius:3px;background:#e3eaf2;overflow:hidden}
@@ -377,3 +369,17 @@ textarea.om-input{resize:vertical;line-height:1.4}
 .om-cadrow:has(input[value="got"]:checked) .om-cad-got{display:flex}
 .om-trip .om-ms{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
 .om-trip .om-opt-r{justify-content:center;text-align:center;padding:0 6px;font-size:13px;line-height:1.2;min-height:44px}
+
+/* Планы: дни вперёд, «Без даты» со «Взять на день» */
+.om-days{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+.om-day{display:flex;flex-direction:column;gap:4px;padding:10px 14px}
+.om-day.off{opacity:.6}
+.om-day-h{display:flex;align-items:baseline;justify-content:space-between;gap:8px}
+.om-day .om-row{padding-left:0;padding-right:0}
+.om-day .om-chip{align-self:flex-start}
+.om-planrow .om-row-tx b{white-space:normal}
+.om-planrow{display:flex;flex-direction:column}
+.om-group>.om-planrow+.om-planrow{border-top:1px solid #e3eaf2}
+.om-take-btn{margin:0 16px 10px;align-self:flex-start}
+.om-take{display:flex;flex-direction:column;gap:8px;padding:0 16px 14px}
+.om-take .om-seg{cursor:pointer}

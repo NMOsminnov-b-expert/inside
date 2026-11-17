@@ -80,6 +80,7 @@ _add('Осмотрщик · Раздел осмотра', 'osmotry', 'insp', '#/
 _add('Осмотрщик · Входящие', 'osmotry', 'insp', '#/osmotr?v=notes', '.om-app[data-v="notes"]', _OM_TOUCH)
 _add('Осмотрщик · Отчёт дня', 'osmotry', 'insp', '#/osmotr?v=report', '.om-app[data-v="report"] [data-morning]', _OM_TOUCH)
 _add('Осмотрщик · Запросы документов', 'osmotry', 'insp', '#/osmotr?v=cad', '.om-app[data-v="cad"]', _OM_TOUCH)
+_add('Осмотрщик · Планы', 'osmotry', 'insp', '#/osmotr?v=plans', '.om-app[data-v="plans"] .om-days', _OM_TOUCH)
 _add('Осмотрщик · Приложение «Осмотр»', 'osmotry', 'insp', '#/osmotr?v=app', '.om-frame, .om-none',
      ('app/pages/osmotr/', 'app/vendor/osmotr.json', 'app/kernel/router.js'))
 

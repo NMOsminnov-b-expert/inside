@@ -30,7 +30,7 @@ import { foldSearch, fmtEni } from '../../kernel/fmt.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto } from '../../kernel/inspectionResults.js';
-import { startWork, myAssignsOn, finishWork, requestMove, skipReasons, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow } from '../../kernel/inspections.js';
+import { takeForDay, planOf, absenceOn, absenceLabel, startWork, myAssignsOn, finishWork, requestMove, skipReasons, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow } from '../../kernel/inspections.js';
 import { osrmKm, dayPoints } from '../inspections/route.js';
 import { markItem, markOf, addItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
@@ -67,23 +67,24 @@ const shortDate = (iso) => (iso && iso.length >= 10 ? `${iso.slice(8, 10)}.${iso
 const WEEKDAYS = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 const href = (q) => HREF + '?' + Object.entries(q).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-// Маршрут — в навигаторе на выбор осмотрщика (пользователь 16.11.2026: «проложить маршрут через навигатор (2гис
-// apple, гугл или иное)»): по точке, а без неё — по адресу. «Другой» — geo:-ссылка, телефон предложит
-// установленные навигаторы.
-export function navLinks(p) {
+// Маршрут — одной кнопкой, выбор навигатора — системе телефона (пользователь 17.11.2026: «эту ссылку в идеале
+// передавать системе, что бы там человек сам из выпадающего списка системы выбирал приложение»). Практика
+// (OSM wiki «Geo URI scheme»; Oracle Field Service, действие Navigate): Android — geo:-ссылка, система
+// предлагает установленные навигаторы (2ГИС, Google, Яндекс…); iPhone — своего выбора нет, maps:// открывает
+// Apple Карты; компьютер — Google Карты в браузере. По точке, без неё — по адресу.
+export function routeHref(p, ua = typeof navigator !== 'undefined' ? navigator.userAgent : '') {
   const pt = p.lat != null && p.lon != null;
   const a = encodeURIComponent(p.address || '');
-  if (!pt && !a) return [];
-  return [
-    ['2ГИС', pt ? `https://2gis.kg/directions/points/%7C${p.lon}%2C${p.lat}` : `https://2gis.kg/search/${a}`],
-    ['Apple Карты', `https://maps.apple.com/?daddr=${pt ? `${p.lat},${p.lon}` : a}`],
-    ['Google Карты', `https://www.google.com/maps/dir/?api=1&destination=${pt ? `${p.lat},${p.lon}` : a}`],
-    ['Другой', pt ? `geo:${p.lat},${p.lon}?q=${p.lat},${p.lon}(${encodeURIComponent(p.name || p.title || '')})` : `geo:0,0?q=${a}`],
-  ];
+  if (!pt && !a) return '';
+  const at = pt ? `${p.lat},${p.lon}` : '';
+  if (/Android/i.test(ua)) return pt ? `geo:${at}?q=${at}(${encodeURIComponent(p.name || p.title || '')})` : `geo:0,0?q=${a}`;
+  if (/iPhone|iPad|iPod/i.test(ua)) return `maps://?daddr=${pt ? at : a}`;
+  return `https://www.google.com/maps/dir/?api=1&destination=${pt ? at : a}`;
 }
-const navGrid = (p) => `<div class="om-nav" role="group" aria-label="Маршрут в навигаторе">${navLinks(p).map(([l, u]) => `<a class="om-btn" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join('')}</div>`;
-// Кнопка «Маршрут» раскрывает выбор навигатора на месте.
-const navPick = (p, primary = false) => (navLinks(p).length ? `<details class="om-navpick"><summary class="om-btn${primary ? ' om-btn-primary' : ''}">${ico('route', 18)}Маршрут</summary>${navGrid(p)}</details>` : '');
+const routeBtn = (p, primary = false) => {
+  const u = routeHref(p);
+  return u ? `<a class="om-btn om-route${primary ? ' om-btn-primary' : ''}" href="${esc(u)}"${u.startsWith('http') ? ' target="_blank" rel="noopener"' : ''}>${ico('route', 18)}Маршрут</a>` : '';
+};
 
 // --- значки (контур 24×24, как у стенда) --------------------------------------------------------
 const I = {
@@ -142,6 +143,56 @@ function objRow(o) {
 }
 
 // --- экраны -------------------------------------------------------------------------------------
+// --- планы: 28 дней вперёд (как в приложении «Осмотр», EstateDay.kt, PlansScreen) ------------------------------
+// Не сделано раньше; по дням — область из плана месяца, отсутствие, выезды; нерабочий день — бледно. Внизу — задачи
+// без даты с «Взять на день»: на любой из ближайших 28 дней, не только на сегодня (автор приложения, 06.11.2026).
+const PLAN_DAYS = 28;
+const addDays = (iso, n) => { const d = new Date(iso + 'T00:00:00'); d.setDate(d.getDate() + n); return isoDay(d); };
+function dayHead(iso, today) {
+  const d = new Date(iso + 'T00:00:00');
+  const rel = iso === today ? 'Сегодня' : iso === addDays(today, 1) ? 'Завтра' : WEEKDAYS[d.getDay()];
+  return `${rel}, ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
+const chipDay = (iso) => { const d = new Date(iso + 'T00:00:00'); return `${['вс', 'пн', 'вт', 'ср', 'чт', 'пт', 'сб'][d.getDay()]} ${shortDate(iso)}`; };
+function planRow(o, sub = '', take = null) {
+  const subs = [sub, o.moveReq ? 'запрошен перенос на ' + shortDate(o.moveReq.date) : ''].filter(Boolean).join(' · ');
+  const open = take && take.open === o.id;
+  return `<div class="om-planrow${open ? ' open' : ''}">
+    <a class="om-row" href="${href({ v: 'obj', id: o.id })}"><span class="om-row-tx"><b>${esc(o.title)}</b>${subs ? `<small>${esc(subs)}</small>` : ''}</span>${take ? '' : ico('chev', 18)}</a>
+    ${take ? `<button type="button" class="om-btn om-take-btn" data-take="${esc(o.id)}" aria-expanded="${open}">Взять на день</button>` : ''}
+    ${open ? `<form class="om-take" data-take-form="${esc(o.id)}">
+      <div class="om-segs om-segs-line" role="radiogroup" aria-label="День">${Array.from({ length: PLAN_DAYS }, (_, i) => addDays(take.today, i)).map((d) => `<label class="om-seg om-opt-r${d === take.day ? ' on' : ''}"><input type="radio" name="day" value="${d}"${d === take.day ? ' checked' : ''} hidden>${chipDay(d)}</label>`).join('')}</div>
+      <p class="om-muted">${esc(dayHead(take.day, take.today))}</p>
+      <button class="om-btn om-btn-primary" type="submit">Взять</button>
+    </form>` : ''}
+  </div>`;
+}
+function viewPlans(all, ui) {
+  const person = session.state.person;
+  const today = isoDay();
+  const live = all.filter((o) => o.state !== 'done' && !o.removed);
+  const overdue = live.filter((o) => o.plannedAt && o.plannedAt < today);
+  const noDate = live.filter((o) => !o.plannedAt);
+  const take = { open: ui.take, day: ui.takeDay || today, today };
+  const days = Array.from({ length: PLAN_DAYS }, (_, i) => addDays(today, i)).map((d) => {
+    const plan = planOf(person, d);
+    const ab = absenceOn(person, d);
+    const wd = new Date(d + 'T00:00:00').getDay();
+    return { d, items: live.filter((o) => o.plannedAt === d), region: plan ? [plan.region, plan.district, plan.institutions].filter(Boolean).join(' · ') : '',
+      absence: ab ? [absenceLabel(ab.kind), ab.note].filter(Boolean).join(' — ') : '', off: wd === 0 || wd === 6 };
+  });
+  return `${back(href({ v: 'menu' }), 'Меню')}
+    <h1 class="om-title om-title-sm">Планы</h1>
+    ${overdue.length ? `<h2 class="om-cap om-sec">Не сделано раньше · ${overdue.length}</h2><div class="om-group">${overdue.map((o) => planRow(o, 'с ' + shortDate(o.plannedAt))).join('')}</div>` : ''}
+    <div class="om-days">${days.map((x) => `<section class="om-card om-day${x.off && !x.items.length ? ' off' : ''}" data-day="${x.d}">
+      <div class="om-day-h"><b>${esc(dayHead(x.d, today))}</b>${x.off ? '<span class="om-muted">Нерабочий</span>' : ''}</div>
+      ${x.region ? `<p class="om-muted">${esc(x.region)}</p>` : ''}
+      ${x.absence ? `<span class="om-chip om-t-amber">${esc(x.absence)}</span>` : ''}
+      ${x.items.map((o) => planRow(o)).join('')}
+    </section>`).join('')}</div>
+    ${noDate.length ? `<h2 class="om-cap om-sec" id="om-nodate">Без даты · ${noDate.length}</h2><div class="om-group">${noDate.map((o) => planRow(o, o.deadline ? 'срок ' + shortDate(o.deadline) : '', take)).join('')}</div>` : ''}`;
+}
+
 // Строка «Отчёт дня»: что сдано за сегодня.
 function dayRow() {
   const person = session.state.person;
@@ -160,6 +211,7 @@ function viewToday(all, q, unread) {
   const next = todays[0] || open[0];
   const back2 = open.filter((o) => (o.returned || []).length);
   const late = open.filter((o) => o.plannedAt && o.plannedAt < today);
+  const noDateN = open.filter((o) => !o.plannedAt).length;
   const d = new Date();
   // Имя — если оно есть полностью («Осминнов Никита»); одни инициалы в приветствие не ставятся.
   const name = (String(session.state.person || '').split(/\s+/).slice(1).find((w) => w.length > 2 && !w.endsWith('.'))) || '';
@@ -176,9 +228,9 @@ function viewToday(all, q, unread) {
         <a class="om-next-title" href="${href({ v: 'obj', id: next.id })}">${esc(next.title)}</a>
         ${next.eni ? `<span class="om-mono">${esc(fmtEni(next.eni) || next.eni)}</span>` : ''}
         <span class="om-next-act">
+          ${routeBtn(next)}
           <a class="om-btn om-btn-primary" href="${href({ v: 'obj', id: next.id })}">Открыть</a>
-        </span>
-        ${navPick(next)}</div>`
+        </span></div>`
         : '<div class="om-next om-next-none"><span class="om-cap">Следующий</span><span>Назначенных объектов нет</span></div>'}
     </section>
     ${urgent ? `<h2 class="om-cap om-sec">Срочно</h2><div class="om-group">${urgent}</div>` : ''}
@@ -186,6 +238,7 @@ function viewToday(all, q, unread) {
     <div class="om-group">
       ${dayRow()}
       ${waitingCad(session.state.person) ? `<a class="om-row" href="${href({ v: 'cad' })}"><span class="om-row-ico om-t-violet">${ico('docs')}</span><span class="om-row-tx">Запросы документов</span><b class="om-n om-t-violet">${waitingCad(session.state.person)}</b>${ico('chev', 18)}</a>` : ''}
+      ${noDateN ? `<a class="om-row" href="${href({ v: 'plans', at: 'nodate' })}"><span class="om-row-ico">${ico('today')}</span><span class="om-row-tx"><span>Без даты</span><small>взять на день</small></span><b class="om-n">${noDateN}</b>${ico('chev', 18)}</a>` : ''}
       <a class="om-row" href="${href({ v: 'trips', s: 'all' })}"><span class="om-row-ico">${ico('layers')}</span><span class="om-row-tx">Все мои объекты</span><b class="om-n">${list.length}</b>${ico('chev', 18)}</a>
     </div>`;
 }
@@ -232,6 +285,7 @@ function viewMenu(all, unread) {
       <div class="om-row om-me"><span class="om-ava">${esc(ini)}</span><span class="om-row-tx"><b>${esc(p)}</b><small>${esc(roleLabel(session.state.role) || '')}</small></span></div>
       ${row(href({ v: 'notes' }), 'bell', 'Входящие', unread || '')}
       ${row(href({ v: 'report' }), 'task', 'Отчёт дня')}
+      ${row(href({ v: 'plans' }), 'today', 'Планы')}
       ${row(href({ v: 'cad' }), 'docs', 'Запросы документов', waitingCad(p) || '')}
     </div>
     <h2 class="om-cap om-sec">К осмотру</h2>
@@ -282,7 +336,7 @@ function taskBlock(o, rec, ui = {}) {
     ? `<div class="om-map" data-map>${(rec.geo && rec.geo.extent) || o.lat != null ? '' : '<span class="om-map-wait">Участок подтягивается по ЕНИ…</span>'}</div>`
     : '<p class="om-muted">Места на карте нет: у объекта нет ЕНИ участка и координат.</p>'}
       ${parcelBlock(o)}
-      ${navPick(o, true)}
+      <div class="om-place-act">${routeBtn(o, true)}</div>
       ${contactsBlock(o, ui)}
     </section>
     ${o.docs.length ? `<a class="om-card om-row om-doclink" href="${href({ v: 'obj', id: o.id, tab: 'docs' })}"><span class="om-row-ico om-t-blue">${ico('docs')}</span><span class="om-row-tx"><b>Документы для выезда</b><small>${esc(o.docs.slice(0, 3).map((d) => d.type || d.name).join(', '))}${o.docs.length > 3 ? '…' : ''}</small></span><b class="om-n">${o.docs.length}</b>${ico('chev', 18)}</a>` : ''}
@@ -813,7 +867,7 @@ function branchCard(b) {
     <b>${esc(b.name)}</b>
     <span>${esc(b.address)}</span>
     <span class="om-branch-who">${esc(b.person)} · <a href="tel:${esc(b.phone.replace(/[^\d+]/g, ''))}">${esc(b.phone)}</a></span>
-    ${navLinks(b).length ? navGrid(b) : ''}
+    <div class="om-place-act">${routeBtn(b, true)}</div>
   </section>`;
 }
 
@@ -1007,7 +1061,7 @@ export function mountOsmotr(host) {
   let mapKey = '';
   let savedAt = '';
   // Состояние экрана объекта: подтверждение «Осмотр закончен» (по объекту).
-  const ui = { asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false };
+  const ui = { asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false, take: '', takeDay: '' };
   // Выбранные позиции описи (в одну карточку) — по описи; сменилась опись — выбор снимается.
   const sel = new Set();
   let selFor = '';
@@ -1036,7 +1090,7 @@ export function mountOsmotr(host) {
     const screen = v === 'trips' ? viewTrips(all, q, unread) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
         : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
-          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow)
+          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow) : v === 'plans' ? viewPlans(all, ui)
           : v === 'inv' ? viewInv(o, q, sel, ui.filters) : v === 'item' ? viewItem(o, q) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'
@@ -1048,8 +1102,10 @@ export function mountOsmotr(host) {
     const ae = document.activeElement;
     const focus = ae && ae.id && scope.root.contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
     const top0 = (scope.$('.om-app') || {}).dataset?.v === v ? (scope.$('.om-scr') || {}).scrollTop || 0 : 0;
-    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${inObj || v === 'report' || v === 'cad' ? '' : bottomNav(v, todayN)}</div>`);
+    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${inObj || v === 'report' || v === 'cad' || v === 'plans' ? '' : bottomNav(v, todayN)}</div>`);
     if (top0) scope.$('.om-scr').scrollTop = top0;
+    // «Без даты» с «Сегодня» — сразу к своему разделу (раздел внизу «Планов», как в приложении).
+    else if (v === 'plans' && q.at === 'nodate') { const h = scope.$('#om-nodate'); if (h) h.scrollIntoView({ block: 'start' }); }
     const el = focus && document.getElementById(focus.id);
     if (el && scope.root.contains(el)) { el.focus({ preventScroll: true }); try { if (focus.a != null) el.setSelectionRange(focus.a, focus.b); } catch { /* у списка выделения нет */ } }
     // Карта той же записи переносится, а не создаётся заново (WebGL-контекстов у браузера мало).
@@ -1321,6 +1377,21 @@ export function mountOsmotr(host) {
     if (!cur) return;
     mine().filter(isLive).forEach((a) => requestMove(a.id, { date: form.date.value, reason: form.reason.value, note: form.note.value.trim() }));
   });
+  // --- планы: взять на день ---
+  scope.on('click', '[data-take]', (e, b) => { ui.take = ui.take === b.dataset.take ? '' : b.dataset.take; ui.takeDay = isoDay(); render(); });
+  scope.on('change', '[data-take-form] input[name=day]', (e, r) => { ui.takeDay = r.value; render(); });
+  scope.on('submit', '[data-take-form]', (e, form) => {
+    e.preventDefault();
+    const o = myObjects(session.state.person).find((x) => x.id === form.dataset.takeForm);
+    const day = ui.takeDay || isoDay();
+    if (!o) return;
+    myAssignsOn(session.state.person, o.typeId, o.ocId).filter((a) => isLive(a) && !a.plannedAt).forEach((a) => takeForDay(a.id, day));
+    ui.take = '';
+    changed();
+    render();
+    host.toast(`Взято на ${shortDate(day)}`, 'ok');
+  });
+
   // --- контакты на месте ---
   scope.on('submit', '[data-ct-add]', (e, form) => {
     e.preventDefault();
@@ -1428,7 +1499,7 @@ export function mountOsmotr(host) {
 
   render();
   return {
-    onRoute(route) { const prevV = q.v; q = route.query || {}; render(); if (q.v !== prevV || q.v !== 'search') scope.root.querySelector('.om-scr')?.scrollTo(0, 0); },
+    onRoute(route) { const prevV = q.v; q = route.query || {}; render(); if ((q.v !== prevV || q.v !== 'search') && !(q.v === 'plans' && q.at)) scope.root.querySelector('.om-scr')?.scrollTo(0, 0); },
     destroy() {
       if (disconnect) disconnect();
       dropMap();

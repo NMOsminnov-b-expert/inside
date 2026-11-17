@@ -1,11 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Веб-страница осмотрщика (17.11.2026): маршрут к объекту — выбор навигатора; контакты, добавленные на месте —
+Веб-страница осмотрщика (17.11.2026): маршрут к объекту — одной кнопкой, навигатор выбирает система; контакты, добавленные на месте —
 как в приложении «Осмотр» (ContactsScreen.kt).
 
 Что ловит сценарий:
-  * «Маршрут» ведёт в один навигатор, а не даёт выбор 2ГИС / Apple / Google / «Другой»; без точки на карте
-    маршрут не строится по адресу;
+  * «Маршрут» — не одна кнопка; на Android — не geo:-ссылка (навигатор выбирает система), на iPhone — не Apple
+    Карты, на компьютере — не Google Карты; без точки на карте маршрут не строится по адресу;
   * контакт без ФИО и телефона, с коротким телефоном, с ошибкой в почте или с телефоном, который уже есть,
     сохраняется;
   * добавленный контакт не доходит до «Результатов осмотра» или не виден в «Добавлены на месте»;
@@ -41,18 +41,18 @@ def run(t):
         pg.evaluate("(id) => { location.hash = '#/osmotr?v=obj&id=' + encodeURIComponent(id); }", oid)
         t.wait_until("(id) => document.querySelector('.om-app[data-v=obj] .om-title') && decodeURIComponent(location.hash).includes(id)", [oid])
 
-    # --- маршрут: выбор навигатора ---
+    # --- маршрут: одна кнопка, выбор навигатора — системе телефона ---
     open_obj(o['id'])
-    pick = pg.locator('.om-place .om-navpick')
-    t.ck(pick.count() == 1, 'у объекта нет «Маршрут»')
-    pick.locator('summary').click()
-    hrefs = pg.eval_on_selector_all('.om-place .om-navpick .om-nav a', 'l => l.map((a) => a.getAttribute("href"))')
-    t.ck(len(hrefs) == 4 and '2gis' in hrefs[0] and 'apple' in hrefs[1] and 'google' in hrefs[2] and hrefs[3].startswith('geo:'),
-         'маршрут — не выбор 2ГИС / Apple / Google / «Другой»: %s' % hrefs)
-    # Без точки — по адресу.
-    by_addr = pg.evaluate("async () => (await import('./app/pages/osmotr/osmotr.js')).navLinks({ address: 'г. Ош, ул. Примерная, 1' }).map(([, u]) => u)")
-    t.ck(len(by_addr) == 4 and all('%D0%9E%D1%88' in u for u in by_addr), 'без точки маршрут не строится по адресу: %s' % by_addr)
-    t.ck(pg.evaluate("async () => (await import('./app/pages/osmotr/osmotr.js')).navLinks({}).length") == 0, 'без точки и адреса предлагается маршрут')
+    t.ck(pg.locator('.om-place a.om-route').count() == 1, 'у объекта нет одной кнопки «Маршрут»')
+    RH = "async ([p, ua]) => (await import('./app/pages/osmotr/osmotr.js')).routeHref(p, ua)"
+    PT = {'lat': 42.87, 'lon': 74.57, 'title': 'Объект'}
+    ADDR = {'address': 'г. Ош, ул. Примерная, 1'}
+    AND, IOS, PC = 'Mozilla/5.0 (Linux; Android 14)', 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', 'Mozilla/5.0 (Windows NT 10.0)'
+    t.ck(pg.evaluate(RH, [PT, AND]).startswith('geo:42.87,74.57?q=42.87,74.57('), 'Android: маршрут — не geo:-ссылка (выбор навигатора системой)')
+    t.ck(pg.evaluate(RH, [ADDR, AND]).startswith('geo:0,0?q=%D0%B3'), 'Android без точки: geo:-ссылка не по адресу')
+    t.ck(pg.evaluate(RH, [PT, IOS]) == 'maps://?daddr=42.87,74.57', 'iPhone: маршрут — не Apple Карты')
+    t.ck(pg.evaluate(RH, [PT, PC]).startswith('https://www.google.com/maps/dir/'), 'компьютер: маршрут — не Google Карты в браузере')
+    t.ck(pg.evaluate(RH, [{}, AND]) == '', 'без точки и адреса предлагается маршрут')
 
     # --- контакты: проверки ввода ---
     add = pg.locator('.om-ct-add')
