@@ -81,6 +81,7 @@ _add('Осмотрщик · Входящие', 'osmotry', 'insp', '#/osmotr?v=no
 _add('Осмотрщик · Отчёт дня', 'osmotry', 'insp', '#/osmotr?v=report', '.om-app[data-v="report"] [data-morning]', _OM_TOUCH)
 _add('Осмотрщик · Запросы документов', 'osmotry', 'insp', '#/osmotr?v=cad', '.om-app[data-v="cad"]', _OM_TOUCH)
 _add('Осмотрщик · Планы', 'osmotry', 'insp', '#/osmotr?v=plans', '.om-app[data-v="plans"] .om-days', _OM_TOUCH)
+_add('Осмотрщик · Инструкции', 'osmotry', 'insp', '#/osmotr?v=instr', '.om-app[data-v="instr"]', _OM_TOUCH)
 
 # Аналитика · Земли по айыл аймакам (04.11.2026): Дарек и Кадастр — записанными
 # ответами (harness: map.darek.kg, use_cadastre_fixture).

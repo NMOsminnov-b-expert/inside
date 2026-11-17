@@ -38,6 +38,7 @@ import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundO
 import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay, inventoryOf, titleOf } from './data.js';
 import { notesOf, markRead } from './feed.js';
 import { pwaSections, pwaDefaults } from './params.js';
+import { instrIndex, instrDoc, instrUrl, sectionsOf, searchInstr, allDocs, instrForItem, instrForPlace } from './instructions.js';
 
 const HREF = '#/osmotr';
 
@@ -98,6 +99,7 @@ const I = {
   inv: '<path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
   phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
   mail: '<path d="M3 6h18v12H3zM3 7l9 6 9-6"/>',
+  book: '<path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zM20 4h-6M20 4v14h-6"/>',
   route: '<path d="M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 15V9a4 4 0 0 1 4-4h4M18 9v6a4 4 0 0 1-4 4h-4"/>',
   copy: '<path d="M9 9h11v11H9zM5 15H4V4h11v1"/>',
   layers: '<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5"/>',
@@ -187,6 +189,71 @@ function viewPlans(all, ui) {
       ${x.items.map((o) => planRow(o)).join('')}
     </section>`).join('')}</div>
     ${noDate.length ? `<h2 class="om-cap om-sec" id="om-nodate">Без даты · ${noDate.length}</h2><div class="om-group">${noDate.map((o) => planRow(o, o.deadline ? 'срок ' + shortDate(o.deadline) : '', take)).join('')}</div>` : ''}`;
+}
+
+// --- инструкции по осмотрам (как в приложении «Осмотр»: InstructionsScreen.kt) --------------------------------
+// Список по группам и поиск по тексту всех инструкций; документ — полоса разделов, текст с жирным и курсивом,
+// фото (касание — во всю вкладку), страницы бланка, файл для организации. Данные — pages/osmotr/instructions.js.
+const runsHTML = (runs) => (runs || []).map(([t, st]) => { let h = esc(t); if (st & 2) h = `<i>${h}</i>`; if (st & 1) h = `<b>${h}</b>`; return h; }).join('');
+function imgHTML(id, im) {
+  return `<figure class="om-ifig"><a href="${esc(instrUrl(id, im.f))}" target="_blank" rel="noopener"><img src="${esc(instrUrl(id, im.f))}" width="${im.w}" height="${im.h}" alt="${esc((im.cap || []).map((r) => r[0]).join('') || 'Фото к инструкции')}" loading="lazy"></a>${(im.cap || []).length ? `<figcaption>${runsHTML(im.cap)}</figcaption>` : ''}</figure>`;
+}
+function blockHTML(id, b, i) {
+  const at = `id="om-ib-${i}"`;
+  if (b.k === 'h') return b.lvl === 1 ? '' : `<h2 class="om-ih" ${at}>${runsHTML(b.runs)}</h2>`;
+  if (b.k === 'li') return `<p class="om-ili" ${at} style="--lvl:${Math.max(0, (b.lvl || 1) - 1)}"><span class="om-ili-m">${esc(b.m || '•')}</span><span>${runsHTML(b.runs)}</span></p>`;
+  if (b.k === 'img') return `<div class="om-iimgs" ${at}>${(b.items || []).map((im) => imgHTML(id, im)).join('')}${(b.cap || []).length ? `<p class="om-muted">${runsHTML(b.cap)}</p>` : ''}</div>`;
+  return `<p class="om-ip" ${at}>${runsHTML(b.runs)}</p>`;
+}
+const instrRow = (e, sub = '', to = null) => `<a class="om-row" href="${to || href({ v: 'instr', id: e.id })}"><span class="om-row-ico om-t-teal">${ico('book')}</span><span class="om-row-tx"><span>${esc(e.title)}</span>${sub ? `<small>${esc(sub)}</small>` : ''}</span>${ico('chev', 18)}</a>`;
+function viewInstr(q, rerender) {
+  const list = instrIndex(rerender);
+  const head = (title, to = href({ v: 'menu' }), label = 'Меню') => `${back(to, label)}<h1 class="om-title om-title-sm">${esc(title)}</h1>`;
+  if (list === null) return `${head('Инструкции')}<div class="om-card om-empty">Загрузка…</div>`;
+  if (list === false) return `${head('Инструкции')}<div class="om-card om-empty">Инструкций на этом устройстве нет<span class="om-dev" title="Инструкции — документы компании, в git не кладутся. Положить: python tools/osmotr/instructions.py">i</span></div>`;
+  if (q.id) {
+    const e = list.find((x) => x.id === q.id);
+    const d = e ? instrDoc(e.id, rerender) : false;
+    const to = href({ v: 'instr', q: q.q || '' });
+    if (d === null) return `${head(e.title, to, 'Инструкции')}<div class="om-card om-empty">Загрузка…</div>`;
+    if (!d) return `${head('Инструкция', to, 'Инструкции')}<div class="om-card om-empty">Инструкции нет</div>`;
+    const secs = sectionsOf(d);
+    return `${back(to, 'Инструкции')}
+      <p class="om-kicker">${esc(e.group)}</p>
+      <h1 class="om-title om-title-sm">${esc(d.title)}</h1>
+      ${secs.length ? `<nav class="om-segs om-segs-line om-itoc" aria-label="Разделы инструкции">${secs.map((x) => `<button type="button" class="om-seg" data-instr-go="${x.block}">${esc(x.title)}</button>`).join('')}</nav>` : ''}
+      <article class="om-card om-instr">
+        ${d.memo ? `<div class="om-iimgs">${imgHTML(e.id, d.memo)}</div>` : ''}
+        ${(d.pages || []).map((pg) => `<div class="om-iimgs">${imgHTML(e.id, pg)}</div>`).join('')}
+        ${d.pdf ? `<a class="om-btn" href="${esc(instrUrl(e.id, d.pdf))}" target="_blank" rel="noopener" download>${ico('docs', 18)}Файл для организации · ${esc(d.pdf)}</a>` : ''}
+        ${(d.blocks || []).map((b, i) => blockHTML(e.id, b, i)).join('')}
+      </article>`;
+  }
+  const needle = (q.q || '').trim();
+  let body;
+  if (needle) {
+    const all = allDocs(rerender);
+    if (all === null) body = '<div class="om-card om-empty">Поиск…</div>';
+    else {
+      const hits = searchInstr(all, needle);
+      body = hits.length ? `<p class="om-muted om-found-n">Найдено: ${hits.length}</p><div class="om-group">${hits.slice(0, 60).map((h) => instrRow(h.doc, [h.section, h.snippet].filter(Boolean).join(' · '), href({ v: 'instr', id: h.doc.id, q: needle, b: h.block >= 0 ? h.block : '' }))).join('')}</div>`
+        : '<div class="om-card om-empty">Ничего не найдено</div>';
+    }
+  } else {
+    const groups = [...new Set(list.map((x) => x.group))];
+    body = groups.map((g) => `<h2 class="om-cap om-sec">${esc(g)}</h2><div class="om-group">${list.filter((x) => x.group === g).map((x) => instrRow(x)).join('')}</div>`).join('');
+  }
+  return `${head('Инструкции')}
+    <label class="om-search">${ico('search', 18)}<input id="om-instr-q" data-invq type="search" value="${esc(needle)}" placeholder="Поиск по инструкциям" aria-label="Поиск по тексту всех инструкций"></label>
+    ${body}`;
+}
+// Ссылка на инструкцию к месту (ОИ, позиция описи): ids — подходящие, первая — главная.
+function instrHint(ids) {
+  const list = instrIndex();
+  if (!list || !ids.length) return '';
+  const found = ids.map((id) => list.find((x) => x.id === id)).filter(Boolean);
+  if (!found.length) return '';
+  return `<p class="om-instr-hint">${ico('book', 16)}Инструкция: ${found.map((x) => `<a href="${href({ v: 'instr', id: x.id })}">${esc(x.title)}</a>`).join(', ')}</p>`;
 }
 
 // Строка «Отчёт дня»: что сдано за сегодня.
@@ -492,6 +559,7 @@ function viewOi(o, q, opened, savedAt) {
     <div class="om-oihead">${h.sq}<div class="om-row-tx"><h1 class="om-title om-title-oi">${esc(h.name)}</h1>${h.sub ? `<small>${esc(h.sub)}</small>` : ''}</div></div>
     <div class="om-idrow">${p.total ? `<span class="om-chip ${chipTone}" title="${esc(progressText(p))}">заполнено ${p.filled} из ${p.total}</span>` : ''}${ctx.ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}<span class="om-saved" role="status" aria-live="polite">${savedAt ? 'Сохранено ' + esc(savedAt) : ''}</span></div>
     ${returned}
+    ${instrHint(instrForPlace(ctx.oi.card === 'land' || ctx.oi.card === 'vehicle' ? ctx.oi.card : 'building', { objKind: getValue(ctx.values, 'objKind'), buildType: getValue(ctx.values, 'buildType') }, (o.ois || []).some((x) => x.id !== ctx.row.id && /жил/i.test(x.oiType || ''))))}
     ${q.tab === 'photo' ? photosBlock(o, ctx, q) : `${form ? `<div class="om-group om-accs">${form}</div>` : '<div class="om-card om-empty">Полей осмотра у этого объекта нет — только снимки</div>'}
       ${note ? `<div class="om-group om-form om-note-card">${note.fields.map((f) => fieldHTML(f, ctx)).join('')}</div>` : ''}`}
     ${ctx.row.found && !ctx.ro && q.tab !== 'photo' ? `<button type="button" class="om-btn om-btn-danger om-found-del" data-found-del="${esc(ctx.row.id)}">${ico('trash', 18)}Убрать выявленное строение</button>` : ''}
@@ -700,6 +768,7 @@ function viewItem(o, q) {
     <p class="om-kicker">${members.length > 1 ? `Карточка · ${members.length} позиции` : `Позиция № ${esc(String(it.no))}`}</p>
     <h1 class="om-title om-title-oi">${esc(lead.name)}${members.length > 1 ? ` <small class="om-muted">(${members.length} шт)</small>` : ''}</h1>
     <div class="om-idrow"><span class="om-saved" role="status" aria-live="polite"></span>${it.own === false ? `<span class="om-muted">Осматривает ${esc(it.who)} — только просмотр</span>` : o.state === 'done' ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}</div>
+    ${instrHint([instrForItem(lead.name), instrForItem(lead.kind || '')].filter(Boolean).slice(0, 1))}
     <div class="om-group om-members">${members.map(memberHTML).join('')}</div>
     ${similar.length ? `<button type="button" class="om-btn om-btn-wide om-similar" data-card-similar>+ Такие же в описи: ${similar.length} — добавить сюда</button>` : ''}
     ${ro ? '' : `<a class="om-btn om-btn-wide" href="${href({ v: 'inv', id: o.id, inv: inv.id, to: lead.id })}">Добавить из описи</a>`}
@@ -1057,6 +1126,8 @@ export function mountOsmotr(host) {
   let savedAt = '';
   // Состояние экрана объекта: подтверждение «Осмотр закончен» (по объекту).
   const ui = { asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false, take: '', takeDay: '' };
+  // Оглавление инструкций — сразу: подсказки «Инструкция: …» у ОИ и позиций описи.
+  instrIndex(() => { const v = q.v || 'today'; if (v === 'oi' || v === 'item' || v === 'instr') render(); });
   // Выбранные позиции описи (в одну карточку) — по описи; сменилась опись — выбор снимается.
   const sel = new Set();
   let selFor = '';
@@ -1083,7 +1154,7 @@ export function mountOsmotr(host) {
     const screen = v === 'trips' ? viewTrips(all, q, unread) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
         : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
-          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow) : v === 'plans' ? viewPlans(all, ui)
+          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow) : v === 'plans' ? viewPlans(all, ui) : v === 'instr' ? viewInstr(q, () => { if ((q.v || '') === 'instr') render(); })
           : v === 'inv' ? viewInv(o, q, sel, ui.filters) : v === 'item' ? viewItem(o, q) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'
@@ -1095,8 +1166,10 @@ export function mountOsmotr(host) {
     const ae = document.activeElement;
     const focus = ae && ae.id && scope.root.contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
     const top0 = (scope.$('.om-app') || {}).dataset?.v === v ? (scope.$('.om-scr') || {}).scrollTop || 0 : 0;
-    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${inObj || v === 'report' || v === 'cad' || v === 'plans' ? '' : bottomNav(v, todayN)}</div>`);
+    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${inObj || v === 'report' || v === 'cad' || v === 'plans' || v === 'instr' ? '' : bottomNav(v, todayN)}</div>`);
     if (top0) scope.$('.om-scr').scrollTop = top0;
+    // Инструкция из поиска — к найденному месту.
+    else if (v === 'instr' && q.id && q.b) { const h = scope.$('#om-ib-' + CSS.escape(q.b)); if (h) h.scrollIntoView({ block: 'center' }); }
     // «Без даты» с «Сегодня» — сразу к своему разделу (раздел внизу «Планов», как в приложении).
     else if (v === 'plans' && q.at === 'nodate') { const h = scope.$('#om-nodate'); if (h) h.scrollIntoView({ block: 'start' }); }
     const el = focus && document.getElementById(focus.id);
@@ -1353,6 +1426,9 @@ export function mountOsmotr(host) {
     if (!cur) return;
     mine().filter(isLive).forEach((a) => requestMove(a.id, { date: form.date.value, reason: form.reason.value, note: form.note.value.trim() }));
   });
+  // --- инструкции: переход к разделу ---
+  scope.on('click', '[data-instr-go]', (e, b) => { const h = scope.$('#om-ib-' + b.dataset.instrGo); if (h) h.scrollIntoView({ block: 'start', behavior: 'smooth' }); });
+
   // --- планы: взять на день ---
   scope.on('click', '[data-take]', (e, b) => { ui.take = ui.take === b.dataset.take ? '' : b.dataset.take; ui.takeDay = isoDay(); render(); });
   scope.on('change', '[data-take-form] input[name=day]', (e, r) => { ui.takeDay = r.value; render(); });
@@ -1475,7 +1551,7 @@ export function mountOsmotr(host) {
 
   render();
   return {
-    onRoute(route) { const prevV = q.v; q = route.query || {}; render(); if ((q.v !== prevV || q.v !== 'search') && !(q.v === 'plans' && q.at)) scope.root.querySelector('.om-scr')?.scrollTo(0, 0); },
+    onRoute(route) { const prevV = q.v; q = route.query || {}; render(); if ((q.v !== prevV || q.v !== 'search') && !(q.v === 'plans' && q.at) && !(q.v === 'instr' && q.b)) scope.root.querySelector('.om-scr')?.scrollTo(0, 0); },
     destroy() {
       dropMap();
       clearTimeout(t);

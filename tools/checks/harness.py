@@ -490,6 +490,11 @@ def run_one(mod, part=None, headless=True, browser_=None):
         # картой MapLibre (в браузере без видеокарты рисует процессор) уходила
         # за 10 с, и сценарии падали на открытии, а не на проверке (13.10.2026).
         page.set_default_navigation_timeout(30000)
+        # Инструкции осмотрщика — документы компании, лежат только на машине (data/local/instructions, вне git).
+        # Нет их — оглавление отвечает пустым (а не 404, которое браузер пишет ошибкой в консоль); сценарий
+        # инструкций подставляет свои (check_osmotr_web_instr.py).
+        if not os.path.isfile(os.path.join(ROOT, 'data', 'local', 'instructions', 'index.json')):
+            page.route('**/data/local/instructions/index.json', lambda r: r.fulfill(status=200, content_type='application/json', body='null'))
         t = Tester(page, 'http://127.0.0.1:%d/app.html' % PORT)
         page.on('pageerror', lambda e, t=t: t.console.append('PAGEERROR: ' + str(e)))
         page.on('console', lambda m, t=t: t.console.append('CONSOLE: ' + m.text)
