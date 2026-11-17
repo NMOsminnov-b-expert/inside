@@ -15,7 +15,7 @@
 import { esc } from '../../kernel/dom.js';
 import { build } from '../../kernel/router.js';
 import { plural } from '../../kernel/fmt.js';
-import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime, activitiesOn, activityKind, activityKinds, absenceKinds, absenceOn, absenceLabel } from '../../kernel/inspections.js';
+import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime, lastOdoUnit, activitiesOn, activityKind, activityKinds, absenceKinds, absenceOn, absenceLabel } from '../../kernel/inspections.js';
 import { ENI_REGIONS } from '../../kernel/fmt.js';
 import { tripsOfDay, stateLabel, isOverdue, EVENT_LABELS, objectContents } from './model.js';
 import { inventoryById, progressOf, partLabel } from '../../kernel/inventories.js';
@@ -175,10 +175,11 @@ function personHTML(p, canBack) {
 // пробег и литры с расчётом.
 function reportHTML(all, sel, assignments, canBack) {
   const d = dayReport(sel.name, sel.date);
-  const odo = (r) => (r.noOdometer || !r.odometer
-    ? '<span class="ip-muted">одометра нет</span>'
-    : `<b class="ip-num">${esc(Number(r.odometer).toLocaleString('ru-RU'))} км</b>`);
-  const photo = (r) => (r.photo ? `<a class="ip-odo" href="${esc(r.photo)}" target="_blank" rel="noopener" title="Снимок одометра — открыть"><img src="${esc(r.photo)}" alt="Снимок одометра: ${esc(r.odometer || '')}"></a>` : '');
+  // Одометр — число с единицей машины (км, мили, ч) и снимок; пересадка — сданная и новая машина (17.11.2026).
+  const odoVal = (v, unit) => `<b class="ip-num">${esc(Number(v).toLocaleString('ru-RU'))} ${esc(unit || 'км')}</b>`;
+  const odo = (r, unit) => (r.noOdometer || !r.odometer ? '<span class="ip-muted">одометра нет</span>' : odoVal(r.odometer, unit));
+  const shot = (src, v) => (src ? `<a class="ip-odo" href="${esc(src)}" target="_blank" rel="noopener" title="Снимок одометра — открыть"><img src="${esc(src)}" alt="Снимок одометра: ${esc(v || '')}"></a>` : '');
+  const photo = (r) => shot(r.photo, r.odometer);
   const when = (r, lateText) => `${esc(reportTime(r.at))}${lateText ? ` <span class="ip-rmark warn">${lateText}</span>` : ''}${r.editedAt ? ` <span class="ip-muted">· изменён ${esc(reportTime(r.editedAt))}</span>` : ''}`;
   const missing = (miss) => `<p class="ip-hint">${miss ? '<span class="ip-rmark off">не сдан</span>' : d.work ? 'Ещё не сдан.' : esc(d.reason || 'Не рабочий день.')}</p>`;
   const m = d.morning;
@@ -188,21 +189,29 @@ function reportHTML(all, sel, assignments, canBack) {
     <section class="ip-sec"><h3>Утренний отчёт</h3>
       ${m ? `<div class="ip-dp-line"><span>Сдан</span><span class="ip-dp-v">${when(m, d.late ? `позже ${esc(d.lateFrom)}` : '')}</span></div>
         <div class="ip-dp-line"><span>Куда</span><span class="ip-dp-v">${(m.places || []).length ? `<ul class="ip-dp-list">${m.places.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : '—'}</span></div>
-        <div class="ip-dp-line"><span>Одометр</span><span class="ip-dp-v">${odo(m)}</span></div>${photo(m)}` : missing(d.missingMorning)}
+        ${m.mode === 'taxi'
+          ? `<div class="ip-dp-line"><span>Передвижение</span><span class="ip-dp-v">такси${m.taxiReason ? ` <span class="ip-muted">— ${esc(m.taxiReason)}</span>` : ''}</span></div>`
+          : `<div class="ip-dp-line"><span>Одометр</span><span class="ip-dp-v">${odo(m, m.unit)}</span></div>${photo(m)}`}` : missing(d.missingMorning)}
     </section>
     <section class="ip-sec"><h3>Вечерний отчёт</h3>
       ${e ? `<div class="ip-dp-line"><span>Сдан</span><span class="ip-dp-v">${when(e, d.eveningLate ? `сдан ${esc(fmtDate(e.at))}` : '')}</span></div>
         <div class="ip-dp-line"><span>Осмотрено</span><span class="ip-dp-v">${doneList.length ? `<ul class="ip-dp-list">${doneList.map((a) => { const s = all.get(a.typeId + '|' + a.ocId); return `<li><a href="#" data-ip-dp-open="assign:${esc(a.id)}">${esc(s ? s.title : a.ocId)}</a></li>`; }).join('')}</ul>` : '—'}</span></div>
         ${(e.partial || []).length ? `<div class="ip-dp-line"><span>Осмотрено частично</span><span class="ip-dp-v"><ul class="ip-dp-list">${e.partial.map((x) => { const a = assignments.find((y) => y.id === x.assignId); const s = a ? all.get(a.typeId + '|' + a.ocId) : null; return `<li>${esc(s ? s.title : '—')}${x.reason ? ` <span class="ip-muted">— ${esc(x.reason)}</span>` : ''}</li>`; }).join('')}</ul></span></div>` : ''}
+        ${(e.transfers || []).map((t, i) => {
+          const was = i ? e.transfers[i - 1].unit : (m && m.unit);
+          return `<div class="ip-dp-line"><span>Пересадка ${i + 1}</span><span class="ip-dp-v">сдана на ${odoVal(t.endOdo, was)}, новая с ${odoVal(t.startOdo, t.unit)}</span></div>
+            <div class="ip-odo-pair">${shot(t.endPhoto, t.endOdo)}${shot(t.startPhoto, t.startOdo)}</div>`;
+        }).join('')}
         ${e.noOdometer || !e.odometer
           ? `<div class="ip-dp-line"><span>Маршрут</span><span class="ip-dp-v">${(e.route || []).length ? esc(e.route.join(' → ')) : '—'}</span></div>`
-          : `<div class="ip-dp-line"><span>Одометр</span><span class="ip-dp-v">${odo(e)}</span></div>${photo(e)}`}
+          : `<div class="ip-dp-line"><span>Одометр</span><span class="ip-dp-v">${odo(e, lastOdoUnit(m, e.transfers))}</span></div>${photo(e)}`}
         ${e.note ? `<div class="ip-dp-line"><span>Комментарий</span><span class="ip-dp-v">${esc(e.note)}</span></div>` : ''}` : missing(d.missingEvening)}
     </section>
     <section class="ip-sec"><h3>Пробег и бензин</h3>
-      <div class="ip-dp-line"><span>Пробег</span><span class="ip-dp-v">${d.km === null ? '—' : `<b class="ip-num">${d.km} км</b> <span class="ip-muted">${d.kmBy === 'route' ? 'по маршруту осмотрщика' : 'по одометру'}</span>`}</span></div>
+      <div class="ip-dp-line"><span>Пробег</span><span class="ip-dp-v">${d.km === null ? '—' : `<b class="ip-num">${d.km} км</b> <span class="ip-muted">${d.kmBy === 'odometer' ? `по одометру${d.transfers ? `, пересадок ${d.transfers}` : ''}` : d.kmBy === 'taxi' ? 'такси, по маршруту' : 'по маршруту'}</span>`}</span></div>
+      ${d.hours !== null ? `<div class="ip-dp-line"><span>Моточасы</span><span class="ip-dp-v"><b class="ip-num">${esc(String(d.hours).replace('.', ','))} ч</b></span></div>` : ''}
       <div class="ip-dp-line"><span>По дорогам (OSM)</span><span class="ip-dp-v" data-ip-osm-km="${esc(d.person + '|' + d.date)}"><span class="ip-muted">считается…</span></span></div>
-      <div class="ip-dp-line"><span>Литры</span><span class="ip-dp-v">${d.litres === null ? (d.km !== null ? '<span class="ip-muted">расход авто не указан</span>' : '—') : `<b class="ip-num">${d.litres.toLocaleString('ru-RU')} л</b> <span class="ip-muted">${d.km} × ${d.consumption} / 100</span>`}</span></div>
+      <div class="ip-dp-line"><span>Литры</span><span class="ip-dp-v">${d.litres === null ? (d.taxi ? '<span class="ip-muted">такси — не считаются</span>' : d.km !== null ? '<span class="ip-muted">расход авто не указан</span>' : '—') : `<b class="ip-num">${d.litres.toLocaleString('ru-RU')} л</b> <span class="ip-muted">${d.km} × ${d.consumption} / 100</span>`}</span></div>
       <div class="ip-dp-line"><span>Авто</span><span class="ip-dp-v">${esc(d.car || '—')}${d.fuel ? ` · ${esc(d.fuel)}` : ''}</span></div>
     </section>`;
   return shell('Отчёты за день', `${esc(sel.name)} · ${esc(dayTitle(sel.date))}`, body, canBack,

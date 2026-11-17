@@ -53,6 +53,8 @@ def run(t):
     # --- утро ---
     t.open('#/osmotr?v=report', wait='[data-morning]')
     pg.fill('#om-odo', '120345')
+    pg.locator('[data-morning] [data-odo-shot]').set_input_files([{'name': 'odo.png', 'mimeType': 'image/png', 'buffer': PNG}])
+    t.wait_until("() => !!document.querySelector('[data-morning] input[name=odometer_ph]').value")
     pg.locator('[data-morning] button[type=submit]').click()
     t.ck(t.wait_until("async () => ((await (%s)(['morning'])) || {}).odometer === '120345'" % REPORT), 'утренний отчёт не сохранился')
     t.ck(t.wait_until("() => document.querySelector('[data-morning]').textContent.includes('День начат')"), 'нет «День начат в …»')
@@ -62,6 +64,8 @@ def run(t):
     a, b = trips
     pg.locator('[data-trip="%s"] input[value=partial]' % a['id']).check(force=True)
     pg.locator('[data-trip="%s"] input[value=failed]' % b['id']).check(force=True)
+    # Одометра вечером нет — пробег по маршруту (17.11.2026: одометр утром и вечером со снимком, иначе маршрут).
+    pg.locator('[data-evening] input[name=noOdometer]').check()
     pg.fill('#om-km', '84')
     pg.locator('[data-evening] button[type=submit]').click()
     t.ck(pg.locator('.om-trip-err:not([hidden])').count() == 2, 'вечерний отчёт без причин не остановлен')

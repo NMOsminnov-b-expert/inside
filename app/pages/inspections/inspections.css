@@ -714,6 +714,8 @@ body[data-page="inspections"] .ip-wd{display:inline-block;width:20px;color:var(-
 body[data-page="inspections"] .ip-dp-list{margin:0;padding-left:16px}
 body[data-page="inspections"] .ip-odo{display:block;margin:6px 0 2px}
 body[data-page="inspections"] .ip-odo img{display:block;width:100%;max-width:180px;border-radius:8px;border:1px solid var(--line-soft)}
+body[data-page="inspections"] .ip-odo-pair{display:flex;gap:8px;flex-wrap:wrap}
+body[data-page="inspections"] .ip-odo-pair .ip-odo img{max-width:140px}
 body[data-page="inspections"] .ip-profile4.ip-fields{columns:auto;max-width:760px}
 
 /* Работа вне выездов (раздел 4 ТЗ рабочего дня): метка в календаре — янтарная

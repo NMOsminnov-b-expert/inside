@@ -901,7 +901,7 @@ export function mountInspections(host) {
   const repCells = (d) => (!d.work && !d.morning && !d.evening
     ? `<td colspan="2"><span class="ip-muted">${esc(d.reason || 'не рабочий день')}</span></td>`
     : `<td>${repCell(d, 'morning')}</td><td>${repCell(d, 'evening')}</td>`);
-  const kmCell = (d) => `${numFmt(d.km)}${d.kmBy === 'route' ? ' <abbr class="ip-muted" title="Одометра нет — пробег по маршруту">марш.</abbr>' : ''}`;
+  const kmCell = (d) => `${numFmt(d.km)}${d.kmBy === 'route' ? ' <abbr class="ip-muted" title="Одометра нет — пробег по маршруту">марш.</abbr>' : d.kmBy === 'taxi' ? ' <abbr class="ip-muted" title="Такси — пробег по маршруту">такси</abbr>' : d.transfers ? ` <abbr class="ip-muted" title="Пересадок: ${d.transfers}">пер. ${d.transfers}</abbr>` : ''}`;
   const repSel = () => { const x = detail[detail.length - 1]; return x && x.kind === 'report' ? `${x.name}|${x.date}` : ''; };
   const reportTiles = (t, n) => `<div class="ip-tiles ip-reptiles">${tile('Утренний сдан', `${t.morning} из ${n}`)}${tile('Вечерний сдан', `${t.evening} из ${n}`)}
     ${tile('Поздний выезд', t.late, t.late ? 'warn' : '', 'Утренний отчёт позже начала дня по графику')}${tile('Пропусков', t.missing, t.missing ? 'warn' : '', 'Отчёт не сдан к сроку')}

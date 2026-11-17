@@ -756,21 +756,26 @@ export function accountingSheets(names, from, to) {
       if (d.litres !== null) t.litres += d.litres;
       rows.push([
         name, ddmm(date), p.car.make, p.car.plate, p.car.fuel, d.consumption ?? '',
+        d.taxi ? 'такси' : d.morning || d.evening ? 'авто' : '', d.taxiReason,
         d.morning && d.morning.odometer ? +d.morning.odometer : '', d.evening && d.evening.odometer ? +d.evening.odometer : '',
-        d.km ?? '', d.kmBy === 'odometer' ? 'по одометру' : d.kmBy === 'route' ? 'по маршруту' : '',
+        [...new Set([d.morning && d.morning.odometer ? d.morning.unit || 'км' : '', ...((d.evening && d.evening.transfers) || []).map((t) => t.unit || 'км')].filter(Boolean))].join(' → '),
+        d.transfers || '',
+        ((d.evening && d.evening.transfers) || []).map((t) => `${t.endOdo} → ${t.startOdo} ${t.unit || 'км'}`).join('; '),
+        d.km ?? '', d.hours ?? '', d.kmBy === 'odometer' ? 'по одометру' : d.kmBy === 'route' ? 'по маршруту' : d.kmBy === 'taxi' ? 'такси, по маршруту' : '',
         d.evening && d.evening.route && d.evening.route.length ? d.evening.route.join(' → ') : '',
         d.litres ?? '',
         d.morning ? reportTime(d.morning.at) : 'нет', d.evening ? `${d.eveningLate ? ddmm(dayOf(d.evening.at)) + ' ' : ''}${reportTime(d.evening.at)}` : 'нет',
-        [d.morning && d.morning.photo ? 'утро' : '', d.evening && d.evening.photo ? 'вечер' : ''].filter(Boolean).join(', ') || 'нет',
+        // Снимки одометра: утро, по два на пересадку, вечер.
+        [d.morning && d.morning.photo ? 1 : 0, ...((d.evening && d.evening.transfers) || []).map((t) => (t.endPhoto ? 1 : 0) + (t.startPhoto ? 1 : 0)), d.evening && d.evening.photo ? 1 : 0].reduce((x, y) => x + y, 0) || 'нет',
       ]);
     });
     total.push([name, [p.car.make, p.car.plate].filter(Boolean).join(' · '), p.car.fuel, t.days, t.km, Math.round(t.litres * 100) / 100, t.noEvening]);
   });
   return [
     { name: 'По дням', rows,
-      head: ['Осмотрщик', 'Дата', 'Авто', 'Госномер', 'Топливо', 'Расход, л/100 км', 'Одометр утром', 'Одометр вечером',
-        'Пробег, км', 'Пробег посчитан', 'Маршрут', 'Литры', 'Утренний отчёт', 'Вечерний отчёт', 'Снимки одометра'],
-      widths: [34, 11, 24, 14, 9, 10, 12, 12, 10, 14, 50, 9, 10, 16, 14] },
+      head: ['Осмотрщик', 'Дата', 'Авто', 'Госномер', 'Топливо', 'Расход, л/100 км', 'Передвижение', 'Причина такси', 'Одометр утром', 'Одометр вечером',
+        'Единицы одометра', 'Пересадок', 'Пересадки: сдана → новая', 'Пробег, км', 'Моточасы', 'Пробег посчитан', 'Маршрут', 'Литры', 'Утренний отчёт', 'Вечерний отчёт', 'Снимков одометра'],
+      widths: [34, 11, 24, 14, 9, 10, 12, 24, 12, 12, 12, 10, 30, 10, 10, 18, 50, 9, 10, 16, 12] },
     { name: 'Итог', rows: total,
       head: ['Осмотрщик', 'Авто', 'Топливо', 'Дней с пробегом', 'Пробег, км', 'Литры', 'Дней без вечернего отчёта'],
       widths: [34, 34, 9, 12, 11, 9, 14] },

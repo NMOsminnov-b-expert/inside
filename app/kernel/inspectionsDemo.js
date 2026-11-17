@@ -587,6 +587,32 @@ function demoReports(names, assignments, recs, today, rnd) {
       }
     }
   });
+  // Последний день с одометром у первого осмотрщика — с пересадкой на другую машину, у второго — на такси
+  // (17.11.2026: «Могла быть пересадка… осмотрщик мог передвигаться на такси. Указываем причину»). Без генератора
+  // случайных чисел: остальное демо не сдвигается.
+  const pairOf = (person) => {
+    const ev = reports.filter((r) => r.person === person && r.kind === 'evening' && r.odometer).pop();
+    const mo = ev && reports.find((r) => r.person === person && r.kind === 'morning' && r.date === ev.date && r.odometer);
+    return mo ? [mo, ev] : null;
+  };
+  const p0 = names[0] && pairOf(names[0]);
+  if (p0) {
+    const [mo, ev] = p0;
+    const half = Math.floor((Number(ev.odometer) - Number(mo.odometer)) / 2);
+    const end = Number(mo.odometer) + half;
+    const start = 45210;
+    ev.transfers = [{ endOdo: String(end), endPhoto: odoPhoto(end), startOdo: String(start), startPhoto: odoPhoto(start), unit: 'км' }];
+    ev.odometer = String(start + (Number(ev.odometer) - end));
+    ev.photo = odoPhoto(Number(ev.odometer));
+    ev.note = ev.note || 'Пересел на служебную машину отдела';
+  }
+  const p1 = names[1] && pairOf(names[1]);
+  if (p1) {
+    const [mo, ev] = p1;
+    const km = Number(ev.odometer) - Number(mo.odometer);
+    Object.assign(mo, { mode: 'taxi', taxiReason: 'Авто на техосмотре', odometer: '', photo: '', noOdometer: false });
+    Object.assign(ev, { odometer: '', photo: '', noOdometer: false, km: String(km), route: ['дом', ...(mo.places || []).slice(0, 3), 'дом'] });
+  }
   return { reports, profiles };
 }
 

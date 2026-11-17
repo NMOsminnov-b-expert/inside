@@ -30,7 +30,7 @@ import { foldSearch, fmtEni } from '../../kernel/fmt.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto } from '../../kernel/inspectionResults.js';
-import { carryOver, nextWorkday, takeForDay, planOf, absenceOn, absenceLabel, startWork, myAssignsOn, finishWork, requestMove, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow, detachCadFile, cadFileAccepted } from '../../kernel/inspections.js';
+import { ODO_UNITS, lastOdoUnit, odoLegs, odoTotals, carryOver, nextWorkday, takeForDay, planOf, absenceOn, absenceLabel, startWork, myAssignsOn, finishWork, requestMove, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow, detachCadFile, cadFileAccepted } from '../../kernel/inspections.js';
 import { osrmKm, dayPoints } from '../inspections/route.js';
 import { markItem, markOf, addItemPhoto, removeItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
@@ -856,6 +856,59 @@ function dayTripsOf(person, date) {
   return assignmentsOfPerson(person, { live: false }).filter((a) => a.plannedAt === date && a.state !== 'removed')
     .map((a) => ({ assignId: a.id, objectId: `${a.typeId}|${a.ocId}`, typeId: a.typeId, ocId: a.ocId, title: titleOf(loadTask(a.typeId, a.ocId) || {}, a.ocId), state: a.state }));
 }
+// Поле одометра: число, единица (у машины — выбор, у сданной машины и вечером — подпись по машине) и снимок.
+const unitSel = (name, unit, dis) => `<span class="om-select om-odo-unit"><select class="om-input" name="${name}" data-k="unit" aria-label="Единицы одометра"${dis}>${ODO_UNITS.map((u) => `<option${u === (unit || 'км') ? ' selected' : ''}>${u}</option>`).join('')}</select></span>`;
+function odoField({ id, name = '', k = '', label, value, photo, unit, unitName, unitText, off = false, dis = '' }) {
+  return `<div class="om-odo"${off ? ' hidden' : ''}>
+    <label class="om-flabel" for="${id}">${esc(label)} <i class="om-req">*</i></label>
+    <div class="om-odo-row"><input class="om-input" id="${id}"${name ? ` name="${name}"` : ''}${k ? ` data-k="${k}"` : ''} inputmode="decimal" value="${esc(value || '')}"${dis}>
+      ${unitName !== undefined ? unitSel(unitName, unit, dis) : `<span class="om-odo-u" data-odo-u>${esc(unitText || 'км')}</span>`}</div>
+    <div class="om-odo-shot">${photo ? `<a class="om-odo-img" href="${esc(photo)}" target="_blank" rel="noopener"><img src="${esc(photo)}" alt="Снимок одометра"></a>` : ''}
+      <label class="om-btn om-btn-sm">${ico('camera', 16)}<span>${photo ? 'Переснять' : 'Снимок одометра'}</span><input type="file" accept="image/*" capture="environment" hidden data-odo-shot${dis}></label>
+      <input type="hidden"${name ? ` name="${name}_ph"` : ''} data-k="${k ? k.replace('Odo', 'Photo') : 'photo'}" value="${esc(photo || '')}"></div>
+  </div>`;
+}
+// Пересадка — одометр сданной машины и новой, у каждого снимок; единица — у новой машины.
+let transferSeq = 0;
+function transferHTML(t = {}, i = 0, dis = '') {
+  const n = ++transferSeq;
+  return `<fieldset class="om-transfer" data-transfer><legend class="om-flabel">Пересадка ${i + 1}</legend>
+    ${odoField({ id: `om-te-${n}`, k: 'endOdo', label: 'Одометр сданной машины', value: t.endOdo, photo: t.endPhoto, dis })}
+    ${odoField({ id: `om-ts-${n}`, k: 'startOdo', label: 'Одометр новой машины', value: t.startOdo, photo: t.startPhoto, unit: t.unit, unitName: `tu-${n}`, dis })}
+    <button type="button" class="om-btn om-btn-sm om-btn-ghost-danger" data-transfer-del${dis}>Убрать пересадку</button></fieldset>`;
+}
+// Снимок одометра — JPEG до 480 px по большей стороне: в отчёте лежит сам снимок (практика отчётов дня).
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: снимок — файл в хранилище в исходном качестве с временем съёмки.
+function shrinkPhoto(file, max = 480) {
+  return new Promise((resolve, reject) => {
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.max(1, Math.round(img.width * k));
+      c.height = Math.max(1, Math.round(img.height * k));
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      resolve(c.toDataURL('image/jpeg', 0.8));
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); reject(new Error('Снимок не читается')); };
+    img.src = url;
+  });
+}
+// Подписи пересадок и единицы: у сданной машины и вечером — единица предыдущей машины.
+function syncTransfers(form) {
+  let unit = form.dataset.mUnit || 'км';
+  form.querySelectorAll('[data-transfer]').forEach((fs, i) => {
+    fs.querySelector('legend').textContent = `Пересадка ${i + 1}`;
+    const u = fs.querySelector('[data-odo-u]');
+    if (u) u.textContent = unit;
+    unit = fs.querySelector('select[data-k=unit]').value;
+  });
+  const last = form.querySelector('[data-odo-day] > .om-odo [data-odo-u]');
+  if (last) last.textContent = unit;
+}
+
 function viewReport(q, rerender) {
   const person = session.state.person;
   const date = /^\d{4}-\d{2}-\d{2}$/.test(q.date || '') ? q.date : isoDay();
@@ -874,6 +927,12 @@ function viewReport(q, rerender) {
   const routeKm = routeKmCache.get(person + '|' + date);
   const routeText = kmText(routeKm);
   const ev = evening || {};
+  const m = morning || {};
+  const taxi = m.mode === 'taxi';
+  const tot = odoTotals(odoLegs(morning, evening));
+  const odoKm = tot ? tot.km : null;
+  // Пробег по маршруту — когда одометр не ведётся: такси, «Одометра нет» утром или вечером.
+  const byRoute = taxi || !!m.noOdometer || !!ev.noOdometer;
   const done = new Set(ev.done || []);
   const partial = new Map((ev.partial || []).map((p) => [p.assignId, p.reason]));
   const resOf = (t) => (done.has(t.assignId) ? 'done' : partial.has(t.assignId) ? 'partial' : !evening && t.state === 'done' ? 'done' : '');
@@ -888,20 +947,38 @@ function viewReport(q, rerender) {
     <div class="om-daynav">${dayLink(prev, '‹')}<b>${d.getDate()} ${MONTHS[d.getMonth()]}, ${WEEKDAYS[d.getDay()].toLowerCase()}</b>${date < isoDay() ? dayLink(next, '›') : '<span class="om-btn om-btn-sm om-off" aria-hidden="true">›</span>'}</div>
     ${open ? '' : '<p class="om-warn">Срок сдачи отчёта за этот день прошёл</p>'}
     ${workdayOf(person, date).ok ? '' : '<p class="om-muted">Нерабочий день</p>'}
-    <form class="om-card om-report" data-morning>
+    <form class="om-card om-report" data-morning novalidate>
       <h2 class="om-card-t">Утро</h2>
       ${morning ? `<p class="om-ok-line">День начат в ${esc(clock(morning.at))}</p>` : ''}
-      <label class="om-flabel" for="om-odo">Одометр, км <span class="om-muted">(необязательно)</span></label>
-      <input class="om-input" id="om-odo" name="odometer" inputmode="decimal" value="${esc((morning || {}).odometer || '')}"${dis}${(morning || {}).noOdometer ? ' disabled' : ''}>
-      <label class="om-radio"><input type="checkbox" name="noOdometer"${(morning || {}).noOdometer ? ' checked' : ''}${dis}> Одометра нет</label>
+      <fieldset class="om-radios"><legend class="om-flabel">Передвижение</legend>
+        <label class="om-radio"><input type="radio" name="mode" value="car"${taxi ? '' : ' checked'}${dis}> Авто</label>
+        <label class="om-radio"><input type="radio" name="mode" value="taxi"${taxi ? ' checked' : ''}${dis}> Такси</label></fieldset>
+      <div data-mode="car"${taxi ? ' hidden' : ''}>
+        ${odoField({ id: 'om-odo', name: 'odometer', label: 'Одометр', value: m.odometer, photo: m.photo, unit: m.unit, unitName: 'unit', off: !!m.noOdometer, dis })}
+        <label class="om-radio"><input type="checkbox" name="noOdometer"${m.noOdometer ? ' checked' : ''}${dis}> Одометра нет</label>
+      </div>
+      <div data-mode="taxi"${taxi ? '' : ' hidden'}>
+        <label class="om-flabel" for="om-taxi">Причина такси <i class="om-req">*</i></label>
+        <input class="om-input" id="om-taxi" name="taxiReason" maxlength="200" value="${esc(m.taxiReason || '')}"${dis}>
+      </div>
+      <p class="om-hint om-hint-diff" data-rep-err role="alert" hidden></p>
       <button class="om-btn om-btn-primary om-btn-wide" type="submit"${dis}>${morning ? 'Обновить' : 'Начал день'}</button>
     </form>
-    <form class="om-card om-report" data-evening novalidate>
+    <form class="om-card om-report" data-evening novalidate data-m-unit="${esc(m.unit || 'км')}" data-by-route="${taxi || m.noOdometer ? '1' : ''}">
       <h2 class="om-card-t">Вечер</h2>
       ${evening ? `<p class="om-ok-line">Отчёт сдан в ${esc(clock(evening.at))}</p>` : ''}
-      <label class="om-flabel" for="om-km">Пробег, км</label>
-      <input class="om-input" id="om-km" name="km" inputmode="decimal" value="${esc(ev.km || routeText)}" aria-describedby="om-km-h"${dis}>
-      <p class="om-hint" id="om-km-h">${esc(kmHint(routeKm))}</p>
+      ${taxi ? `<p class="om-muted">Такси${m.taxiReason ? ': ' + esc(m.taxiReason) : ''}</p>` : `<div data-odo-day>
+        <div data-transfers>${(ev.transfers || []).map((x, i) => transferHTML(x, i, dis)).join('')}</div>
+        <button type="button" class="om-btn om-btn-sm" data-transfer-add${dis}>Добавить пересадку</button>
+        ${odoField({ id: 'om-odo-e', name: 'odometer', label: 'Одометр вечером', value: ev.odometer, photo: ev.photo, unitText: lastOdoUnit(m, ev.transfers), off: !!ev.noOdometer, dis })}
+        <label class="om-radio"><input type="checkbox" name="noOdometer"${ev.noOdometer ? ' checked' : ''}${dis}> Одометра нет</label>
+        ${odoKm !== null ? `<p class="om-ok-line">Пробег по одометру: ${esc(kmText(odoKm))} км</p>` : ''}
+      </div>`}
+      <div data-km-route${byRoute ? '' : ' hidden'}>
+        <label class="om-flabel" for="om-km">Пробег по маршруту, км</label>
+        <input class="om-input" id="om-km" name="km" inputmode="decimal" value="${esc(ev.km || routeText)}" aria-describedby="om-km-h"${dis}>
+        <p class="om-hint" id="om-km-h">${esc(kmHint(routeKm))}</p>
+      </div>
       <input type="hidden" name="route" value="${esc(routeText)}">
       <span class="om-flabel">Выезды дня</span>
       ${trips.length ? trips.map((t) => {
@@ -915,6 +992,7 @@ function viewReport(q, rerender) {
   }).join('') : '<p class="om-muted">Выездов на этот день нет</p>'}
       <label class="om-flabel" for="om-day-note">Комментарий</label>
       <textarea class="om-input" id="om-day-note" name="note" rows="2"${dis}>${esc(ev.note || '')}</textarea>
+      <p class="om-hint om-hint-diff" data-rep-err role="alert" hidden></p>
       <button class="om-btn om-btn-primary om-btn-wide" type="submit"${dis}>${evening ? 'Обновить отчёт' : 'Сдать вечерний отчёт'}</button>
     </form>`;
 }
@@ -1437,11 +1515,72 @@ export function mountOsmotr(host) {
   });
 
   // --- отчёт дня ---
-  scope.on('change', '[data-morning] input[name=noOdometer]', (e, cb) => { const f = cb.form.odometer; f.disabled = cb.checked; if (cb.checked) f.value = ''; });
+  // Одометр: «Одометра нет» прячет поле; утром «Такси» — причина вместо одометра; вечером без одометра — пробег по маршруту.
+  const routeShow = (form) => {
+    const r = form.querySelector('[data-km-route]');
+    if (r) r.hidden = !(form.noOdometer && form.noOdometer.checked) && !form.dataset.byRoute;
+  };
+  scope.on('change', '[data-morning] input[name=noOdometer], [data-evening] input[name=noOdometer]', (e, cb) => {
+    const box = cb.closest('[data-mode], [data-odo-day]').querySelector(':scope > .om-odo');
+    if (box) box.hidden = cb.checked;
+    routeShow(cb.form);
+  });
+  scope.on('change', '[data-morning] input[name=mode]', (e, r) => {
+    r.form.querySelectorAll('[data-mode]').forEach((d) => { d.hidden = d.dataset.mode !== r.value; });
+  });
+  scope.on('change', '[data-odo-shot]', async (e, input) => {
+    const f = (input.files || [])[0];
+    input.value = '';
+    if (!f) return;
+    const box = input.closest('.om-odo-shot');
+    try {
+      const url = await shrinkPhoto(f);
+      box.querySelector('input[type=hidden]').value = url;
+      const old = box.querySelector('.om-odo-img');
+      const html = `<a class="om-odo-img" href="${url}" target="_blank" rel="noopener"><img src="${url}" alt="Снимок одометра"></a>`;
+      if (old) old.outerHTML = html; else box.insertAdjacentHTML('afterbegin', html);
+      box.querySelector('label span').textContent = 'Переснять';
+      dirty = true;
+    } catch (x) {
+      const err = input.form.querySelector('[data-rep-err]');
+      if (err) { err.textContent = x.message; err.hidden = false; }
+    }
+  });
+  scope.on('click', '[data-transfer-add]', (e, b) => {
+    const list = b.form.querySelector('[data-transfers]');
+    list.insertAdjacentHTML('beforeend', transferHTML({}, list.children.length));
+    syncTransfers(b.form);
+    dirty = true;
+  });
+  scope.on('click', '[data-transfer-del]', (e, b) => { const f = b.form; b.closest('[data-transfer]').remove(); syncTransfers(f); dirty = true; });
+  scope.on('change', '[data-transfer] select[data-k=unit]', (e, s) => syncTransfers(s.form));
+  // Сдать нельзя без того, что нужно: кнопка называет первое недостающее и ставит туда курсор.
+  const repErr = (form, text, el) => {
+    const err = form.querySelector('[data-rep-err]');
+    err.textContent = text; err.hidden = false;
+    if (el) { el.focus(); el.scrollIntoView({ block: 'center' }); }
+    return false;
+  };
+  const isNum = (v) => /^\d+(?:[.,]\d+)?$/.test(String(v || '').trim());
+  // Поле одометра заполнено: число и снимок.
+  const odoOk = (form, box, what) => {
+    const inp = box.querySelector('input[inputmode]');
+    if (!isNum(inp.value)) return repErr(form, `${what}: укажите показания`, inp);
+    if (!box.querySelector('input[type=hidden]').value) return repErr(form, `${what}: приложите снимок одометра`, box.querySelector('[data-odo-shot]').closest('label'));
+    return true;
+  };
   scope.on('submit', '[data-morning]', (e, form) => {
     e.preventDefault();
+    form.querySelector('[data-rep-err]').hidden = true;
     const date = /^\d{4}-\d{2}-\d{2}$/.test(q.date || '') ? q.date : isoDay();
-    const r = saveReport({ person: session.state.person, date, kind: 'morning', odometer: form.odometer.value.trim(), noOdometer: form.noOdometer.checked });
+    const taxi = (form.querySelector('input[name=mode]:checked') || {}).value === 'taxi';
+    const no = form.noOdometer.checked;
+    if (taxi && !form.taxiReason.value.trim()) { repErr(form, 'Укажите причину такси', form.taxiReason); return; }
+    if (!taxi && !no && !odoOk(form, form.querySelector('[data-mode=car] > .om-odo'), 'Одометр')) return;
+    const r = saveReport({ person: session.state.person, date, kind: 'morning', mode: taxi ? 'taxi' : 'car',
+      taxiReason: taxi ? form.taxiReason.value.trim() : '',
+      odometer: taxi || no ? '' : form.odometer.value.trim().replace(',', '.'), unit: form.unit.value,
+      photo: taxi || no ? '' : form.odometer_ph.value, noOdometer: !taxi && no });
     if (r) changed();
     render();
   });
@@ -1465,11 +1604,33 @@ export function mountOsmotr(host) {
       if (r === 'failed') failed.push({ t, reason: why });
     });
     if (bad) { const x = form.querySelector('.om-trip-err:not([hidden])'); if (x) x.closest('fieldset').scrollIntoView({ block: 'center' }); return; }
+    form.querySelector('[data-rep-err]').hidden = true;
+    const odoDay = form.querySelector('[data-odo-day]');
+    const noOdo = !odoDay || form.noOdometer.checked;
+    const transfers = [];
+    if (odoDay && !noOdo) {
+      const boxes = [...form.querySelectorAll('[data-transfer]')];
+      for (const [i, fs] of boxes.entries()) {
+        const [endBox, startBox] = fs.querySelectorAll('.om-odo');
+        if (!odoOk(form, endBox, `Пересадка ${i + 1}, сданная машина`) || !odoOk(form, startBox, `Пересадка ${i + 1}, новая машина`)) return;
+        // Число — с точкой вместо запятой; снимок — как есть (в его адресе запятая своя).
+        const v = (b, k) => b.querySelector(`[data-k=${k}]`).value.trim().replace(',', '.');
+        const ph = (b, k) => b.querySelector(`[data-k=${k}]`).value;
+        transfers.push({ endOdo: v(endBox, 'endOdo'), endPhoto: ph(endBox, 'endPhoto'), startOdo: v(startBox, 'startOdo'), startPhoto: ph(startBox, 'startPhoto'), unit: fs.querySelector('select[data-k=unit]').value });
+      }
+      if (!odoOk(form, odoDay.querySelector(':scope > .om-odo'), 'Одометр вечером')) return;
+      // Показания не убывают на одной машине: утро → пересадка → … → вечер.
+      const legs = odoLegs(reportOf(person, date, 'morning'), { odometer: form.odometer.value.trim().replace(',', '.'), transfers });
+      const badLeg = (legs || []).findIndex((l) => l.bad);
+      if (badLeg >= 0) { repErr(form, badLeg === legs.length - 1 ? 'Одометр вечером меньше, чем на начале пути этой машины' : `Пересадка ${badLeg + 1}: одометр сданной машины меньше, чем на начале её пути`, null); return; }
+    }
     failed.forEach(({ t, reason }) => outcomeOf(t, reason, ''));
     // Частично — выезд целиком на следующий рабочий день (17.11.2026).
     partial.forEach((p) => { const t = trips.find((x) => x.assignId === p.assignId); if (t) carryOver(person, t.typeId, t.ocId, { reason: p.reason, from: date }); });
     const km = form.km.value.trim();
-    const r = saveReport({ person, date, kind: 'evening', km, kmByRoute: !!km && km === form.route.value, done: doneIds, partial, note: form.note.value.trim() });
+    const r = saveReport({ person, date, kind: 'evening', km, kmByRoute: !!km && km === form.route.value, done: doneIds, partial, note: form.note.value.trim(),
+      odometer: odoDay && !noOdo ? form.odometer.value.trim().replace(',', '.') : '', photo: odoDay && !noOdo ? form.odometer_ph.value : '',
+      noOdometer: !!odoDay && noOdo, transfers });
     if (r) changed();
     render();
   });

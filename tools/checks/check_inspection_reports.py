@@ -79,7 +79,7 @@ def run(t):
         ws = wb['По дням']
         t.ck(ws.freeze_panes == 'A2' and bool(ws.auto_filter.ref), 'у листа выгрузки нет закреплённой шапки или автофильтра')
         found = [r for r in ws.iter_rows(min_row=2, values_only=True) if r[0] == WHO and r[1] == '.'.join(reversed(today.split('-')))]
-        t.ck(len(found) == 1 and found[0][8] == 40 and found[0][9] == 'по маршруту',
+        t.ck(len(found) == 1 and found[0][13] == 40 and found[0][15] == 'по маршруту',
              'в выгрузке нет сегодняшней строки с пробегом 40 км по маршруту: %s' % (found,))
         t.ck('Итог' in wb.sheetnames, 'в выгрузке нет листа «Итог»')
     finally:

@@ -422,3 +422,16 @@ a.om-thumb{display:block}
 .om-cad-note>span{font-size:12px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--om-muted)}
 .om-obj-ts{font-weight:600;color:var(--om-ink,#1b2a3a)}
 .om-obj-ts-lg{margin:2px 0 6px;font-size:17px}
+/* Одометр в отчёте дня: число и единица в строку, снимок рядом; пересадки — рамкой, как выезды дня */
+.om-odo{display:flex;flex-direction:column;gap:6px}
+.om-odo[hidden]{display:none}
+.om-odo-row{display:flex;gap:8px;align-items:center}
+.om-odo-row>.om-input{flex:1;min-width:0}
+.om-odo-unit{flex:0 0 96px}
+.om-odo-u{flex:0 0 auto;color:var(--om-muted,#5b6b7c);font-size:14px;min-width:32px}
+.om-odo-shot{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+.om-odo-img img{display:block;width:72px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #e3eaf2}
+.om-transfer{border:1px solid #e3eaf2;border-radius:12px;padding:10px 12px;margin:0 0 8px;display:flex;flex-direction:column;gap:10px;background:#f9fbfd}
+.om-transfer legend{padding:0 4px}
+[data-odo-day]{display:flex;flex-direction:column;gap:10px}
+[data-km-route][hidden],[data-mode][hidden]{display:none}
