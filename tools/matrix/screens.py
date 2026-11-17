@@ -51,6 +51,8 @@ _add('Осмотры · К назначению', 'osmotry', 'rm', '#/inspection
 _add('Осмотры · Назначено · сотрудники', 'osmotry', 'rm', '#/inspections?s=assign&t=assigned', '[data-ip-section]', _INSP_TOUCH)
 _add('Осмотры · Назначено · все', 'osmotry', 'rm', '#/inspections?s=assign&t=assigned&ap=*', '[data-ip-section]', _INSP_TOUCH)
 _add('Осмотры · Назначено · сотрудник', 'osmotry', 'rm', '#/inspections?s=assign&t=assigned&ap=' + quote(PERSON), '[data-ip-section]', _INSP_TOUCH)
+# Общий срез (ТЗ экрана регионалов 17.11.2026): область и учреждение — в адресе.
+_add('Осмотры · Планирование · срез по учреждению', 'osmotry', 'rm', '#/inspections?s=assign&t=queue&i=' + quote('Министерство'), '.ip-qswitch', _INSP_TOUCH)
 for k in _ALL:
     _add('Осмотры · Все осмотрщики · ' + k, 'osmotry', 'rm', '#/inspections?s=people&t=' + k, '[data-ip-section]', _INSP_TOUCH)
 for k in _PERSON:

@@ -37,7 +37,7 @@ def run(t):
       return { id: x.id, today, later: iso(later), now: K.allAssignments().find((y) => y.id === x.id).plannedAt }; }""" % (K, ISO))
     t.ck(a['now'] == a['today'], 'запрос переноса сразу сменил дату: %s' % a)
     t.open('#/inspections?s=today', wait='.ip-today')
-    pg.click('.ip-today [data-ip-mode="all"]')
+    pg.click('.ip-slice [data-ip-mode="all"]')
     t.ck(t.wait_for('[data-ip-move-ok="%s"]' % a['id']), 'запроса переноса нет в «Сегодня»')
     t.ck('Запрошен перенос выезда' in pg.evaluate("async () => { const N = await import('./app/pages/inspections/notify.js'); return N.NOTE_KINDS.map((k) => k.label).join('|'); }"),
          'нет вида уведомления о переносе')
@@ -47,7 +47,7 @@ def run(t):
     # Отклонить — дата прежняя.
     pg.evaluate("async ([id, d]) => (%s).requestMove(id, { date: d, reason: 'Погода' })" % K, [a['id'], a['today']])
     t.open('#/inspections?s=today', wait='.ip-today')
-    pg.click('.ip-today [data-ip-mode="all"]')
+    pg.click('.ip-slice [data-ip-mode="all"]')
     t.wait_for('[data-ip-move-no="%s"]' % a['id'])
     pg.click('[data-ip-move-no="%s"]' % a['id'])
     # Причина отказа обязательна (пользователь 09.11.2026): без неё — ошибка у поля.

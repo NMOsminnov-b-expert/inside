@@ -81,7 +81,7 @@ const view = {
   objRegion: '',
   cov: '',               // «К назначению»: покрытие ОИ (COVERAGE)
   due: '',               // прежние одиночные отборы — не используются с 13.10.2026
-  inst: '',              // «К назначению»: учреждение
+  inst: '',              // общий срез: учреждение — часть названия (17.11.2026)
   pick: '',              // прежний одиночный отбор «Назначено» — не используется с 13.10.2026
   // Гибкие отборы (решение пользователя 13.10.2026): qf — «К назначению»,
   // af — «Назначено»; { facets: { ключ: [значения] }, ranges: { ключ: [с, по] } }.
@@ -106,7 +106,7 @@ const view = {
 // «Только по моим. Не по звездам»). ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: закрепление —
 // связь учётных записей осмотрщика и менеджера, «Мои» — по входу.
 persistView('inspections', view, ['section', 'tab', 'person', 'personTab', 'allTab', 'cadSel', 'gridWidths', 'gridOrder', 'notesRead', 'notesKind', 'notesUnread', 'assignPerson', 'histPerson', 'peopleMode',
-  'region', 'peopleSort', 'histKind', 'q', 'qs', 'qf', 'af', 'sets', 'setCur']);
+  'region', 'inst', 'peopleSort', 'histKind', 'q', 'qs', 'qf', 'af', 'sets', 'setCur']);
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 // Подразделы карточки осмотрщика и «Все осмотрщики» — один список на
@@ -187,7 +187,6 @@ export function mountInspections(host) {
     ${people.map((p) => `<option value="${esc(p.name)}" ${value === p.name ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select>`;
 
   // --- осмотрщики: набор, области ------------------------------------------------
-  const regionList = () => [...new Set(people.flatMap((p) => p.regions))].sort((a, b) => a.localeCompare(b, 'ru'));
   const myPeople = () => new Set(people.filter((p) => profileOf(p.name).manager === session.state.person).map((p) => p.name));
   // Кого можно назначить (решение пользователя 05.11.2026 «Мои — и в выборе»): при «Мои» — закреплённые за
   // вошедшим регионалом и он сам (регионал может быть исполнителем), при «Все» — любой; уволенных нет.
@@ -197,6 +196,19 @@ export function mountInspections(host) {
     const me = session.state.person;
     return people.filter((p) => p.name === keep || (!p.fired && (view.peopleMode === 'all' || mine.has(p.name) || p.name === me)));
   };
+  // Общий срез (ТЗ tz-ekran-regionalov-odna-stroka-menyu-obschiy-srez-planirovanie-den-os, 17.11.2026): чьи
+  // осмотрщики, область, учреждение — один на все разделы, переживает переходы и лежит в адресе страницы.
+  // Объект — по своей области (ЕНИ) и учреждению; человек — «Мои» и области профиля. Учреждение — по части
+  // названия: регионал набирает, как привык по папкам ЦОД («ДЭП», «Дөбөлү ао»).
+  const instHit = (name) => !view.inst.trim() || String(name || '').toLowerCase().includes(view.inst.trim().toLowerCase());
+  const objInSlice = (s) => !!s && (!view.region || regionOf(s) === view.region) && instHit(s.institution);
+  const personInSlice = (name, mine = myPeople()) => {
+    if (!name) return true;
+    if (view.peopleMode === 'mine' && !mine.has(name)) return false;
+    const p = people.find((x) => x.name === name);
+    return !view.region || !p || p.regions.includes(view.region);
+  };
+  const ofMineOnly = (name, mine = myPeople()) => view.peopleMode !== 'mine' || !name || mine.has(name);
   function visiblePeople() {
     const mine = myPeople();
     const list = people.filter((p) => (view.peopleMode === 'all' || mine.has(p.name)) && (!view.region || p.regions.includes(view.region)));
@@ -437,10 +449,8 @@ export function mountInspections(host) {
       if (r.a.plannedAt && (!v.next || r.a.plannedAt < v.next)) v.next = r.a.plannedAt;
       by.set(r.a.person, v);
     });
-    const regions = [...new Set(people.flatMap((p) => p.regions || []))].sort((x, y) => x.localeCompare(y, 'ru'));
     const q = String(view.q || '').trim().toLowerCase();
-    const list = people.filter((p) => !p.fired && (by.has(p.name) || p.live))
-      .filter((p) => !view.aRegion || (p.regions || []).includes(view.aRegion))
+    const list = people.filter((p) => !p.fired && (by.has(p.name) || (p.live && personInSlice(p.name))))
       .filter((p) => !q || p.name.toLowerCase().includes(q))
       .map((p) => ({ p, v: by.get(p.name) || { n: 0, next: '' } }))
       .sort((x, y) => (view.aSort === 'name' ? x.p.name.localeCompare(y.p.name, 'ru')
@@ -449,7 +459,6 @@ export function mountInspections(host) {
     const opt = (v, l, cur) => `<option value="${esc(v)}" ${cur === v ? 'selected' : ''}>${esc(l)}</option>`;
     return `<div class="ip-apeople-bar">
         <select class="select" data-ip-asort aria-label="Порядок сотрудников">${opt('late', 'Сначала с просрочкой', view.aSort)}${opt('load', 'По загрузке', view.aSort)}${opt('name', 'По имени', view.aSort)}</select>
-        <select class="select" data-ip-aregion aria-label="Область">${opt('', 'Все области', view.aRegion)}${regions.map((r) => opt(r, r, view.aRegion)).join('')}</select>
       </div>
       <ul class="ip-apeople" aria-label="Сотрудники с назначениями">
         <li><button class="ip-aperson ip-aperson-all" data-ip-aperson="*"><span class="ip-aperson-t"><b>Все назначения</b></span><span class="ip-aperson-n"><b>${rows.length}</b></span></button></li>
@@ -507,15 +516,38 @@ export function mountInspections(host) {
       ${bulkBtn('data-ip-ba-remove', 'remove', 'Снять назначение', 'ip-bulk-del')}</span></div>`;
   }
 
-  // Режимы раздела «Осмотрщики и назначения»: осмотрщики (загрузка, маршруты,
-  // карточки), очередь к назначению, назначенное. Числа — те же, что в списках.
-  function teamModesHTML() {
-    const nQueue = queueBase(all).length;
-    const nLive = assignedRows(all, { q: '' }).length;
-    const cur = view.section === 'people' ? 'people' : view.tab === 'assigned' ? 'assigned' : 'queue';
-    const b = (k, label, n) => `<button class="itab ${cur === k ? 'on' : ''}" role="tab" data-ip-team="${k}" aria-selected="${cur === k}">${label}${n !== undefined ? ` <b>${n}</b>` : ''}</button>`;
-    return `<nav class="itabs ip-isl ip-subisle ip-team" role="tablist" aria-label="Осмотрщики и назначения">
-      ${b('people', 'Осмотрщики')}${b('queue', 'К назначению', nQueue)}${b('assigned', 'Назначено', nLive)}</nav>`;
+  // «К назначению | Назначено» — переключатель внутри списка Планирования (ТЗ 17.11.2026: одна строка меню
+  // вместо трёх). Числа — по срезу, те же, что в списках.
+  function queueSwitchHTML(nQueue, nLive) {
+    const b = (k, label, n) => `<button type="button" role="tab" data-ip-team="${k}" aria-selected="${view.tab === k}" aria-pressed="${view.tab === k}">${label} <b>${n}</b></button>`;
+    return `<div class="ip-seg ip-qswitch" role="tablist" aria-label="Очередь">${b('queue', 'К назначению', nQueue)}${b('assigned', 'Назначено', nLive)}</div>`;
+  }
+
+  // Строка среза — рядом с меню.
+  // Подсказки учреждений с кодами — один раз на сводку: код ищется по справочнику, а перерисовок бывает
+  // десятки подряд (массовое переназначение — по одной на назначение; замер 17.11.2026: 2,0 → 7,6 с без кэша).
+  const instCache = { key: '', html: '' };
+  function instOptions() {
+    const names = [...new Set([...all.values()].map((s) => s.institution).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'ru'));
+    const key = names.join('|');
+    if (instCache.key !== key) {
+      instCache.key = key;
+      instCache.html = names.map((n) => { const c = codeByName(n); return `<option value="${esc(n)}"${c ? ` label="${esc(c)}"` : ''}></option>`; }).join('');
+    }
+    return instCache.html;
+  }
+  function sliceHTML() {
+    const mine = myPeople();
+    return `<div class="ip-isl ip-slice" role="group" aria-label="Срез">
+      <div class="ip-seg" role="group" aria-label="Чьи осмотрщики">
+        <button type="button" data-ip-mode="mine" aria-pressed="${view.peopleMode === 'mine'}" title="Закреплены за вами — «Ответственное лицо» в профиле">Мои <b>${mine.size}</b></button>
+        <button type="button" data-ip-mode="all" aria-pressed="${view.peopleMode === 'all'}">Все <b>${people.filter((p) => !p.fired).length}</b></button></div>
+      <select class="select ip-slice-region ${view.region ? 'on' : ''}" data-ip-region aria-label="Область"><option value="">Все области</option>
+        ${regionNames().map((r) => `<option ${view.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
+      <span class="isearch ip-slice-inst ${view.inst ? 'on' : ''}">${SEARCH_ICON}<input data-ip-inst list="ip-inst-list" value="${esc(view.inst)}" placeholder="Учреждение" aria-label="Учреждение" autocomplete="off">
+        ${view.inst ? '<button type="button" class="isearch-clear" data-ip-inst-clear title="Все учреждения" aria-label="Все учреждения">×</button>' : ''}</span>
+      <datalist id="ip-inst-list">${instOptions()}</datalist>
+    </div>`;
   }
 
   // Подходит ли объект осмотрщику на день: место (план месяца на день или области профиля) и время дня.
@@ -534,14 +566,15 @@ export function mountInspections(host) {
     return ok;
   }
   function assignSection() {
-    const base = queueBase(all);
+    const mine = myPeople();
+    const base = queueBase(all).filter(objInSlice);
     const queueAll = applyFilter(base, QUEUE_FACETS, QUEUE_RANGES, view.qf, view.tab === 'queue' ? view.q : '');
     // Назначение на день из «Загрузки» (решение пользователя 05.11.2026 «Раскладка с правкой»: «Назначить на
     // этот день» сужает очередь): объекты области из плана месяца на этот день, иначе — областей осмотрщика,
     // и те, что помещаются в день вместе с дорогой (dayLoad). «Показать все» — без сужения.
     const fitDay = view.tab === 'queue' && view.assignDay && view.assignPerson;
     const queue = fitDay && !view.assignAll ? queueAll.filter((s) => fitsDay(s, view.assignPerson, view.assignDay)) : queueAll;
-    const liveAll = assignedRows(all, { q: '' });
+    const liveAll = assignedRows(all, { q: '' }).filter(({ a, s: o }) => objInSlice(o) && ofMineOnly(a.person, mine));
     const assigned = applyFilter(liveAll, ASSIGNED_FACETS, ASSIGNED_RANGES, view.af, view.tab === 'assigned' && view.aPerson ? view.q : '')
       .sort((x, y) => String(x.a.plannedAt || '9999').localeCompare(String(y.a.plannedAt || '9999')));
     const keys = view.tab === 'queue' ? tripGroups(queue.slice(0, Math.max(view.shown, STEP))).flatMap((g) => (collapsed.has(g.place) ? [] : g.rows.map((s) => s.typeId + '|' + s.id)))
@@ -555,6 +588,7 @@ export function mountInspections(host) {
     const rowsAll = view.tab === 'queue' ? base : liveAll;
     return { cls: 'ip-assign' + (bare ? ' ip-bare' : ''), html: `${bare ? '' : filtersHTML(rowsAll, view.q)}
       <section class="ip-work" aria-label="Назначения">
+        ${queueSwitchHTML(base.length, liveAll.length)}
         ${view.tab === 'queue' && view.assignDay ? `<p class="ip-assign-day" role="status">Назначение на <b>${fmtDate(view.assignDay)}</b>${view.assignPerson ? ` · ${esc(view.assignPerson)}` : ''}
           ${fitDay ? `· подходит <b>${view.assignAll ? queueAll.filter((s) => fitsDay(s, view.assignPerson, view.assignDay)).length : queue.length}</b> из ${queueAll.length}
             <button type="button" class="btn btn-ghost btn-sm" data-ip-assign-fit>${view.assignAll ? 'Только подходящие' : 'Показать все'}</button>` : ''}
@@ -626,13 +660,7 @@ export function mountInspections(host) {
       </li>`;
     return `<aside class="ip-people" aria-label="Осмотрщики">
       <div class="ip-people-head">
-        <div class="ip-seg" role="group" aria-label="Какие осмотрщики">
-          <button data-ip-mode="mine" aria-pressed="${view.peopleMode === 'mine'}" title="Закреплены за вами — «Ответственное лицо» в профиле">Мои <b>${mine.size}</b></button>
-          <button data-ip-mode="all" aria-pressed="${view.peopleMode === 'all'}">Все <b>${people.length}</b></button>
-        </div>
         <div class="ip-people-filters">
-          <select class="select" data-ip-region aria-label="Область осмотрщиков"><option value="">Все области</option>
-            ${regionList().map((r) => `<option ${view.region === r ? 'selected' : ''}>${esc(r)}</option>`).join('')}</select>
           <select class="select" data-ip-psort aria-label="Порядок осмотрщиков">
             <option value="name" ${view.peopleSort === 'name' ? 'selected' : ''}>По имени</option>
             <option value="free" ${view.peopleSort === 'free' ? 'selected' : ''}>Свободнее сверху</option></select>
@@ -1923,13 +1951,13 @@ export function mountInspections(host) {
   function scenePoints() {
     if (view.section !== 'assign') return [];
     if (view.tab === 'queue') {
-      return applyFilter(queueBase(all), QUEUE_FACETS, QUEUE_RANGES, view.qf, view.q).map((s) => {
+      return applyFilter(queueBase(all).filter(objInSlice), QUEUE_FACETS, QUEUE_RANGES, view.qf, view.q).map((s) => {
         const k = s.typeId + '|' + s.id;
         return { k, typeId: s.typeId, ocId: s.id, ll: gpsOf(s.typeId, s.id), color: DUE_COLOR[s.due] || DUE_COLOR.none,
           tip: `<b>${esc(s.title)}</b><br>${esc([s.typeLabel, s.institution].filter(Boolean).join(' · '))}${s.deadline ? `<br>срок ${esc(fmtDate(s.deadline))}` : ''}` };
       });
     }
-    return applyFilter(assignedRows(all, { q: '' }), ASSIGNED_FACETS, ASSIGNED_RANGES, view.af, view.aPerson ? view.q : '')
+    return applyFilter(assignedRows(all, { q: '' }).filter(({ a, s: o }) => objInSlice(o) && ofMineOnly(a.person)), ASSIGNED_FACETS, ASSIGNED_RANGES, view.af, view.aPerson ? view.q : '')
       .filter(({ a }) => !view.aPerson || view.aPerson === '*' || a.person === view.aPerson).map(({ a, s }) => ({
       k: a.id, typeId: a.typeId, ocId: a.ocId, ll: gpsOf(a.typeId, a.ocId), color: '#1668c9',
       tip: `<b>${esc(s.title)}</b><br>${esc(a.person)}${a.plannedAt ? ` · план ${esc(fmtDate(a.plannedAt))}` : ''}` }));
@@ -2267,9 +2295,10 @@ export function mountInspections(host) {
   function todaySection() {
     const read = readSet();
     const mine = myPeople();
-    const ofMine = (name) => view.peopleMode !== 'mine' || !name || mine.has(name);
+    const ofMine = (name) => personInSlice(name, mine);
+    const objOf = (typeId, ocId) => all.get(typeId + '|' + ocId);
     const active = people.filter((p) => !p.fired && ofMine(p.name));
-    const hot = queueBase(all).filter((s) => s.deadline && s.deadline <= shiftD(todayD, 3))
+    const hot = queueBase(all).filter(objInSlice).filter((s) => s.deadline && s.deadline <= shiftD(todayD, 3))
       .sort((a, b) => String(a.deadline).localeCompare(String(b.deadline))).slice(0, 12);
     const late = notes.filter((n) => ['missed', 'overdue', 'stalled', 'noMorning', 'noEvening'].includes(n.kind) && ofMine(n.person) && n.date <= todayD)
       .slice(0, 12);
@@ -2278,7 +2307,7 @@ export function mountInspections(host) {
     const trips = active.map((p) => ({ p, r: dayReport(p.name, todayD) })).filter((x) => x.r.trips);
     const fresh = notes.filter((n) => !read.has(n.id) && ofMine(n.person)).slice(0, 8);
     // Запросы переноса — ответ прямо здесь (решение 06.11.2026: «Регионал должен подтвердить перенос»).
-    const moves = moveRequests().filter((a) => ofMine(a.person));
+    const moves = moveRequests().filter((a) => ofMine(a.person) && objInSlice(objOf(a.typeId, a.ocId)));
     const moveLi = (a) => `<li class="ip-today-move"><span class="ip-today-a">${esc((all.get(a.typeId + '|' + a.ocId) || {}).title || '—')}</span>
       <span class="ip-today-s">${esc(a.person)} · ${esc(a.moveReq.from ? fmtDate(a.moveReq.from) : 'без даты')} → <b>${esc(fmtDate(a.moveReq.date))}</b> · ${esc(a.moveReq.reason)}${a.moveReq.note ? ` — ${esc(a.moveReq.note)}` : ''}</span>
       <span class="ip-today-acts"><button type="button" class="btn btn-primary btn-sm" data-ip-move-ok="${esc(a.id)}">Разрешить</button>
@@ -2294,10 +2323,7 @@ export function mountInspections(host) {
     const wd = WDL[new Date(todayD + 'T00:00:00').getDay()];
     const card = `<section class="ip-work ip-card ip-today" aria-label="Сегодня">
       <header class="ip-card-head">
-        <div class="ip-card-title"><h1>Сегодня</h1><p class="ip-card-contacts">${esc(wd)}, ${esc(fmtDate(todayD))}${view.peopleMode === 'mine' ? ' · мои осмотрщики' : ''}</p></div>
-        <div class="ip-head-act"><div class="ip-seg" role="group" aria-label="Чьи">
-          <button data-ip-mode="mine" aria-pressed="${view.peopleMode === 'mine'}" title="Закреплены за вами — «Ответственное лицо» в профиле">Мои <b>${mine.size}</b></button>
-          <button data-ip-mode="all" aria-pressed="${view.peopleMode === 'all'}">Все</button></div></div>
+        <div class="ip-card-title"><h1>Сегодня</h1><p class="ip-card-contacts">${esc(wd)}, ${esc(fmtDate(todayD))}${[view.peopleMode === 'mine' ? 'мои осмотрщики' : '', view.region, view.inst ? `учреждение «${view.inst}»` : ''].filter(Boolean).map((x) => ' · ' + esc(x)).join('')}</p></div>
       </header>
       <div class="ip-card-body ip-today-grid">
         ${moves.length ? block('Запрошен перенос', moves.length, `<ul class="ip-today-list">${moves.map(moveLi).join('')}</ul>`, '') : ''}
@@ -2328,7 +2354,7 @@ export function mountInspections(host) {
   function notesSection() {
     const read = readSet();
     const mine = myPeople();
-    const base = notes.filter((n) => view.peopleMode !== 'mine' || !n.person || mine.has(n.person));
+    const base = notes.filter((n) => personInSlice(n.person, mine));
     const list = base.filter((n) => (!view.notesKind || n.kind === view.notesKind) && (!view.notesUnread || !read.has(n.id)));
     const count = (k) => base.filter((n) => n.kind === k).length;
     const unreadN = base.filter((n) => !read.has(n.id)).length;
@@ -2336,10 +2362,6 @@ export function mountInspections(host) {
     const days = [...new Set(list.map((n) => n.date))];
     const aside = `<aside class="ip-people" aria-label="Отбор уведомлений">
       <div class="ip-people-head">
-        <div class="ip-seg" role="group" aria-label="Чьи уведомления">
-          <button data-ip-mode="mine" aria-pressed="${view.peopleMode === 'mine'}" title="Закреплены за вами — «Ответственное лицо» в профиле">Мои <b>${mine.size}</b></button>
-          <button data-ip-mode="all" aria-pressed="${view.peopleMode === 'all'}">Все</button>
-        </div>
         <label class="ip-check"><input type="checkbox" data-ip-notes-unread ${view.notesUnread ? 'checked' : ''}> Только непрочитанные · ${unreadN}</label>
       </div>
       <ul class="ip-people-list ip-note-kinds">
@@ -2376,6 +2398,9 @@ export function mountInspections(host) {
   // Back Button» — состояние вида в адресе, адрес — источник правды.
   function urlOf() {
     const q = [['s', view.section]];
+    if (view.peopleMode === 'mine') q.push(['m', 'mine']);
+    if (view.region) q.push(['r', view.region]);
+    if (view.inst) q.push(['i', view.inst]);
     if (view.section === 'people') {
       if (view.person) q.push(['p', view.person], ['t', view.personTab]);
       else q.push(['t', view.allTab]);
@@ -2393,6 +2418,9 @@ export function mountInspections(host) {
     const q = (route && route.query) || {};
     if (!q.s) return false;
     view.section = q.s;
+    view.peopleMode = q.m === 'mine' ? 'mine' : 'all';
+    view.region = q.r || '';
+    view.inst = q.i || '';
     if (q.s === 'people') {
       view.person = q.p || '';
       if (q.t) { if (view.person) view.personTab = q.t; else view.allTab = q.t; }
@@ -2610,6 +2638,7 @@ export function mountInspections(host) {
     if (bar) bar.hidden = true;
   };
 
+  let lastAnim = { sec: '', det: '', cur: '' };
   function render() {
     const vkey = urlOf();
     if (shownKey) {
@@ -2628,9 +2657,6 @@ export function mountInspections(host) {
     const unread = notes.filter((n) => !readSet().has(n.id)).length;
     const sec = view.section === 'people' ? peopleSection() : view.section === 'history' ? historySection() : view.section === 'cadastre' ? cadSection() : view.section === 'notes' ? notesSection() : view.section === 'today' ? todaySection() : assignSection();
     const top = (k, label, on = view.section === k) => `<button class="itab ${on ? 'on' : ''}" role="tab" data-ip-section="${k}" aria-selected="${on}">${label}</button>`;
-    // «Осмотрщики» и «Назначения» — один раздел (решение пользователя
-    // 29.10.2026): наверху одна кнопка, режимы раздела — общей полосой.
-    const team = view.section === 'people' || view.section === 'assign';
     // Сцена (перестройка по APCS, решение пользователя 13.10.2026 — запись
     // графа perestroyka-osmotrov-po-apcs-…): карта на всю рабочую область
     // раздела — справа от левого меню и под шапкой системы, они остаются
@@ -2648,9 +2674,9 @@ export function mountInspections(host) {
     scope.setHTML(`<div class="ip-page ip-scened ${onScene ? 'on-scene' : 'on-sheet'} ${onRoute ? 'on-route' : ''} ${onScene && hideList ? 'hide-list' : ''} ${onScene && hidePane ? 'hide-pane' : ''}" ${onScene ? `style="${splitStyle()}"` : ''}>
       <div class="ip-isles">
         <nav class="ip-isl ip-sections" role="tablist" aria-label="Режимы осмотров">
-          ${top('today', 'Сегодня')}${top('people', 'Осмотрщики и назначения', team)}${top('cadastre', 'Кадастр')}${top('history', 'История')}
+          ${top('today', 'Сегодня')}${top('assign', 'Планирование')}${top('people', 'Люди')}${top('cadastre', 'Кадастр')}${top('history', 'Журнал')}
         </nav>
-        ${team ? teamModesHTML() : ''}
+        ${sliceHTML()}
         <div class="ip-isl ip-jump" role="combobox" aria-expanded="false" aria-haspopup="listbox" aria-owns="ip-jump-list">
           <span class="isearch">${SEARCH_ICON}<input data-ip-jump placeholder="Перейти: осмотрщик, ЕНИ, адрес…" aria-label="Перейти" autocomplete="off" aria-controls="ip-jump-list"></span>
           <kbd class="ip-kbd" aria-hidden="true">Ctrl K</kbd>
@@ -2665,6 +2691,19 @@ export function mountInspections(host) {
         <button class="ip-edge ip-edge-r" data-ip-hide="pane" aria-expanded="${!hidePane}" title="${hidePane ? 'Показать назначение' : 'Скрыть назначение'}" aria-label="${hidePane ? 'Показать назначение' : 'Скрыть назначение'}">${hidePane ? '‹' : '›'}</button>
         ${hideList ? '' : splitHTML('list')}${hidePane ? '' : splitHTML('pane')}` : ''}
     </div>`);
+    // Появление (правило движения 17.11.2026): анимируется только новое на экране — раздел или подраздел при
+    // смене, панель подробностей и панель назначения при новом выборе; перерисовка того же не «вспыхивает».
+    const anim = { sec: [view.section, view.tab, view.person, view.personTab, view.allTab].join('|'),
+      det: detail.length ? JSON.stringify(detail[detail.length - 1]) : '', cur: current };
+    if (anim.sec !== lastAnim.sec) {
+      if (onScene) scope.$$('.ip > .ip-work, .ip > .ip-pane').forEach((el, i) => el.classList.add(i ? 'anim-in-r' : 'anim-in-l'));
+      else if (scope.$('.ip')) scope.$('.ip').classList.add('anim-in');
+      scope.$$('.ip-today-grid, .ip-people-list, .ip-apeople').forEach((el) => el.classList.add('anim-stagger'));
+    } else {
+      if (anim.det && anim.det !== lastAnim.det) scope.$$('.ip-detail-pane').forEach((el) => el.classList.add('anim-in-r'));
+      if (onScene && anim.cur !== lastAnim.cur) scope.$$('.ip > .ip-pane').forEach((el) => el.classList.add('anim-in-r'));
+    }
+    lastAnim = anim;
     placeJump();
     liftSubTabs();
     fillOsmKm();
@@ -2762,8 +2801,15 @@ export function mountInspections(host) {
   };
   // Объект из уведомления скрыт отборами — отборы снимаются, и об этом
   // сказано, а не молча.
+  // Срез — так же: объект вне среза — срез снимается со словами.
+  const revealSlice = (s, person) => {
+    if (objInSlice(s) && ofMineOnly(person)) return;
+    view.region = ''; view.inst = ''; if (!ofMineOnly(person)) view.peopleMode = 'all';
+    host.toast('Срез снят — объект был вне его (область, учреждение или «Мои»)', 'warn');
+  };
   const revealQueued = (k) => {
-    const base = queueBase(all);
+    revealSlice(all.get(k), '');
+    const base = queueBase(all).filter(objInSlice);
     if (applyFilter(base, QUEUE_FACETS, QUEUE_RANGES, view.qf, view.qs.queue || '').some((x) => x.typeId + '|' + x.id === k)) return;
     view.qf = { facets: {}, ranges: {} }; view.qs = { ...view.qs, queue: '' }; if (view.tab === 'queue') view.q = '';
     host.toast('Отборы «К назначению» сняты — объект был скрыт ими', 'warn');
@@ -2771,7 +2817,8 @@ export function mountInspections(host) {
   const revealAssigned = (id) => {
     const own = allAssignments().find((x) => x.id === id);
     if (own) view.aPerson = own.person;
-    const live = assignedRows(all, { q: '' });
+    if (own) revealSlice(all.get(own.typeId + '|' + own.ocId), own.person);
+    const live = assignedRows(all, { q: '' }).filter(({ a, s: o }) => objInSlice(o) && ofMineOnly(a.person));
     if (applyFilter(live, ASSIGNED_FACETS, ASSIGNED_RANGES, view.af, view.qs.assigned || '').some((r) => r.a.id === id)) return;
     view.af = { facets: {}, ranges: {} }; view.qs = { ...view.qs, assigned: '' };
     host.toast('Отборы «Назначено» сняты — назначение было скрыто ими', 'warn');
@@ -2788,7 +2835,10 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-person]', (e, el) => { view.person = el.dataset.ipPerson; detail = []; redraw(); });
   scope.on('click', '[data-ip-mode]', (e, b) => { view.peopleMode = b.dataset.ipMode; redraw(); });
   scope.on('input', '[data-ip-people-q]', (e, el) => { peopleQ = el.value; keepFocus('[data-ip-people-q]'); });
-  scope.on('change', '[data-ip-region]', (e, el) => { view.region = el.value; redraw(); });
+  scope.on('change', '[data-ip-region]', (e, el) => { view.region = el.value; resetList(); redraw(); });
+  // Учреждение — по «изменению» (Enter, выбор из подсказок, уход из поля): одна перерисовка, без второй на потере фокуса.
+  scope.on('change', '[data-ip-inst]', (e, el) => { if (el.value.trim() === view.inst) return; view.inst = el.value.trim(); resetList(); redraw(); });
+  scope.on('click', '[data-ip-inst-clear]', () => { view.inst = ''; resetList(); redraw(); });
   scope.on('change', '[data-ip-psort]', (e, el) => { view.peopleSort = el.value; redraw(); });
   // Работа вне выездов — в панели дня (раздел 4 ТЗ рабочего дня): поля
   // показываются по виду; запись — на период «с — по».
@@ -3455,12 +3505,12 @@ export function mountInspections(host) {
       tb.querySelectorAll('[data-ip-check]').forEach((x) => { const k = x.dataset.ipCheck; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
     });
     // Свёрнутая группа: отмечаем по данным, а не по строкам на экране.
-    if (collapsed.has(place)) applyFilter(queueBase(all), QUEUE_FACETS, QUEUE_RANGES, view.qf, view.q).filter((s) => s.place === place).forEach((s) => { const k = s.typeId + '|' + s.id; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
+    if (collapsed.has(place)) applyFilter(queueBase(all).filter(objInSlice), QUEUE_FACETS, QUEUE_RANGES, view.qf, view.q).filter((s) => s.place === place).forEach((s) => { const k = s.typeId + '|' + s.id; if (el.checked) checked.set(k, target(k)); else checked.delete(k); });
     redraw();
   });
   scope.on('change', '[data-ip-adcheck]', (e, el) => {
     const addr = el.dataset.ipAdcheck;
-    assignedRows(all, { q: '' }).filter(({ a, s }) => (view.aPerson === '*' || a.person === view.aPerson) && addrKey(s) === addr)
+    assignedRows(all, { q: '' }).filter(({ a, s }) => objInSlice(s) && ofMineOnly(a.person) && (view.aPerson === '*' || a.person === view.aPerson) && addrKey(s) === addr)
       .forEach(({ a }) => { if (el.checked) checked.set(a.id, null); else checked.delete(a.id); });
     redraw();
   });
@@ -3477,7 +3527,6 @@ export function mountInspections(host) {
     view.aPerson = b.dataset.ipAperson; view.q = ''; reassignGroup = ''; checked.clear(); current = ''; render();
   });
   scope.on('change', '[data-ip-asort]', (e, el) => { view.aSort = el.value; redraw(); });
-  scope.on('change', '[data-ip-aregion]', (e, el) => { view.aRegion = el.value; redraw(); });
   scope.on('click', '[data-ip-rg-cancel]', () => { reassignGroup = ''; redraw(); });
   scope.on('click', '[data-ip-rg-ok]', (e, b) => {
     const to = scope.$('[data-ip-rg-person]').value;

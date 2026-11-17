@@ -48,7 +48,7 @@ def run(t):
     t.ck(after['why'], 'в истории снятия нет причины «осмотрщик уволен»')
     t.ck(after['done'] == len(before['done']), 'законченные назначения уволенного тронуты')
     # Объекты — снова в «К назначению», если других действующих назначений у них нет.
-    pg.click('[data-ip-team="queue"]')
+    pg.click('[data-ip-section="assign"]'); pg.click('[data-ip-team="queue"]')
     t.wait_for('tr[data-ip-row], .ip-empty')
     # Ждать в очереди — по её правилам (pages/inspections/model.js queueBase): статус «Направлен на осмотр»,
     # осмотрен не полностью, других действующих назначений нет.

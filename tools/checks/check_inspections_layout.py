@@ -21,7 +21,7 @@ K = "await import('./app/kernel/inspections.js')"
 def run(t):
     pg = t.page
     t.open('#/inspections?s=people', wait='.ip-person-main')
-    pg.click('[data-ip-team="queue"]')
+    pg.click('[data-ip-section="assign"]'); pg.click('[data-ip-team="queue"]')
     t.wait_for('[data-ip-check]')
     for i in range(3):
         pg.locator('[data-ip-check]').nth(i).check()
@@ -44,7 +44,7 @@ def run(t):
     t.ck(all(got[1:]) and got[1:] == [days[k] for k in keys[1:]], 'дни раскладки не дошли до назначений: %s vs %s' % (got, days))
 
     # «Назначить на этот день» из «Загрузки» — очередь только подходящих.
-    pg.click('[data-ip-team="people"]')
+    pg.click('[data-ip-section="people"]')
     pg.locator('.ip-person-main[data-ip-person=""]').click()
     pg.click('[data-ip-atab="load"]')
     t.wait_for('[data-ip-load]')

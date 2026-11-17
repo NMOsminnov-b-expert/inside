@@ -33,7 +33,7 @@ def run(t):
     if not t.ck(got, 'нет объекта с двумя ОИ с разными ЕНИ — нечем проверить'):
         return
     t.ck(got['one'] != got['all'], 'данные проверки не различают ЕНИ одного ОИ и всего объекта')
-    pg.click('[data-ip-team="assigned"]')
+    pg.click('[data-ip-section="assign"]'); pg.click('[data-ip-team="assigned"]')
     t.wait_for('[data-ip-aperson]')
     pg.click('[data-ip-aperson="%s"]' % got['me'])
     t.wait_for('[data-ip-row="%s"]' % got['id'])

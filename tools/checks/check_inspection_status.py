@@ -47,7 +47,7 @@ def run(t):
         return
     oc, a, b = pick
     keys = [oc, a, b]
-    pg.click('[data-ip-team="queue"]')
+    pg.click('[data-ip-section="assign"]'); pg.click('[data-ip-team="queue"]')
     t.wait_for('[data-ip-team="queue"] b')
     n0 = pg.evaluate(QN)
 

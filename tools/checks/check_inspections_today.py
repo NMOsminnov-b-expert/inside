@@ -33,7 +33,7 @@ def run(t):
       return { key: 'civil|' + s.id, title: s.title }; }""" % K)
     t.open('#/inspections?s=today', wait='.ip-today')
     t.ck(pg.locator('.ip-today-b').count() == 5, 'в «Сегодня» не пять блоков: %d' % pg.locator('.ip-today-b').count())
-    pg.click('.ip-today [data-ip-mode="all"]')
+    pg.click('.ip-slice [data-ip-mode="all"]')
     t.wait_for('.ip-today')
     hot = pg.locator('[data-ip-today-q="%s"]' % st['key'])
     t.ck(hot.count() == 1, 'объект со сроком сегодня не в «Горит срок»')
@@ -49,7 +49,7 @@ def run(t):
         hot.click()
         t.ck(t.wait_until("() => /s=assign/.test(location.hash) && /t=queue/.test(location.hash)"), 'строка «Горит срок» не ведёт в очередь: %s' % pg.evaluate('location.hash'))
     t.open('#/inspections?s=today', wait='.ip-today')
-    pg.click('.ip-today [data-ip-mode="all"]')
+    pg.click('.ip-slice [data-ip-mode="all"]')
     if t.ck(pg.locator('[data-ip-today-p="Айдай"]').count(), 'нет строки осмотрщика'):
         pg.locator('[data-ip-today-p="Айдай"]').first.click()
         t.ck(t.wait_until("() => /s=people/.test(location.hash) && /p=%D0%90/.test(location.hash)"), 'строка осмотрщика не ведёт к нему: %s' % pg.evaluate('location.hash'))

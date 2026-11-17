@@ -1,0 +1,75 @@
+/*
+  Движение интерфейса — правило графа interfeys-kak-v-mobilnom-vide-u-kazhdogo-
+  interaktivnogo-elementa-svoya (пользователь 17.11.2026: «Каждый интерактивный
+  элемент имеет свою анимацию», «С пружинами и т.д.», «Увеличением при
+  наведении тоже»).
+
+  Токены: пружинные кривые (linear() — пружина, снятая по точкам; у «пружины»
+  перелёт около 15 %, у «мягкой» — около 2 %), длительности и масштабы.
+  Отклик: наведение — увеличение, нажатие — сжатие, отпускание — пружиной
+  обратно. Масштаб — отдельным свойством scale, а не transform: он не сбивает
+  сдвиги и повороты, которые у элемента уже есть.
+
+  Крупные элементы (строка списка, плитка) увеличиваются меньше: страница
+  задаёт им --hover-scale из токенов -wide. Системная настройка «уменьшить
+  движение» гасит всё (доступность). Сверка морфинга (.morphing) отключает
+  переходы — правило в tokens.css.
+*/
+:root{
+  --ease-spring:linear(0,.009,.035 2.1%,.141,.281 6.7%,.723 12.9%,.938 16.7%,1.017,1.077,1.121,1.149 24.3%,1.159,1.163,1.161,1.154 29.9%,1.129 32.8%,1.051 39.6%,1.017 43.1%,.991,.977 51%,.974 53.8%,.975 57.1%,.997 69.8%,1.003 76.9%,1.004 83.8%,1);
+  --ease-spring-soft:linear(0,.006,.025 2.8%,.101 6.1%,.539 18.9%,.721 25.3%,.849 31.5%,.937 38.1%,.968 41.8%,.991 45.7%,1.006 50.1%,1.015 55%,1.017 63.9%,1.001);
+  --ease-out:cubic-bezier(.2,.8,.2,1);
+  --dur-press:.09s; --dur-fast:.14s; --dur:.24s; --dur-spring:.55s; --dur-enter:.42s;
+  --hover-scale:1.05; --hover-scale-wide:1.012; --press-scale:.95; --press-scale-wide:.985;
+  /* Стекло и скругления мобильного вида (страница осмотрщика, osmotr.css). */
+  --radius-lg:16px; --radius-md:12px;
+  --glass:rgba(248,249,251,.84); --glass-line:rgba(0,0,0,.1);
+  --glass-sh:inset 0 1px 0 rgba(255,255,255,.85),0 0 0 .5px rgba(0,0,0,.12),0 10px 28px rgba(20,40,70,.16);
+  --card-sh:0 1px 2px rgba(26,42,58,.1),0 10px 26px rgba(26,42,58,.1);
+  --lift-sh:0 2px 4px rgba(26,42,58,.1),0 14px 32px rgba(26,42,58,.16);
+  --aurora:radial-gradient(60% 40% at 15% 0%,rgba(59,142,208,.24),transparent 70%),radial-gradient(50% 40% at 90% 30%,rgba(150,120,225,.14),transparent 70%),
+    radial-gradient(60% 40% at 50% 100%,rgba(20,160,150,.18),transparent 70%);
+}
+
+/* Интерактивные элементы — общий отклик. :where — без веса: страница
+   переопределяет масштаб и кривую обычным селектором. */
+:where(button,[role="button"],[role="tab"],a[href],summary,select,.select,.isearch,.btn,.itab,.pill,
+  input[type="checkbox"],input[type="radio"],.input){
+  transition-property:scale,translate,background-color,border-color,color,box-shadow,opacity;
+  transition-duration:var(--dur-spring),var(--dur-spring),var(--dur-fast),var(--dur-fast),var(--dur-fast),var(--dur),var(--dur-fast);
+  transition-timing-function:var(--ease-spring),var(--ease-spring),ease,ease,ease,var(--ease-out),ease;
+}
+@media (hover:hover) and (pointer:fine){
+  :where(button,[role="button"],[role="tab"],a[href],summary,select,.select,.btn,.itab,.pill,input[type="checkbox"],input[type="radio"]):where(:hover):not(:disabled,[aria-disabled="true"]){scale:var(--hover-scale)}
+  /* Поля ввода — едва заметно: текст под курсором не должен «плыть». */
+  :where(.isearch,.input):where(:hover){scale:var(--hover-scale-wide)}
+}
+:where(button,[role="button"],[role="tab"],a[href],summary,.btn,.itab,.pill,input[type="checkbox"],input[type="radio"]):where(:active):not(:disabled,[aria-disabled="true"]){
+  scale:var(--press-scale);transition-duration:var(--dur-press);transition-timing-function:ease-out;
+}
+/* Строки таблиц — крупные: подъём и лёгкое увеличение. */
+:where(.itbl,.tbl) tbody tr{transition:scale var(--dur-spring) var(--ease-spring),background-color var(--dur-fast) ease,box-shadow var(--dur) var(--ease-out)}
+@media (hover:hover) and (pointer:fine){
+  :where(.itbl,.tbl) tbody tr:where(:hover){scale:var(--hover-scale-wide);box-shadow:var(--lift-sh);position:relative;z-index:1}
+}
+
+/* Появление: панели, всплывающие окна, списки. */
+@keyframes springIn{from{opacity:0;scale:.94;translate:0 8px}to{opacity:1;scale:1;translate:0 0}}
+@keyframes slideInR{from{opacity:0;translate:24px 0}to{opacity:1;translate:0 0}}
+@keyframes slideInL{from{opacity:0;translate:-24px 0}to{opacity:1;translate:0 0}}
+@keyframes riseIn{from{opacity:0;translate:0 10px}to{opacity:1;translate:0 0}}
+.anim-in{animation:springIn var(--dur-enter) var(--ease-spring-soft) both}
+.anim-in-r{animation:slideInR var(--dur-enter) var(--ease-spring-soft) both}
+.anim-in-l{animation:slideInL var(--dur-enter) var(--ease-spring-soft) both}
+/* Список «волной»: каждый следующий пункт — на 25 мс позже, не дольше 10 пунктов. */
+.anim-stagger > *{animation:riseIn var(--dur-enter) var(--ease-spring-soft) both}
+.anim-stagger > :nth-child(2){animation-delay:25ms}.anim-stagger > :nth-child(3){animation-delay:50ms}
+.anim-stagger > :nth-child(4){animation-delay:75ms}.anim-stagger > :nth-child(5){animation-delay:100ms}
+.anim-stagger > :nth-child(6){animation-delay:125ms}.anim-stagger > :nth-child(7){animation-delay:150ms}
+.anim-stagger > :nth-child(8){animation-delay:175ms}.anim-stagger > :nth-child(9){animation-delay:200ms}
+.anim-stagger > :nth-child(n+10){animation-delay:225ms}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms !important;animation-delay:0s !important;transition-duration:.01ms !important}
+  :where(*):hover,:where(*):active{scale:none !important}
+}

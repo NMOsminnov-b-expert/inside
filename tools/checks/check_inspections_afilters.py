@@ -22,7 +22,7 @@ ROWS = """async (want) => { const m = await import('./app/kernel/inspections.js'
 def run(t):
     pg = t.page
     t.open('#/inspections?s=people', wait='.ip-person-main')
-    pg.click('[data-ip-team="assigned"]')
+    pg.click('[data-ip-section="assign"]'); pg.click('[data-ip-team="assigned"]')
     pg.click('[data-ip-aperson="*"]')
     t.wait_for('tr[data-ip-row]')
     if not pg.locator('.ip-facets.open').count():

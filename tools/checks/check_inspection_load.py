@@ -5,9 +5,9 @@
 осмотрщиков»; «все механики должны быть подружены между собой»).
 
 Что ловит сценарий:
-  * наверху снова две кнопки «Назначения» и «Осмотрщики» вместо одной; у раздела
-    нет полосы режимов «Осмотрщики · К назначению · Назначено» или режимы не
-    переключаются;
+  * меню не в одну строку «Сегодня · Планирование · Люди · Кадастр · Журнал»
+    (ТЗ 17.11.2026); снова есть отдельная полоса режимов; у Планирования нет
+    переключателя «К назначению · Назначено» внутри списка;
   * у «Все осмотрщики» нет вкладки «Загрузка» первой; в сетке не все
     осмотрщики отбора или не столько дней, сколько выбрано (неделя, 2 недели,
     месяц); число в клетке не совпадает с числом живых назначений на день;
@@ -36,10 +36,15 @@ def run(t):
     pg = t.page
     pg.set_viewport_size({'width': 1600, 'height': 950})
     t.open('#/inspections?s=people', wait='.ip-page')
-    t.ck(pg.locator('[data-ip-section="assign"]').count() == 0 and pg.locator('[data-ip-section="people"]').count() == 1
-         and 'Осмотрщики и назначения' in pg.inner_text('[data-ip-section="people"]'), 'наверху не одна кнопка «Осмотрщики и назначения»')
-    modes = pg.eval_on_selector_all('[data-ip-team]', 'els => els.map((e) => e.dataset.ipTeam)')
-    t.ck(modes == ['people', 'queue', 'assigned'], 'полоса режимов раздела не та: %s' % modes)
+    menu = pg.eval_on_selector_all('.ip-sections [data-ip-section]', 'els => els.map((e) => [e.dataset.ipSection, e.textContent.trim()])')
+    t.ck(menu == [['today', 'Сегодня'], ['assign', 'Планирование'], ['people', 'Люди'], ['cadastre', 'Кадастр'], ['history', 'Журнал']],
+         'меню не «Сегодня · Планирование · Люди · Кадастр · Журнал»: %s' % menu)
+    t.ck(pg.locator('[data-ip-team]').count() == 0, 'у «Людей» осталась полоса режимов')
+    pg.click('[data-ip-section="assign"]')
+    t.wait_for('.ip-qswitch')
+    modes = pg.eval_on_selector_all('.ip-work .ip-qswitch [data-ip-team]', 'els => els.map((e) => e.dataset.ipTeam)')
+    t.ck(modes == ['queue', 'assigned'], 'переключатель очереди в списке не тот: %s' % modes)
+    pg.click('[data-ip-section="people"]')
 
     pg.click('.ip-person-main[data-ip-person=""]')
     tabs = pg.eval_on_selector_all('[data-ip-atab]', 'els => els.map((e) => e.dataset.ipAtab)')
@@ -91,7 +96,7 @@ def run(t):
     t.ck(name in pg.inner_text('.ip-card-head'), 'маршрут открыт не у %s' % name)
 
     # Назначить на этот день — осмотрщик и дата подставлены, клетка растёт.
-    pg.click('[data-ip-team="people"]')
+    pg.click('[data-ip-section="people"]')
     pg.click('.ip-person-main[data-ip-person=""]')
     pg.click('[data-ip-atab="load"]')
     t.wait_for('.ip-load-tbl')
@@ -108,7 +113,7 @@ def run(t):
     pg.click('[data-ip-f-ok]')
     t.ck(t.wait_until("async ([n, d, b]) => { const k = await import('./app/kernel/inspections.js'); return k.allAssignments().filter((a) => a.person === n && a.plannedAt === d && k.isLive(a)).length === b + 1; }",
                       [name, day, before], 9000), 'назначение не легло на выбранный день')
-    pg.click('[data-ip-team="people"]')
+    pg.click('[data-ip-section="people"]')
     pg.click('.ip-person-main[data-ip-person=""]')
     pg.click('[data-ip-atab="load"]')
     t.ck(t.wait_until("([k, n]) => { const b = document.querySelector(`[data-ip-load=\"${k}\"] b`); return b && b.textContent.trim() === String(n); }",

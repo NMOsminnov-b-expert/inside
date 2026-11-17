@@ -1627,3 +1627,55 @@ body[data-page="inspections"] .ip-today-acts{display:flex;gap:6px;margin-top:4px
 
 body[data-page="inspections"] .ip-today-why{display:grid;gap:4px;margin-top:6px}
 body[data-page="inspections"] .ip-today-why label{font-size:12px;font-weight:600;color:var(--ink-label)}
+
+/* --- Мобильный вид и движение (17.11.2026) -------------------------------
+   ТЗ tz-ekran-regionalov-… и правило interfeys-kak-v-mobilnom-vide-…: язык
+   страницы осмотрщика — стекло, скругление 16, мягкие тени; у каждого
+   интерактивного элемента — отклик пружиной (kernel/motion.css). Широкие
+   строки увеличиваются меньше, чем кнопки. */
+.ip-scene{background:var(--aurora),#e3ecf5}
+body[data-page="inspections"] .ip-isl{background:var(--glass);-webkit-backdrop-filter:blur(18px) saturate(1.5);backdrop-filter:blur(18px) saturate(1.5);
+  border-radius:var(--radius-lg);box-shadow:var(--glass-sh)}
+body[data-page="inspections"] .ip-isles .ip-sections .itab,
+body[data-page="inspections"] .ip-isles .ip-subisle .itab{border-radius:var(--radius-md)}
+body[data-page="inspections"] .on-scene .ip-assign .ip-work,
+body[data-page="inspections"] .on-scene .ip-assign .ip-pane,
+body[data-page="inspections"] .on-scene .ip-assign .ip-facets.open,
+body[data-page="inspections"] .on-sheet .ip{border-radius:var(--radius-lg);box-shadow:var(--card-sh)}
+body[data-page="inspections"] .on-sheet .ip{background:var(--aurora),var(--bg)}
+
+/* Срез — островок рядом с меню: «Мои / Все», область, учреждение. */
+body[data-page="inspections"] .ip-slice{gap:6px;padding:0 6px}
+body[data-page="inspections"] .ip-slice .ip-seg{width:150px;height:34px;border-radius:var(--radius-md);overflow:hidden}
+body[data-page="inspections"] .ip-slice .select{height:34px;width:170px;border-radius:var(--radius-md)}
+body[data-page="inspections"] .ip-slice .isearch{height:34px;width:210px;border-radius:var(--radius-md)}
+body[data-page="inspections"] .ip-slice .on{border-color:var(--blue-600);background-color:var(--blue-50)}
+body[data-page="inspections"] .ip-slice .isearch.on input{background:transparent}
+
+/* «К назначению | Назначено» — сегменты в голове списка. */
+body[data-page="inspections"] .ip-qswitch{height:36px;margin:0 0 10px;border-radius:var(--radius-md);overflow:hidden;flex:none}
+body[data-page="inspections"] .ip-qswitch button{display:flex;align-items:center;justify-content:center;gap:6px;font-size:13px}
+body[data-page="inspections"] .ip-qswitch b{padding:0 7px;border-radius:999px;background:var(--slate-50);color:var(--ink-ctl);font-size:11px;margin:0}
+body[data-page="inspections"] .ip-qswitch button[aria-pressed="true"] b{background:var(--blue-600);color:#fff}
+
+/* Мягкое увеличение у широких элементов: строки списков, людей, подбора, групп. */
+body[data-page="inspections"] :is(.ip-today-row,.ip-person-main,.ip-aperson,.ip-rank-b,.ip-grp-t,.ip-dp-trip,.ip-dgroup-h,.ip-note,.ip-load-objs button,.ip-ld-name){
+  --hover-scale:var(--hover-scale-wide);--press-scale:var(--press-scale-wide)}
+/* Строки очереди — карточками: подъём и лёгкое увеличение под курсором. */
+body[data-page="inspections"] .ip-tbl tbody tr[data-ip-row]{transition:scale var(--dur-spring) var(--ease-spring),background-color var(--dur-fast) ease,box-shadow var(--dur) var(--ease-out)}
+@media (hover:hover) and (pointer:fine){
+  body[data-page="inspections"] .ip-tbl tbody tr[data-ip-row]:hover{scale:var(--hover-scale-wide);box-shadow:var(--lift-sh);position:relative;z-index:1}
+}
+/* Клетки «Загрузки» — компактные: полное увеличение, выбранная — приподнята. */
+body[data-page="inspections"] .ip-ld-b{transition:scale var(--dur-spring) var(--ease-spring),box-shadow var(--dur) var(--ease-out),background-color var(--dur-fast) ease}
+body[data-page="inspections"] .ip-ld.on .ip-ld-b{box-shadow:var(--lift-sh)}
+/* Полосы загрузки и покрытия растут пружиной при появлении. */
+@keyframes ipGrow{from{scale:0 1}to{scale:1 1}}
+body[data-page="inspections"] .ip-ld-bar i{transform-origin:left;animation:ipGrow var(--dur-enter) var(--ease-spring-soft) both}
+/* Флажки — пружинный «щелчок» при отметке. */
+@keyframes ipTick{0%{scale:.7}100%{scale:1}}
+body[data-page="inspections"] input[type="checkbox"]:checked{animation:ipTick var(--dur-spring) var(--ease-spring)}
+/* Колокольчик — покачивание при наведении, счётчик — пружиной. */
+@keyframes ipRing{0%,100%{rotate:0deg}20%{rotate:14deg}45%{rotate:-10deg}70%{rotate:5deg}}
+@media (hover:hover) and (pointer:fine){body[data-page="inspections"] .ip-bell:hover svg{animation:ipRing .6s ease}}
+body[data-page="inspections"] .ip-unread{animation:springIn var(--dur-enter) var(--ease-spring) both}
