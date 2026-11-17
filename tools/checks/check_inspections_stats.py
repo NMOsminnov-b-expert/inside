@@ -60,13 +60,13 @@ def run(t):
     t.ck(med_cell is not None and abs(med_cell - med) < 0.05, 'медиана команды %s, по столбцу %s' % (med_cell, med))
 
     t.ck(pg.locator('[data-ip-sstep="-1"]').is_disabled(), '«следующий период» доступен на текущем')
-    label0 = pg.locator('.ip-repmonth').inner_text()
+    label0 = pg.locator('.ipc-sper .ip-repmonth').inner_text()
     pg.click('[data-ip-sunit="quarter"]')
-    t.ck(t.wait_until("() => document.querySelector('.ip-repmonth').textContent.includes('квартал')"), 'квартал не выбрался')
-    q_label = pg.locator('.ip-repmonth').inner_text()
+    t.ck(t.wait_until("() => document.querySelector('.ipc-sper .ip-repmonth').textContent.includes('квартал')"), 'квартал не выбрался')
+    q_label = pg.locator('.ipc-sper .ip-repmonth').inner_text()
     pg.click('[data-ip-sstep="1"]')
-    t.wait_until("(l) => document.querySelector('.ip-repmonth').textContent !== l", q_label)
-    label = pg.locator('.ip-repmonth').inner_text()
+    t.wait_until("(l) => document.querySelector('.ipc-sper .ip-repmonth').textContent !== l", q_label)
+    label = pg.locator('.ipc-sper .ip-repmonth').inner_text()
     t.ck(label != label0 and not pg.locator('[data-ip-sstep="-1"]').is_disabled(), 'шаг назад не сменил период: %s' % label)
 
     names = sheets_of(t, pg, '_tmp_check_stat_all.xlsx')
@@ -76,7 +76,7 @@ def run(t):
     pg.locator('.ipc-mtbl tbody tr').first.click()
     if not t.ck(t.wait_for('.ipc-ptbl tbody tr'), 'строка не открыла статистику осмотрщика'):
         return
-    t.ck(pg.locator('.ip-repmonth').inner_text() == label, 'у осмотрщика другой период')
+    t.ck(pg.locator('.ipc-sper .ip-repmonth').inner_text() == label, 'у осмотрщика другой период')
     med_cells = pg.locator('.ipc-ptbl tbody tr').first.locator('td').nth(2).inner_text()
     t.ck(num(med_cells) is not None, 'у осмотрщика нет медианы команды рядом со значением')
     t.ck(t.wait_for('.ipc-pgrid .ipc-plot .uplot'), 'графики осмотрщика не нарисованы')

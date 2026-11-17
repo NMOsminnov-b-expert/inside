@@ -313,7 +313,7 @@ def run(t):
     pg.locator('.ip-person-main[data-ip-person="%s"]' % who).click()
     pg.click('[data-ip-ptab="trips"]')
     t.ck(t.wait_for('.ipc-cal .ipc-chip'), 'у осмотрщика нет календаря выездов с выездами')
-    t.ck(pg.locator('.ip-card-body .uplot').count() == 0, 'в подразделе «Выезды» лишнее — графики (подразделы смешались)')
+    t.ck(pg.locator('[data-ip-block="trips"] .uplot').count() == 0, 'в блоке «Выезды» лишнее — графики (блоки карточки смешались)')
 
     # окно дня — при наведении, в пределах экрана
     pg.locator('[data-ipc-cal]').first.hover()
@@ -352,12 +352,12 @@ def run(t):
     pg.click('[data-ip-ptab="profile"]')
     t.wait_for('[data-ip-c="phone"]')
     t.ck(pg.locator('.modal-back').count() == 0, 'контакты правятся в модальном окне')
-    t.ck(not pg.locator('[data-ip-c-bar]').is_visible(), 'подвал сохранения виден без правок')
+    t.ck(not pg.locator('[data-ip-block="profile"] [data-ip-c-bar]').is_visible(), 'подвал сохранения виден без правок')
     # Полный профиль (решение пользователя 12.10.2026): связь, области, график,
     # отпуска; WhatsApp — ссылкой на чат.
     pg.fill('[data-ip-c="phone"]', '+996 555 000 111')
     pg.locator('.ip-reglist label:has([data-ip-c-region][value="Баткен"])').click()
-    t.ck(pg.locator('[data-ip-c-bar]').is_visible(), 'правка профиля не показала подвал сохранения')
+    t.ck(pg.locator('[data-ip-block="profile"] [data-ip-c-bar]').is_visible(), 'правка профиля не показала подвал сохранения')
     pg.click('[data-ip-c-save]')
     t.ck(t.wait_for('.ip-card-contacts a[href^="tel:"]'), 'сохранённый телефон не показан в шапке ссылкой для звонка')
     t.ck(pg.locator('.ip-card-contacts a[href^="https://wa.me/996555000111"]').count() == 1, 'нет ссылки на WhatsApp по номеру телефона')
@@ -389,7 +389,7 @@ def run(t):
     # доверенности не предупреждает в шапке, своё поле не появляется в профиле.
     pg.click('[data-ip-section="people"]')
     pg.locator('.ip-person-main[data-ip-person=""]').click()
-    pg.click('[data-ip-atab="fields"]')
+    pg.click('.ip-allview [data-ip-atab="norms"]'); pg.click('.ip-jumps [data-ip-atab="fields"]')
     pg.fill('[data-ip-cfn="label"]', 'Размер одежды')
     pg.select_option('[data-ip-cfn="kind"]', 'list')
     t.ck(pg.locator('[data-ip-cfn="options"]').is_visible(), 'у выбора из списка нет строки «Варианты»')

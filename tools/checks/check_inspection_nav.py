@@ -63,7 +63,7 @@ def run(t):
     t.ck(t.wait_for('.kg td[data-r="0"]'), '«Назад» не показал таблицу')
     pg.go_forward()
     t.ck(t.wait_until("() => location.hash.includes('t=route')"), '«Вперёд» не вернул к маршруту')
-    t.ck(t.wait_for('[data-ip-ptab="route"][aria-selected="true"]'), '«Вперёд» — адрес маршрута, а подраздел не тот')
+    t.ck(t.wait_for('[data-ip-ptab="route"][aria-current="true"]'), '«Вперёд» — адрес маршрута, а подраздел не тот')
 
     # Открытие по ссылке
     t.open('#/inspections?s=assign&t=assigned', wait='[data-ip-section]')

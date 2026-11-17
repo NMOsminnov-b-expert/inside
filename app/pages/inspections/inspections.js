@@ -16,6 +16,7 @@
 // таблицы — общие примитивы kernel/tokens.css.
 import { foldEniList } from '../../kernel/eniFold.js';
 import { esc } from '../../kernel/dom.js';
+import { leave, enter } from '../../kernel/motion.js';
 import { toast } from '../../kernel/toast.js';
 import { session } from '../../kernel/session.js';
 import { persistView } from '../../kernel/viewState.js';
@@ -117,8 +118,12 @@ const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') 
 // разделом «Назначения» и с меткой «назн. N» календаря (разбор UI/UX 12.10.2026).
 const PERSON_TABS = [['trips', 'Выезды'], ['plan', 'План месяца'], ['route', 'Маршрут'], ['reports', 'Отчёты'], ['stats', 'Статистика'],
   ['assigns', 'Объекты'], ['profile', 'Профиль'], ['car', 'Авто']];
-const ALL_TABS = [['summary', 'Сводка'], ['table', 'Таблица'], ['reports', 'Отчёты'], ['totals', 'Итоги'], ['norms', 'Нормы осмотра'],
-  ['stats', 'Статистика'], ['fields', 'Свои поля']];
+// «Люди» без вкладок второго уровня (ТЗ 17.11.2026, этап 4): у «Всех осмотрщиков» — четыре вида в шапке
+// карточки, внутри вида — блоки одной прокруткой; прежние ключи вкладок (адреса, «Перейти», проверки) ведут
+// к своему блоку. Карточка осмотрщика — блоки одной прокруткой с оглавлением; «Маршрут» — отдельный экран.
+const ALL_GROUPS = [['summary', 'Сводка', ['summary']], ['table', 'Таблица', ['table']], ['analytics', 'Аналитика', ['stats', 'totals', 'reports']],
+  ['settings', 'Настройки', ['norms', 'fields']]];
+const groupOf = (k) => ALL_GROUPS.find((g) => g[2].includes(k)) || ALL_GROUPS[0];
 // Значки кнопок массовых действий: на узкой панели кнопка — только значок,
 // подпись — в подсказке и aria-label («На узких режимах ломается. Лучше на
 // узких режимах заменить некоторые кнопки на иконки», 15.10.2026).
@@ -710,8 +715,9 @@ export function mountInspections(host) {
     </aside>`;
   }
 
-  const subTabs = (attr, cur, items) => `<div class="itabs ip-subtabs" role="tablist">${items.map(([k, label, n]) =>
-    `<button class="itab ${cur === k ? 'on' : ''}" role="tab" ${attr}="${k}" aria-selected="${cur === k}">${label}${n !== undefined ? ` <b>${n}</b>` : ''}</button>`).join('')}</div>`;
+  // Оглавление карточки — ссылки на блоки, а не вкладки: щелчок прокручивает к блоку.
+  const jumpsHTML = (attr, cur, items) => `<nav class="ip-jumps" aria-label="Разделы карточки">${items.map(([k, label]) =>
+    `<button type="button" class="ip-jump-b ${cur === k ? 'on' : ''}" ${attr}="${k}" aria-current="${cur === k}">${esc(label)}</button>`).join('')}</nav>`;
   const tile = (label, value, cls = '', hint = '') => `<div class="ip-tile ${cls}" ${hint ? `title="${esc(hint)}"` : ''}><span>${label}</span><b>${value}</b></div>`;
 
   // Сводная таблица всех — щелчок по строке открывает краткую карточку справа.
@@ -895,16 +901,16 @@ export function mountInspections(host) {
   function personCardHTML(me) {
     const prof = profileOf(me.name);
     const tel = (prof.phone || '').replace(/[^\d+]/g, '');
-    let body;
-    if (view.personTab === 'stats') {
-      body = statsHTML({ all, people: visiblePeople(), person: me.name, period: statPeriod() });
-    } else if (view.personTab === 'assigns') body = personAssignsHTML(me.name);
-    else if (view.personTab === 'profile') body = profileHTML(me);
-    else if (view.personTab === 'car') body = carHTML(me);
-    else if (view.personTab === 'reports') body = personReportsHTML(me.name);
-    else if (view.personTab === 'plan') body = monthPlanHTML(me.name);
-    else if (view.personTab === 'route') body = routeHTML(me);
-    else body = calendarHTML(all, me.name, ym);
+    const onRoute = view.personTab === 'route';
+    const blocks = [['trips', 'Выезды', () => calendarHTML(all, me.name, ym)], ['plan', 'План месяца', () => monthPlanHTML(me.name)],
+      ['assigns', `Объекты · ${me.live}`, () => personAssignsHTML(me.name)],
+      // Один выбор периода на «Отчёты» и «Статистику» (решение 05.11.2026 «Один общий») — над ними.
+      ['reports', 'Отчёты', () => `${periodBar(statPeriod(), `<button class="btn btn-ghost btn-sm" data-ip-rexp-person="${esc(me.name)}">Выгрузить для бухгалтерии</button>
+        <button class="btn btn-ghost btn-sm" data-ip-sxlsx>Статистика xlsx</button>`)}${personReportsHTML(me.name, false)}`],
+      ['stats', 'Статистика', () => statsHTML({ all, people: visiblePeople(), person: me.name, period: statPeriod(), bar: false })],
+      ['profile', 'Профиль', () => profileHTML(me)], ['car', 'Авто', () => carHTML(me)]];
+    const body = onRoute ? routeHTML(me) : blocks.map(([k, l, h]) => `<section class="ip-pblock" data-ip-block="${k}" aria-label="${esc(l)}">
+        <h2 class="ip-pblock-h">${esc(l)}</h2>${h()}</section>`).join('');
     return `<section class="ip-work ip-card" aria-label="${esc(me.name)}">
       <header class="ip-card-head">
         <div class="ip-card-title"><h1>${esc(me.name)}</h1>
@@ -923,7 +929,10 @@ export function mountInspections(host) {
           <button class="btn btn-primary btn-sm" data-ip-assign-to="${esc(me.name)}">Назначить объекты</button>
         </div>
       </header>
-      ${subTabs('data-ip-ptab', view.personTab, PERSON_TABS.map(([k, l]) => (k === 'assigns' ? [k, l, me.live] : [k, l])))}
+      ${onRoute ? `<nav class="ip-jumps" aria-label="Маршрут"><button type="button" class="btn btn-ghost btn-sm" data-ip-ptab="trips">‹ Карточка</button>
+          <button type="button" class="btn btn-ghost btn-sm" data-ip-section="assign">‹ Планирование</button>
+          <button type="button" class="ip-jump-b on" data-ip-ptab="route" aria-current="true">Маршрут</button></nav>`
+    : jumpsHTML('data-ip-ptab', view.personTab, blocks.map(([k, l]) => [k, l.split(' · ')[0]]).concat([['route', 'Маршрут →']]))}
       <div class="ip-card-body">${body}</div>
     </section>`;
   }
@@ -978,11 +987,11 @@ export function mountInspections(host) {
   const statPeriod = () => periodOf(statSel.unit, statSel.offset, statSel);
   // Итоги — по сегодня включительно: дни впереди не наступили.
   const sumPeriod = { get from() { return statPeriod().from; }, get to() { return statPeriod().upto; } };
-  function totalsHTML(list) {
+  function totalsHTML(list, bar = true) {
     const rows = employeeSummary(all, list.filter((p) => !p.fired).map((p) => p.name), sumPeriod.from, sumPeriod.to);
     const tot = (k) => rows.reduce((n, r) => n + (typeof k === 'function' ? k(r) : r[k]), 0);
     const cell = (v, warn) => `<td class="num ${warn && v ? 'ip-late' : ''}">${v ? numFmt(v, 1) : '—'}</td>`;
-    return `${periodBar(statPeriod(), '<button class="btn btn-ghost btn-sm" data-ip-sum-xlsx>Выгрузить xlsx</button>')}
+    return `${bar ? periodBar(statPeriod(), '<button class="btn btn-ghost btn-sm" data-ip-sum-xlsx>Выгрузить xlsx</button>') : ''}
       <div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-sumtbl">
         <colgroup><col class="c-name">${'<col class="c-k">'.repeat(10)}<col class="c-cad"></colgroup>
         <thead><tr><th rowspan="2">Осмотрщик</th><th colspan="4" class="grp">Выезды</th><th colspan="2" class="grp">Пробег</th><th colspan="2" class="grp">Отчёты</th><th colspan="2" class="grp">Пропущено</th><th rowspan="2" class="num" title="Строк запросов документов: получено / нет в кадастре / отказ">Кадастр</th></tr>
@@ -1652,7 +1661,7 @@ export function mountInspections(host) {
   }
 
   // Отчёты осмотрщика за месяц — по дням, итог в своих столбцах.
-  function personReportsHTML(name) {
+  function personReportsHTML(name, bar = true) {
     const per = statPeriod();
     const from = per.from;
     const to = per.upto;
@@ -1660,7 +1669,7 @@ export function mountInspections(host) {
     const t = reportTotals(rows);
     const n = t.due;
     const sel = repSel();
-    return `${periodBar(per, `<button class="btn btn-ghost btn-sm" data-ip-rexp-person="${esc(name)}">Выгрузить для бухгалтерии</button>`)}
+    return `${bar ? periodBar(per, `<button class="btn btn-ghost btn-sm" data-ip-rexp-person="${esc(name)}">Выгрузить для бухгалтерии</button>`) : ''}
       ${reportTiles(t, n)}
       ${rows.length ? `<div class="icols ip-cols"><div class="ip-scroll"><table class="itbl ip-tbl ip-reptbl">
         <colgroup><col class="c-date"><col class="c-rep"><col class="c-rep"><col class="c-k"><col class="c-k"><col class="c-k"><col class="c-k"></colgroup>
@@ -1757,14 +1766,28 @@ export function mountInspections(host) {
   function allCardHTML() {
     const list = visiblePeople();
     const sum = (k) => list.reduce((n, p) => n + p[k], 0);
+    const g = groupOf(view.allTab);
+    const BLOCK = {
+      summary: ['Сводка', () => `${byRegionHTML(list)}${peopleTableHTML(list)}`], table: ['Таблица', () => tableHTML()],
+      stats: ['Статистика', () => statsHTML({ all, people: list, person: '', period: statPeriod(), bar: false })], totals: ['Итоги', () => totalsHTML(list, false)],
+      reports: ['Отчёты за день', () => allReportsHTML(list)], norms: ['Нормы осмотра', () => normsHTML()],
+      fields: [`Свои поля · ${allCustomFields().length}`, () => fieldsHTML()],
+    };
+    const many = g[2].length > 1;
+    // Аналитика — один выбор периода над блоками (решение 05.11.2026 «Один общий»), выгрузки — рядом с ним.
+    const top = g[0] === 'analytics' ? periodBar(statPeriod(), `<button class="btn btn-ghost btn-sm" data-ip-sxlsx>Статистика xlsx</button>
+      <button class="btn btn-ghost btn-sm" data-ip-sum-xlsx>Итоги xlsx</button>`) : '';
+    const body = g[2].map((k) => (many ? `<section class="ip-pblock" data-ip-block="${k}" aria-label="${esc(BLOCK[k][0])}"><h2 class="ip-pblock-h">${esc(BLOCK[k][0])}</h2>${BLOCK[k][1]()}</section>`
+      : BLOCK[k][1]())).join('');
     return `<section class="ip-work ip-card" aria-label="Все осмотрщики">
       <header class="ip-card-head">
         <div class="ip-card-title"><h1>Все осмотрщики</h1><p class="ip-card-contacts">${list.length} · ${esc(view.region || 'все области')}</p></div>
         <div class="ip-tiles ip-tiles-head">${tile('В работе', sum('live'))}${tile('Просрочено', sum('late'), sum('late') ? 'warn' : '')}
           ${tile('Свободных дней', sum('free'), '', 'Сумма рабочих дней без плановых осмотров из ближайших 10')}${tile('За 30 дн.', sum('done'))}</div>
+        <div class="ip-seg ip-allview" role="group" aria-label="Вид">${ALL_GROUPS.map(([k, l, ks]) => `<button type="button" data-ip-atab="${ks[0]}" aria-pressed="${g[0] === k}">${l}</button>`).join('')}</div>
       </header>
-      ${subTabs('data-ip-atab', view.allTab, ALL_TABS.map(([k, l]) => (k === 'fields' ? [k, l, allCustomFields().length] : [k, l])))}
-      <div class="ip-card-body">${view.allTab === 'stats' ? statsHTML({ all, people: list, person: '', period: statPeriod() }) : view.allTab === 'fields' ? fieldsHTML() : view.allTab === 'reports' ? allReportsHTML(list) : view.allTab === 'table' ? tableHTML() : view.allTab === 'totals' ? totalsHTML(list) : view.allTab === 'norms' ? normsHTML() : `${byRegionHTML(list)}${peopleTableHTML(list)}`}</div>
+      ${many ? jumpsHTML('data-ip-atab', view.allTab, g[2].map((k) => [k, BLOCK[k][0].split(' · ')[0]])) : ''}
+      <div class="ip-card-body">${top}${body}</div>
     </section>`;
   }
 
@@ -2657,11 +2680,14 @@ export function mountInspections(host) {
   const DRAFT_SCOPE = '[data-ip-profile] input, [data-ip-profile] select, [data-ip-profile] textarea';
   const ctlKey = (el) => [...el.attributes].filter((a) => a.name.startsWith('data-ip')).map((a) => `${a.name}=${a.value}`).join(' ')
     + (el.type === 'radio' || el.type === 'checkbox' ? ` @${el.value}` : '');
+  // Профиль и «Авто» — блоки одной карточки: у каждой формы своя полоса «Несохранённые изменения» и свой черновик.
+  const wrapOf = (el) => el && el.closest('.ip-pwrap');
+  const barOf = (w) => (w ? w.querySelector('[data-ip-c-bar]') : null);
+  const ctlsOf = (w) => [...w.querySelectorAll(DRAFT_SCOPE)].filter((el) => !el.closest('[data-ip-ab-form]'));
   function draftOf() {
-    const bar = scope.$('[data-ip-c-bar]');
-    if (!bar || bar.hidden) return null;
-    return scope.$$(DRAFT_SCOPE).filter((el) => !el.closest('[data-ip-ab-form]'))
-      .map((el) => [ctlKey(el), el.type === 'radio' || el.type === 'checkbox' ? el.checked : el.value]);
+    const ws = scope.$$('.ip-pwrap').filter((w) => { const b = barOf(w); return b && !b.hidden; });
+    if (!ws.length) return null;
+    return ws.flatMap(ctlsOf).map((el) => [ctlKey(el), el.type === 'radio' || el.type === 'checkbox' ? el.checked : el.value]);
   }
   function applyDraft(d) {
     const was = new Map(d);
@@ -2669,22 +2695,27 @@ export function mountInspections(host) {
       const k = ctlKey(el);
       if (!was.has(k)) return;
       if (el.type === 'radio' || el.type === 'checkbox') el.checked = was.get(k); else el.value = was.get(k);
+      const bar = barOf(wrapOf(el));
+      if (bar) bar.hidden = false;
     });
-    const bar = scope.$('[data-ip-c-bar]');
-    if (bar) bar.hidden = false;
     const fired = scope.$('[data-ip-c-radio="fired"]:checked');
     const wrap = scope.$('[data-ip-cwrap="firedDate"]');
     if (fired && wrap) wrap.hidden = fired.value !== '1';
   }
   // Сохранили или отменили — черновик снят, строка спрятана.
-  const dropDraft = () => {
+  const dropDraft = (w) => {
     const m = memo.get(urlOf());
-    if (m) m.draft = null;
-    const bar = scope.$('[data-ip-c-bar]');
-    if (bar) bar.hidden = true;
+    if (m && m.draft) {
+      const own = w ? new Set(ctlsOf(w).map(ctlKey)) : null;
+      m.draft = own ? m.draft.filter(([k]) => !own.has(k)) : null;
+      if (m.draft && !m.draft.length) m.draft = null;
+    }
+    (w ? [w] : scope.$$('.ip-pwrap')).forEach((x) => { const b = barOf(x); if (b) b.hidden = true; });
   };
 
-  let lastAnim = { sec: '', det: '', cur: '' };
+  let lastAnim = { sec: '', det: '', cur: '', center: '' };
+  let jumpTo = '';   // блок карточки, к которому прокрутить после отрисовки (оглавление)
+  let swapAnim = false;   // сменился слой или число дней сетки — таблица появляется заново
   function render() {
     if (view.allTab === 'load') view.allTab = 'summary';
     const vkey = urlOf();
@@ -2740,8 +2771,8 @@ export function mountInspections(host) {
     </div>`);
     // Появление (правило движения 17.11.2026): анимируется только новое на экране — раздел или подраздел при
     // смене, панель подробностей и панель назначения при новом выборе; перерисовка того же не «вспыхивает».
-    const anim = { sec: [view.section, view.tab, view.person, view.personTab, view.allTab].join('|'),
-      det: detail.length ? JSON.stringify(detail[detail.length - 1]) : '', cur: current };
+    const anim = { sec: [view.section, view.tab, view.person, view.personTab === 'route', groupOf(view.allTab)[0]].join('|'),
+      det: detail.length ? JSON.stringify(detail[detail.length - 1]) : '', cur: current, center: view.center };
     if (anim.sec !== lastAnim.sec) {
       if (onScene) scope.$$('.ip > .ip-work, .ip > .ip-pane').forEach((el, i) => el.classList.add(i ? 'anim-in-r' : 'anim-in-l'));
       else if (scope.$('.ip')) scope.$('.ip').classList.add('anim-in');
@@ -2750,7 +2781,18 @@ export function mountInspections(host) {
       if (anim.det && anim.det !== lastAnim.det) scope.$$('.ip-detail-pane').forEach((el) => el.classList.add('anim-in-r'));
       if (onScene && anim.cur !== lastAnim.cur) scope.$$('.ip > .ip-pane').forEach((el) => el.classList.add('anim-in-r'));
     }
+    // Сетка появилась (переключили «Сетка · Карта») — пружиной; слой или дни сменились — таблица заново.
+    if (anim.sec === lastAnim.sec && anim.center !== lastAnim.center) enter(scope.$('.ip-board'));
+    if (swapAnim) { swapAnim = false; enter(scope.$('.ip-board .ip-load-wrap'), 'anim-in'); }
     lastAnim = anim;
+    if (jumpTo) {
+      const el = scope.$(`[data-ip-block="${jumpTo}"]`);
+      jumpTo = '';
+      // Прокрутка — только тела карточки: scrollIntoView двигал и внешние слои страницы, шапка уезжала.
+      const sc = el && el.closest('.ip-card-body');
+      if (sc) sc.scrollTo({ top: sc.scrollTop + el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 4,
+        behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    }
     placeJump();
     liftSubTabs();
     fillOsmKm();
@@ -3288,8 +3330,13 @@ export function mountInspections(host) {
     const [name, day] = b.dataset.ipLoad.split('|');
     if (view.tab === 'queue' && checked.size) assignTo(name, day); else openPday(name, day);
   });
-  scope.on('click', '[data-ip-center]', (e, b) => { view.center = b.dataset.ipCenter; render(); });
-  scope.on('click', '[data-ip-layer]', (e, b) => { view.layer = b.dataset.ipLayer; redraw(); });
+  scope.on('click', '[data-ip-center]', (e, b) => {
+    const to = b.dataset.ipCenter;
+    if (to === view.center) return;
+    const go = () => { view.center = to; render(); };
+    if (to === 'map') leave(scope.$('.ip-board'), go); else go();
+  });
+  scope.on('click', '[data-ip-layer]', (e, b) => { if (view.layer === b.dataset.ipLayer) return; view.layer = b.dataset.ipLayer; swapAnim = true; redraw(); });
   scope.on('change', '[data-ip-qgroup]', (e, el) => { view.qGroup = el.value; collapsed.clear(); resetList(); redraw(); });
   // Перетаскивание строки списка на клетку: из очереди — назначить (отмеченные целиком, если строка отмечена);
   // из «Назначено» — перенести на осмотрщика и день с отменой.
@@ -3316,7 +3363,7 @@ export function mountInspections(host) {
       assignTo(name, day);
     } else moveWithUndo(keys, name, day, `Перенесено на ${name}, ${fmtDate(day)}`);
   });
-  scope.on('click', '[data-ip-load-days]', (e, b) => { view.loadDays = Number(b.dataset.ipLoadDays) || 10; render(); });
+  scope.on('click', '[data-ip-load-days]', (e, b) => { view.loadDays = Number(b.dataset.ipLoadDays) || 10; swapAnim = true; render(); });
   scope.on('click', '[data-ip-load-route]', (e, b) => {
     const [name, day] = b.dataset.ipLoadRoute.split('|');
     view.section = 'people'; view.person = name; view.personTab = 'route';
@@ -3330,8 +3377,8 @@ export function mountInspections(host) {
   });
   scope.on('click', '[data-ip-assign-day-clear]', () => { view.assignDay = ''; view.assignAll = false; draft = { key: '' }; render(); });
   scope.on('click', '[data-ip-assign-fit]', () => { view.assignAll = !view.assignAll; resetList(); render(); });
-  scope.on('click', '[data-ip-ptab]', (e, b) => { view.personTab = b.dataset.ipPtab; detail = []; render(); });
-  scope.on('click', '[data-ip-atab]', (e, b) => { view.allTab = b.dataset.ipAtab; detail = []; render(); });
+  scope.on('click', '[data-ip-ptab]', (e, b) => { view.personTab = b.dataset.ipPtab; jumpTo = view.personTab; detail = []; render(); });
+  scope.on('click', '[data-ip-atab]', (e, b) => { view.allTab = b.dataset.ipAtab; jumpTo = view.allTab; detail = []; render(); });
   scope.on('click', '[data-ip-c-save]', () => {
     const patch = {};
     scope.$$('[data-ip-c]').forEach((el) => { patch[el.dataset.ipC] = el.value.trim(); });
@@ -3355,7 +3402,7 @@ export function mountInspections(host) {
       return;
     }
     saveProfile(view.person, patch);
-    dropDraft();
+    dropDraft(wrapOf(scope.$('[data-ip-c-save]')));
     redraw();
     host.toast('Профиль сохранён', 'ok');
   });
@@ -3364,7 +3411,7 @@ export function mountInspections(host) {
     scope.$$('[data-ip-car]').forEach((el) => { car[el.dataset.ipCar] = el.value.trim(); });
     scope.$$('[data-ip-car-radio]:checked').forEach((el) => { car[el.dataset.ipCarRadio] = el.value; });
     saveProfile(view.person, { car });
-    dropDraft();
+    dropDraft(wrapOf(scope.$('[data-ip-car-save]')));
     redraw();
     host.toast('Авто сохранено', 'ok');
   });
@@ -3391,13 +3438,13 @@ export function mountInspections(host) {
   // своей кнопкой.
   const profileDirty = (e, el) => {
     if (el.closest('[data-ip-ab-form]')) return;
-    const bar = scope.$('[data-ip-c-bar]');
+    const bar = barOf(wrapOf(el));
     if (bar) bar.hidden = false;
     if (el.dataset.ipCRadio === 'fired') scope.$('[data-ip-cwrap="firedDate"]').hidden = el.value !== '1';
   };
   scope.on('input', '[data-ip-profile] input, [data-ip-profile] select', profileDirty);
   scope.on('change', '[data-ip-profile] input, [data-ip-profile] select', profileDirty);
-  scope.on('click', '[data-ip-c-cancel]', () => { dropDraft(); redraw(); });
+  scope.on('click', '[data-ip-c-cancel]', (e, b) => { dropDraft(wrapOf(b)); redraw(); });
   // «Чат» без номера не молчит: говорит, чего не хватает, и ставит курсор.
   scope.on('click', '[data-ip-wa-none]', () => {
     host.toast('Укажите телефон или номер WhatsApp и сохраните профиль', 'warn');
@@ -3430,7 +3477,7 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-dp-open]', (e, el) => openDetail(el.dataset.ipDpOpen, !!el.closest('.ip-detail-pane')));
   scope.on('keydown', '[data-ip-dp-open]', (e, el) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openDetail(el.dataset.ipDpOpen, !!el.closest('.ip-detail-pane')); } });
   scope.on('click', '[data-ip-dp-back]', () => { detail = detail.slice(0, -1); redraw(); });
-  scope.on('click', '[data-ip-dp-close]', () => { detail = []; redraw(); });
+  scope.on('click', '[data-ip-dp-close]', (e, b) => leave(b.closest('.ip-detail-pane'), () => { detail = []; redraw(); }, 'anim-out-r'));
   scope.onDocument('keydown', (e) => { if (e.key === 'Escape' && detail.length && view.section === 'people') { detail = []; redraw(); } });
   scope.on('click', '[data-ip-dp-history]', (e, b) => {
     const [x, y] = b.dataset.ipDpHistory.split('|');

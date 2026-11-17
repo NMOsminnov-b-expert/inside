@@ -30,7 +30,7 @@ def run(t):
     t.open('#/inspections', wait='[data-ip-section]')
     pg.click('[data-ip-section="people"]')
     pg.locator('.ip-person-main[data-ip-person=""]').click()
-    pg.click('[data-ip-atab="totals"]')
+    pg.click('.ip-allview [data-ip-atab="stats"]'); pg.click('.ip-jumps [data-ip-atab="totals"]')
     if not t.ck(t.wait_for('.ip-sumtbl tbody tr'), 'нет таблицы итогов'):
         return
     km_col = 6   # Осмотрщик, Дней, Объектов, ОИ, Снимков, Км

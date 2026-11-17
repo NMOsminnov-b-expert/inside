@@ -1726,3 +1726,16 @@ body[data-page="inspections"] .ip-board .ip-load-bar-top{flex-wrap:nowrap;gap:10
 body[data-page="inspections"] .ip-board .ip-load-bar-top .ip-hint{flex:1 1 0;min-width:0;font-size:12px;line-height:1.35;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 body[data-page="inspections"] .ip-board .ip-load-span button{padding:0 10px}
 body[data-page="inspections"] .ip-board .ip-ld{min-width:58px}
+
+/* --- «Люди» без вкладок второго уровня (ТЗ 17.11.2026, этап 4) ------------
+   Вид «Всех осмотрщиков» — сегменты в шапке карточки; карточка осмотрщика —
+   блоки одной прокруткой, оглавление — ссылками-пилюлями. */
+body[data-page="inspections"] .ip-allview{display:flex;height:34px;border-radius:var(--radius-md);overflow:hidden;flex:none}
+body[data-page="inspections"] .ip-allview button{padding:0 14px;font-size:12.5px}
+body[data-page="inspections"] .ip-jumps{display:flex;flex-wrap:wrap;gap:6px;padding:8px 16px;border-bottom:1px solid var(--line-soft);flex:none}
+body[data-page="inspections"] .ip-jump-b{height:30px;padding:0 12px;border-radius:999px;background:var(--slate-50);color:var(--ink-ctl);font-size:12.5px;font-weight:500}
+body[data-page="inspections"] .ip-jump-b:hover{background:var(--blue-50);color:var(--blue-700)}
+body[data-page="inspections"] .ip-jump-b.on{background:var(--blue-600);color:#fff}
+body[data-page="inspections"] .ip-pblock{padding:6px 0 18px;scroll-margin-top:8px}
+body[data-page="inspections"] .ip-pblock + .ip-pblock{border-top:1px solid var(--line-soft);padding-top:16px}
+body[data-page="inspections"] .ip-pblock-h{margin:0 0 10px;font-size:15px;font-weight:650;color:var(--ink)}

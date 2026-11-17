@@ -213,14 +213,15 @@ function plotsHTML(person, period) {
 }
 
 // Экран статистики: person пуст — все осмотрщики (people — список экрана).
-export function statsHTML({ all, people, person, period }) {
+export function statsHTML({ all, people, person, period, bar = true }) {
   const names = people.filter((p) => !p.fired).map((p) => p.name);
   if (person && !names.includes(person)) names.push(person);
   const st = statsFor(all, names, period);
   const t = person ? st.rows.find((r) => r.name === person) : st.total;
   // У осмотрщика таблица короткая — графики рядом с ней, а не под пустой
   // полосой справа; на узком окне — друг под другом.
-  return `${periodBar(period)}${tilesHTML(t)}
+  // bar: false — выбор периода общий на страницу и стоит над блоками (экран регионалов, 17.11.2026).
+  return `${bar ? periodBar(period) : ''}${tilesHTML(t)}
     ${person ? `<div class="ipc-pgrid">${personTableHTML(st, person)}${plotsHTML(person, period)}</div>` : `${allTableHTML(st)}${plotsHTML(person, period)}`}
     ${person ? '' : regionsHTML(regionRows(all, people, period))}`;
 }

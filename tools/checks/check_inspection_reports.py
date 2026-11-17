@@ -52,7 +52,7 @@ def run(t):
     t.open('#/inspections', wait='[data-ip-section]')
     pg.click('[data-ip-section="people"]')
     pg.locator('.ip-person-main[data-ip-person=""]').click()
-    pg.click('[data-ip-atab="reports"]')
+    pg.click('.ip-allview [data-ip-atab="stats"]'); pg.click('.ip-jumps [data-ip-atab="reports"]')
     t.wait_for('[data-ip-rday-set]')
     pg.fill('[data-ip-rday-set]', today)
     pg.dispatch_event('[data-ip-rday-set]', 'change')

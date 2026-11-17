@@ -18,8 +18,10 @@ PERSON = 'Абдылдаев Айсултан Марсович'
 
 _INSP_TOUCH = ('app/pages/inspections/', 'app/kernel/inspections', 'app/kernel/grid.js', 'app/kernel/xlsx.js',
                'app/kernel/mapgl.js', 'app/kernel/cadastreLayersGL.js', 'app/vendor/maplibre/')
-_ALL = ['summary', 'table', 'reports', 'totals', 'norms', 'stats', 'fields']
-_PERSON = ['trips', 'plan', 'route', 'reports', 'stats', 'assigns', 'profile', 'car']
+# «Люди» без вкладок второго уровня (17.11.2026): у «Всех» — четыре вида (Сводка, Таблица, Аналитика —
+# ключ stats, Настройки — ключ norms); карточка осмотрщика — блоки одной страницей и отдельный экран маршрута.
+_ALL = ['summary', 'table', 'stats', 'norms']
+_PERSON = ['trips', 'route']
 
 SCREENS = []
 

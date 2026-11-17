@@ -25,7 +25,9 @@ export async function xlsxBytes(sheets) {
     ws['!cols'] = head.map((h, i) => ({
       wch: widths[i] || Math.min(60, Math.max(8, String(h).length, ...rows.map((r) => String(r[i] ?? '').length)) + 2),
     }));
-    if (rows.length) {
+    // Автофильтр — и на пустом листе (одна шапка): лист той же формы, фильтр готов, когда строки появятся
+    // (проверка «статистика осмотров»: пустые листы периода выходили без автофильтра).
+    if (head.length) {
       ws['!autofilter'] = { ref: X.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: rows.length, c: head.length - 1 } }) };
     }
     X.utils.book_append_sheet(wb, ws, String(name).slice(0, 31));
