@@ -392,7 +392,7 @@ def reindex_in_background():
     try:
         subprocess.Popen([sys.executable, script, '--code'], cwd=ROOT, creationflags=flags,
                          stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        print('индекс CodeGraph обновляется в фоне')
+        print('граф кода (codebase-memory-mcp, CodeGraph) обновляется в фоне')
     except OSError as e:
         print('индексы не запущены: %s' % e)
 

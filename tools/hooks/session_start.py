@@ -48,7 +48,8 @@ def tools_state():
     import store
     # Поиск по смыслу (Ollama, реранкер) не проверяется с 17.11.2026 (пользователь 17.11.2026: «от semsearch отказываемся в пользу другого сервиса»).
     state = [('PostgreSQL', store.pg_up()),
-             ('индекс CodeGraph', os.path.exists(os.path.join(ROOT, '.codegraph')))]
+             ('граф кода codebase-memory-mcp', os.path.exists(os.path.join(os.environ.get('LOCALAPPDATA', ''),
+                                                                           'codebase-memory-mcp', 'bin', 'codebase-memory-mcp.exe')))]
     down = [n for n, ok in state if not ok]
     line = 'Инструменты: ' + ', '.join('%s — %s' % (n, 'да' if ok else 'НЕТ') for n, ok in state)
     if down:

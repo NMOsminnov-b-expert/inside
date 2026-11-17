@@ -1,3 +1,8 @@
 {
-  "mcpServers": {}
+  "mcpServers": {
+    "codebase-memory-mcp": {
+      "command": "${LOCALAPPDATA}/codebase-memory-mcp/bin/codebase-memory-mcp.exe",
+      "args": []
+    }
+  }
 }

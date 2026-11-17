@@ -101,6 +101,9 @@ STATUS = G / 'index-status.json'
 
 LOCAL = pathlib.Path(os.environ.get('LOCALAPPDATA', ''))
 CG = LOCAL / 'codegraph' / 'current' / 'bin' / 'codegraph.cmd'
+# Граф кода — codebase-memory-mcp (пользователь 17.11.2026: «codebase лучше чем codegraph. Ставим ее»);
+# CodeGraph остаётся только источником выгрузки для программы «Граф проекта» (code_export.py).
+CBM = LOCAL / 'codebase-memory-mcp' / 'bin' / 'codebase-memory-mcp.exe'
 SPY = LOCAL / 'semsearch' / 'src' / 'codebase-mcp' / '.venv' / 'Scripts' / 'python.exe'
 SCLIENT = LOCAL / 'semsearch' / 'client.py'
 # PostgreSQL и Ollama живут, только пока нужны: svc.py поднимает их перед
@@ -199,6 +202,16 @@ def run(cmd, on_line=None, env=None):
         if on_line:
             on_line(line)
     return p.wait(), last
+
+
+def code_index(commit):
+    """Граф кода: codebase-memory-mcp (поиск для Claude Code), затем CodeGraph (выгрузка для программы)."""
+    if CBM.exists() and not FOREIGN:
+        put('cbm', state='running', stage='обновление индекса', commit=commit, started=now(), finished=None, pid=os.getpid(), note='')
+        args = json.dumps({'repo_path': str(ROOT).replace('\\', '/')})
+        code, last = run([str(CBM), 'cli', '--quiet', 'index_repository', args])
+        put('cbm', state='done' if code == 0 else 'failed', stage='', finished=now(), note='' if code == 0 else last)
+    codegraph(commit)
 
 
 def codegraph(commit):
@@ -423,7 +436,7 @@ def main():
         return 0
     if '--code' not in sys.argv:
         spawn('--sem')
-    loop('reindex-code', codegraph)
+    loop('reindex-code', code_index)
     return 0
 
 
