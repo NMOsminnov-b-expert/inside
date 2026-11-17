@@ -30,6 +30,15 @@ CodeGraph, поиска по смыслу и сборщиков; файл, из�
     python tools/knowledge/graph.py stats          сколько чего и числа качества (связность, одиночки, центры)
     python tools/knowledge/graph.py open [--all] [--tag м]  открытые задачи и вопросы, старые сверху (--all — и отложенные; --tag — с меткой)
 
+  Связь с кодом (по образцу UnDiscord, пользователь 17.11.2026: «Возьми идею графа оттуда… начинай
+  миграцию. Полноценную»). Поле CODE — пути к файлам и папкам, которых касается запись, при
+  необходимости с символом: 'app/kernel/inspections.js:carryOver'. Мост между графом знаний и
+  графом кода; check сверяет пути и символы с рабочей копией.
+    python tools/knowledge/graph.py code <путь>    всё знание о файле или папке: по полю CODE и по упоминанию в тексте
+    python tools/knowledge/graph.py stale [дней]   записи, чей код менялся (коммитом) позже записи больше чем на N дней (2)
+    python tools/knowledge/graph.py debt [--all]   открытый техдолг (метка «техдолг» или поле важность) — по важности
+    python tools/knowledge/graph.py code-fill [--apply]  заполнить CODE по путям, упомянутым в тексте записей
+
   Правка (только граф макета, в базе; история — history):
     graph.py show <id>                         запись целиком
     graph.py new <папка> <заголовок> [--tag м]… [--source …] [--point …]… [--link тип=куда]… [--status …]
@@ -120,12 +129,73 @@ def use_root(root):
 # Поле записи → имя константы в файле.
 KEYS = [
     ('id', 'ID'), ('вид', 'KIND'), ('заголовок', 'TITLE'), ('термин', 'TERM'), ('синонимы', 'SYNONYMS'),
+    ('кратко', 'SUMMARY'),
     ('вид_понятия', 'CONCEPT_KIND'), ('определение', 'DEFINITION'), ('метки', 'TAGS'), ('статус', 'STATUS'),
-    ('дата', 'DATE'), ('источник', 'SOURCE'), ('снято', 'TAKEN'), ('прежнее_имя', 'OLD_NAME'),
+    ('важность', 'SEVERITY'),
+    ('дата', 'DATE'), ('закрыто', 'CLOSED'), ('источник', 'SOURCE'), ('снято', 'TAKEN'), ('прежнее_имя', 'OLD_NAME'),
     ('понятие_реестра', 'REGISTRY_CONCEPT'), ('тип_значения', 'VALUE_TYPE'), ('единица', 'UNIT'),
     ('значений_в_списке', 'LIST_SIZE'), ('строка_таблицы', 'TABLE_ROW'), ('обязательное_в', 'REQUIRED_IN'),
-    ('этап_заполнения', 'STAGE'), ('встречается', 'OCCURS'), ('пункты', 'POINTS'), ('связи', 'LINKS'),
+    ('этап_заполнения', 'STAGE'), ('встречается', 'OCCURS'), ('код', 'CODE'), ('пункты', 'POINTS'), ('связи', 'LINKS'),
 ]
+# Поля по образцу UnDiscord (17.11.2026): кратко — суть одной строкой; важность — техдолга;
+# закрыто — дата закрытия задачи или вопроса; код — пути к коду (см. code_refs).
+SEVERITY = ['критично', 'высоко', 'средне', 'низко']
+LIVE = {'действует', 'открыт', 'актуально', 'черновик', 'подтверждён'}
+
+
+def place(rec, key, value):
+    """Новое поле — на своё место по KEYS, не трогая порядок остальных: выгруженный файл
+    меняется только этим полем."""
+    if key in rec:
+        rec[key] = value
+        return rec
+    order = [k for k, _ in KEYS]
+    after = set(order[order.index(key) + 1:]) if key in order else set()
+    out, done = {}, False
+    for k, v in rec.items():
+        if not done and k in after:
+            out[key], done = value, True
+        out[k] = v
+    if not done:
+        out[key] = value
+    rec.clear()
+    rec.update(out)
+    return rec
+
+
+# --- связь с кодом ------------------------------------------------------------
+
+def code_refs(rec):
+    """[(путь, символ)] из поля CODE: 'путь' или 'путь:символ'."""
+    out = []
+    for ref in rec.get('код') or []:
+        path, _, sym = str(ref).partition(':')
+        out.append((path.strip().strip('/'), sym.strip()))
+    return out
+
+
+def code_problem(path, sym):
+    """Текст замечания к ссылке на код или ''. Путь — файл, папка или маска (*)."""
+    full = os.path.join(ROOT, path)
+    if '*' in path:
+        return '' if glob.glob(full) else 'по маске %s нет файлов' % path
+    if not os.path.exists(full):
+        return 'нет файла %s' % path
+    if sym and os.path.isfile(full):
+        try:
+            text = io.open(full, encoding='utf-8', errors='replace').read()
+        except OSError:
+            return ''
+        if not re.search(r'(?<![\w$])%s(?![\w$])' % re.escape(sym), text):
+            return 'в %s нет символа %s' % (path, sym)
+    return ''
+
+
+def _under(a, b):
+    """a совпадает с b или лежит в папке b."""
+    a, b = a.strip('/'), b.strip('/')
+    return a == b or a.startswith(b + '/')
+
 TO_CONST = dict(KEYS)
 TO_KEY = {c: k for k, c in KEYS}
 
@@ -288,6 +358,17 @@ def check():
             problems.append('%s: нет меток (TAGS)' % rel)
         # Пункт в одну-две буквы — строка, разобранная по символам (так при
         # переносе из прежнего графа рассыпалась запись main-aktualizirovan).
+        if r.get('важность') and r['важность'] not in SEVERITY:
+            problems.append('%s: неизвестная важность «%s» (%s)' % (rel, r['важность'], ', '.join(SEVERITY)))
+        if 'код' in r and not isinstance(r['код'], list):
+            problems.append('%s: CODE — не список путей' % rel)
+        # Ссылки на код: у действующей записи — ошибка (знание отстало от кода), у закрытой
+        # и отменённой — нет: она описывает прошлое.
+        if isinstance(r.get('код'), list) and (r.get('статус') or 'действует') in LIVE:
+            for path, sym in code_refs(r):
+                bad = code_problem(path, sym)
+                if bad:
+                    problems.append('%s: CODE — %s' % (rel, bad))
         crumbs = [x for x in r.get('пункты') or [] if len(re.sub(r'^\[восстановлено\]\s*', '', str(x)).strip()) <= 2]
         if crumbs:
             problems.append('%s: пунктов из одной-двух букв: %d — текст рассыпан по символам' % (rel, len(crumbs)))
@@ -485,6 +566,13 @@ def cmd_new(folder, args):
         sys.exit('нет папки «%s»; папки: %s' % (folder, ', '.join(FOLDERS)))
     tags, sources = _opts(args, '--tag'), _opts(args, '--source')
     points, links, status = _opts(args, '--point'), _opts(args, '--link'), _opts(args, '--status')
+    code, summary, severity = _opts(args, '--code'), _opts(args, '--summary'), _opts(args, '--severity')
+    if severity and severity[0] not in SEVERITY:
+        sys.exit('важность: ' + ', '.join(SEVERITY))
+    for ref in code:
+        bad = code_problem(*(lambda p, _, s: (p.strip('/'), s))(*ref.partition(':')))
+        if bad:
+            sys.exit('--code: ' + bad)
     title = ' '.join(args)
     rid = slug(title)
     rec = {
@@ -495,6 +583,12 @@ def cmd_new(folder, args):
         'источник': sources[0] if sources else 'кто решил, где: сообщение, документ, совещание',
         'пункты': points, 'связи': [],
     }
+    if summary:
+        place(rec, 'кратко', summary[0])
+    if severity:
+        place(rec, 'важность', severity[0])
+    if code:
+        place(rec, 'код', code)
     if DB_MODE:
         load_all()  # сверка файлов с базой до правки
         if _store().get(rid)[1]:
@@ -513,7 +607,9 @@ def cmd_new(folder, args):
 FIELDS = {'статус': 'статус', 'status': 'статус', 'заголовок': 'заголовок', 'title': 'заголовок',
           'источник': 'источник', 'source': 'источник', 'дата': 'дата', 'date': 'дата',
           'метки': 'метки', 'tags': 'метки', 'вид': 'вид', 'папка': 'папка', 'folder': 'папка',
-          'термин': 'термин', 'определение': 'определение'}
+          'термин': 'термин', 'определение': 'определение', 'кратко': 'кратко', 'summary': 'кратко',
+          'важность': 'важность', 'severity': 'важность', 'закрыто': 'закрыто', 'closed': 'закрыто',
+          'код': 'код', 'code': 'код'}
 
 
 def _need(rid):
@@ -536,6 +632,15 @@ def _link(typ, dst):
 def cmd_show(rid):
     folder, rec = _need(rid)
     print(render(folder, rec), end='')
+    back = [(f, r, l.get('тип')) for f, _, r in load_all() for l in r.get('связи') or [] if l.get('куда') == rid]
+    if back:
+        print('# Ссылаются на запись:')
+        for f, r, typ in back:
+            print('#   %-10s %s —%s→  %s' % (f, r['id'], typ, ' '.join(str(title_of(r)).split())[:80]))
+
+
+def title_of(r):
+    return r.get('заголовок') or r.get('термин') or r.get('id')
 
 
 def cmd_add(rid, text):
@@ -556,10 +661,23 @@ def cmd_set(rid, field, value):
         folder, rec['вид'] = value, FOLDERS[value]
     elif key == 'метки':
         rec['метки'] = [t.strip() for t in value.split(',') if t.strip()]
+    elif key == 'код':
+        refs = [t.strip() for t in value.split(',') if t.strip()]
+        for ref in refs:
+            p, _, s = ref.partition(':')
+            bad = code_problem(p.strip('/'), s)
+            if bad:
+                sys.exit('код: ' + bad)
+        place(rec, 'код', refs)
     else:
         if key == 'статус' and value not in STATUSES:
             sys.exit('статус: ' + ', '.join(sorted(STATUSES)))
-        rec[key] = value
+        if key == 'важность' and value not in SEVERITY:
+            sys.exit('важность: ' + ', '.join(SEVERITY))
+        place(rec, key, value)
+        # Закрыли задачу или вопрос — дата закрытия сама.
+        if key == 'статус' and value in ('закрыт', 'отменено') and folder in ('tasks', 'questions') and not rec.get('закрыто'):
+            place(rec, 'закрыто', datetime.date.today().isoformat())
     save(folder, rec)
     print('%s: %s = %s' % (rid, key, value))
 
@@ -649,6 +767,164 @@ def cmd_open(args):
         mark = ' (отложено)' if status == 'отложено' else ''
         print('%-10s %s %s  %-50s %s%s' % (date or '—', age, folder[:4], rid[:50], ' '.join(str(title).split())[:90], mark))
     print('всего: %d' % len(data))
+
+
+def cmd_code(path):
+    """Всё знание о файле или папке: записи, у которых путь в CODE (сам файл, папка над ним
+    или файл в папке), затем — записи, где путь только упомянут в тексте."""
+    path = path.replace('\\', '/').strip('/')
+    recs = load_all()
+    by_code, by_text = [], []
+    for folder, _, r in recs:
+        refs = code_refs(r)
+        hit = [p + (':' + s if s else '') for p, s in refs if _under(path, p) or _under(p, path)]
+        if hit:
+            by_code.append((folder, r, hit))
+        elif path in ' '.join(str(x) for x in [r.get('заголовок'), r.get('источник')] + list(r.get('пункты') or [])):
+            by_text.append((folder, r))
+    for folder, r, hit in by_code:
+        print('%-10s %-10s %-50s %s' % (folder, r.get('статус') or '', r['id'][:50], ' '.join(str(title_of(r)).split())[:90]))
+        print('%22s код: %s' % ('', ', '.join(hit)))
+    if by_text:
+        print('— упоминают в тексте, без CODE:')
+        for folder, r in by_text:
+            print('%-10s %-10s %-50s %s' % (folder, r.get('статус') or '', r['id'][:50], ' '.join(str(title_of(r)).split())[:90]))
+    print('по CODE: %d, по тексту: %d' % (len(by_code), len(by_text)))
+
+
+def cmd_code_commit(rev='HEAD'):
+    """Действующие записи, у которых в CODE — файл коммита rev (хук post-commit): знание о
+    задетом коде — сверить. Молчит, если таких нет."""
+    out = subprocess.run(['git', 'diff-tree', '--no-commit-id', '--name-only', '-r', rev], cwd=ROOT,
+                         stdout=subprocess.PIPE).stdout.decode('utf-8', 'replace')
+    files = [f for f in out.split('\n') if f]
+    rows = []
+    for folder, _, r in load_all():
+        if (r.get('статус') or 'действует') not in LIVE:
+            continue
+        hit = sorted({f for f in files for p, _ in code_refs(r) if _under(f, p)})
+        if hit:
+            rows.append((folder, r, hit))
+    if not rows:
+        return
+    print('Граф: записи о файлах коммита — сверить (graph.py show <id>):')
+    for folder, r, hit in rows[:15]:
+        print('  %-10s %-50s %s' % (folder, r['id'][:50], ', '.join(hit)[:80]))
+    if len(rows) > 15:
+        print('  … ещё %d' % (len(rows) - 15))
+
+
+def _commit_times():
+    """Путь → время последнего коммита (unix), одним проходом git log."""
+    out = subprocess.run(['git', 'log', '--format=@%ct', '--name-only', '--no-renames'], cwd=ROOT,
+                         stdout=subprocess.PIPE, stderr=subprocess.DEVNULL).stdout.decode('utf-8', 'replace')
+    times, t = {}, 0
+    for line in out.splitlines():
+        if line.startswith('@'):
+            t = int(line[1:])
+        elif line and line not in times:
+            times[line] = t
+    return times
+
+
+def _record_times():
+    """id → время последней правки записи (база) или её дата."""
+    out = {}
+    if DB_MODE:
+        _, data, _ = _store().sql('select id, extract(epoch from updated_at)::bigint from record')
+        out = {rid: int(t) for rid, t in data}
+    return out
+
+
+def cmd_stale(days=2):
+    """Записи с CODE, чей код менялся коммитом позже записи больше чем на days дней:
+    знание могло отстать от кода — сверить и обновить (или поставить новую дату)."""
+    recs = load_all()
+    commits, edited = _commit_times(), _record_times()
+    rows = []
+    for folder, _, r in recs:
+        refs = code_refs(r)
+        if not refs or (r.get('статус') or 'действует') not in LIVE:
+            continue
+        mine = edited.get(r['id'])
+        try:
+            dated = int(datetime.datetime.fromisoformat(str(r.get('дата'))).timestamp())
+        except ValueError:
+            dated = 0
+        mine = max(mine or 0, dated)
+        last, which = 0, ''
+        for path, _ in refs:
+            for p, t in commits.items():
+                if _under(p, path) and t > last:
+                    last, which = t, p
+        if last - mine > days * 86400:
+            rows.append((last, folder, r, which, (last - mine) // 86400))
+    for last, folder, r, which, lag in sorted(rows, key=lambda x: -x[0]):
+        print('%-10s +%3d дн.  %-50s %s' % (folder, lag, r['id'][:50], which))
+    print('отстали от кода: %d' % len(rows))
+
+
+def cmd_debt(show_all=False):
+    """Открытый техдолг: задачи с меткой «техдолг» или с полем важность — по важности, затем по дате."""
+    st = {'открыт', 'отложено'} if show_all else {'открыт'}
+    rows = [(f, r) for f, _, r in load_all(['tasks'])
+            if (r.get('статус') in st) and ('техдолг' in (r.get('метки') or []) or r.get('важность'))]
+    rank = {s: i for i, s in enumerate(SEVERITY)}
+    rows.sort(key=lambda x: (rank.get(x[1].get('важность'), len(SEVERITY)), str(x[1].get('дата') or '')))
+    for f, r in rows:
+        print('%-9s %-10s %-50s %s%s' % (r.get('важность') or '—', r.get('дата') or '—', r['id'][:50],
+                                         ' '.join(str(title_of(r)).split())[:90], ' (отложено)' if r.get('статус') == 'отложено' else ''))
+    print('техдолга: %d' % len(rows))
+
+
+# Пути в тексте записи: от корня рабочей копии (app/…, tools/…) или имя файла, единственное
+# в рабочей копии. Только файлы и папки под git: docs/ и data/local/ — не код.
+_PATH = re.compile(r'(?<![\w/.\-])((?:[\w\-]+/)+[\w\-*]+(?:\.[a-z0-9]{1,5})?|[\w\-]+\.(?:js|mjs|py|css|cs|xaml|html|ps1))(?![\w/\-])')
+
+
+def _tracked():
+    out = subprocess.run(['git', 'ls-files'], cwd=ROOT, stdout=subprocess.PIPE).stdout.decode('utf-8', 'replace')
+    files = set(out.split('\n')) - {''}
+    dirs = {'/'.join(f.split('/')[:i]) for f in files for i in range(1, f.count('/') + 1)}
+    base = {}
+    for f in files:
+        base.setdefault(f.rsplit('/', 1)[-1], []).append(f)
+    return files, dirs, base
+
+
+def paths_in(rec, tracked):
+    files, dirs, base = tracked
+    text = ' '.join(str(x) for x in [rec.get('заголовок'), rec.get('прежнее_имя'), rec.get('источник')] + list(rec.get('пункты') or []))
+    found = []
+    for m in _PATH.finditer(text):
+        p = m.group(1).rstrip('.').strip('/')
+        cand = None
+        if p in files or p in dirs:
+            cand = p
+        elif 'app/' + p in files or 'app/' + p in dirs:
+            cand = 'app/' + p
+        elif '/' not in p and len(base.get(p, [])) == 1:
+            cand = base[p][0]
+        if cand and cand not in found and cand not in ('app', 'tools'):
+            found.append(cand)
+    return found
+
+
+def cmd_code_fill(apply=False):
+    """CODE по путям из текста записей. Без --apply — только показать."""
+    tracked = _tracked()
+    n = 0
+    for folder, _, r in load_all():
+        if r.get('код'):
+            continue
+        found = paths_in(r, tracked)
+        if not found:
+            continue
+        n += 1
+        print('%-10s %-50s %s' % (folder, r['id'][:50], ', '.join(found)))
+        if apply:
+            save(folder, place(r, 'код', found))
+    print('%s записей: %d' % ('заполнено' if apply else 'можно заполнить (--apply)', n))
 
 
 def cmd_stats():
@@ -781,6 +1057,16 @@ def main():
         cmd_open(args[1:])
     elif cmd == 'graphs':
         cmd_graphs(args[1:])
+    elif cmd == 'code' and args[1:2] == ['--commit']:
+        cmd_code_commit(args[2] if len(args) > 2 else 'HEAD')
+    elif cmd == 'code':
+        cmd_code(args[1])
+    elif cmd == 'stale':
+        cmd_stale(int(args[1]) if len(args) > 1 else 2)
+    elif cmd == 'debt':
+        cmd_debt('--all' in args)
+    elif cmd == 'code-fill':
+        cmd_code_fill('--apply' in args)
     elif cmd == 'suggest':
         cmd_suggest(args[1] if len(args) > 1 else None)
     else:

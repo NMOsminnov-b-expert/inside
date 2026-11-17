@@ -11,8 +11,10 @@
 #
 # Подключение (один раз на машине): git config core.hooksPath tools/hooks
 # Пропустить разово: INSIDE_NO_REINDEX=1 git commit ...
-[ -n "$INSIDE_NO_REINDEX" ] && exit 0
 root=$(git rev-parse --show-toplevel)
+# Записи графа о файлах коммита (поле CODE, 17.11.2026): сверить, не отстало ли знание.
+python "$root/tools/knowledge/graph.py" code --commit HEAD 2>/dev/null
+[ -n "$INSIDE_NO_REINDEX" ] && exit 0
 powershell.exe -NoProfile -NonInteractive -Command \
   "Start-Process -WindowStyle Hidden -FilePath python -ArgumentList 'tools/hooks/reindex.py','--code' -WorkingDirectory '$root'" \
   >/dev/null 2>&1 &

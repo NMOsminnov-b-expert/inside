@@ -112,11 +112,13 @@ public static class Schema
     public static readonly (string Key, string Const)[] Keys =
     {
         ("id", "ID"), ("вид", "KIND"), ("заголовок", "TITLE"), ("термин", "TERM"), ("синонимы", "SYNONYMS"),
+        ("кратко", "SUMMARY"),
         ("вид_понятия", "CONCEPT_KIND"), ("определение", "DEFINITION"), ("метки", "TAGS"), ("статус", "STATUS"),
-        ("дата", "DATE"), ("источник", "SOURCE"), ("снято", "TAKEN"), ("прежнее_имя", "OLD_NAME"),
+        ("важность", "SEVERITY"),
+        ("дата", "DATE"), ("закрыто", "CLOSED"), ("источник", "SOURCE"), ("снято", "TAKEN"), ("прежнее_имя", "OLD_NAME"),
         ("понятие_реестра", "REGISTRY_CONCEPT"), ("тип_значения", "VALUE_TYPE"), ("единица", "UNIT"),
         ("значений_в_списке", "LIST_SIZE"), ("строка_таблицы", "TABLE_ROW"), ("обязательное_в", "REQUIRED_IN"),
-        ("этап_заполнения", "STAGE"), ("встречается", "OCCURS"), ("пункты", "POINTS"), ("связи", "LINKS"),
+        ("этап_заполнения", "STAGE"), ("встречается", "OCCURS"), ("код", "CODE"), ("пункты", "POINTS"), ("связи", "LINKS"),
     };
 
     public static string ConstOf(string key)

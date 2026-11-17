@@ -72,10 +72,19 @@ def sections():
     return '\n'.join(out)
 
 
+def graph_code():
+    """Граф и код (по образцу UnDiscord, 17.11.2026): сколько записей отстали от кода и сколько техдолга."""
+    last = lambda out: (out.strip().splitlines() or [''])[-1]
+    stale = last(run([sys.executable, 'tools/knowledge/graph.py', 'stale']))
+    debt = last(run([sys.executable, 'tools/knowledge/graph.py', 'debt']))
+    return 'Граф и код: %s (graph.py stale), %s (graph.py debt); знание о файле — graph.py code <путь>' % (stale, debt)
+
+
 def main():
     print('# Начало работы (хук SessionStart, tools/hooks/session_start.py)\n')
     print(tools_state())
     print(git_state())
+    print(graph_code())
     print('\n## Разделы графа знаний (полностью — graph.py toc; запись — graph.py show <id>)')
     print(sections())
     print('\n# Действующие правила (граф; полный текст — graph.py show <id>)')
