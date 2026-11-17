@@ -67,8 +67,23 @@ const shortDate = (iso) => (iso && iso.length >= 10 ? `${iso.slice(8, 10)}.${iso
 const WEEKDAYS = ['Воскресенье', 'Понедельник', 'Вторник', 'Среда', 'Четверг', 'Пятница', 'Суббота'];
 const MONTHS = ['января', 'февраля', 'марта', 'апреля', 'мая', 'июня', 'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря'];
 const href = (q) => HREF + '?' + Object.entries(q).filter(([, v]) => v !== '' && v != null).map(([k, v]) => `${k}=${encodeURIComponent(v)}`).join('&');
-const routeUrl = (o) => (o.lat != null ? `https://www.google.com/maps/dir/?api=1&destination=${o.lat},${o.lon}`
-  : o.address ? `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(o.address)}` : '');
+// Маршрут — в навигаторе на выбор осмотрщика (пользователь 16.11.2026: «проложить маршрут через навигатор (2гис
+// apple, гугл или иное)»): по точке, а без неё — по адресу. «Другой» — geo:-ссылка, телефон предложит
+// установленные навигаторы.
+export function navLinks(p) {
+  const pt = p.lat != null && p.lon != null;
+  const a = encodeURIComponent(p.address || '');
+  if (!pt && !a) return [];
+  return [
+    ['2ГИС', pt ? `https://2gis.kg/directions/points/%7C${p.lon}%2C${p.lat}` : `https://2gis.kg/search/${a}`],
+    ['Apple Карты', `https://maps.apple.com/?daddr=${pt ? `${p.lat},${p.lon}` : a}`],
+    ['Google Карты', `https://www.google.com/maps/dir/?api=1&destination=${pt ? `${p.lat},${p.lon}` : a}`],
+    ['Другой', pt ? `geo:${p.lat},${p.lon}?q=${p.lat},${p.lon}(${encodeURIComponent(p.name || p.title || '')})` : `geo:0,0?q=${a}`],
+  ];
+}
+const navGrid = (p) => `<div class="om-nav" role="group" aria-label="Маршрут в навигаторе">${navLinks(p).map(([l, u]) => `<a class="om-btn" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join('')}</div>`;
+// Кнопка «Маршрут» раскрывает выбор навигатора на месте.
+const navPick = (p, primary = false) => (navLinks(p).length ? `<details class="om-navpick"><summary class="om-btn${primary ? ' om-btn-primary' : ''}">${ico('route', 18)}Маршрут</summary>${navGrid(p)}</details>` : '');
 
 // --- значки (контур 24×24, как у стенда) --------------------------------------------------------
 const I = {
@@ -85,6 +100,7 @@ const I = {
   vehicle: '<path d="M3 16V8h11v8M14 11h4l3 3v2h-7M7 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM17 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4z"/>',
   inv: '<path d="M12 8.5a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zM12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
   phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
+  mail: '<path d="M3 6h18v12H3zM3 7l9 6 9-6"/>',
   route: '<path d="M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 15V9a4 4 0 0 1 4-4h4M18 9v6a4 4 0 0 1-4 4h-4"/>',
   copy: '<path d="M9 9h11v11H9zM5 15H4V4h11v1"/>',
   layers: '<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5"/>',
@@ -160,9 +176,9 @@ function viewToday(all, q, unread) {
         <a class="om-next-title" href="${href({ v: 'obj', id: next.id })}">${esc(next.title)}</a>
         ${next.eni ? `<span class="om-mono">${esc(fmtEni(next.eni) || next.eni)}</span>` : ''}
         <span class="om-next-act">
-          ${routeUrl(next) ? `<a class="om-btn" href="${esc(routeUrl(next))}" target="_blank" rel="noopener">Маршрут</a>` : ''}
           <a class="om-btn om-btn-primary" href="${href({ v: 'obj', id: next.id })}">Открыть</a>
-        </span></div>`
+        </span>
+        ${navPick(next)}</div>`
         : '<div class="om-next om-next-none"><span class="om-cap">Следующий</span><span>Назначенных объектов нет</span></div>'}
     </section>
     ${urgent ? `<h2 class="om-cap om-sec">Срочно</h2><div class="om-group">${urgent}</div>` : ''}
@@ -255,9 +271,6 @@ function taskBlock(o, rec, ui = {}) {
     o.by ? ['Назначил', o.by] : null,
   ].filter(Boolean);
   const returned = (o.returned || []).map((r) => `<p class="om-warn"><b>На доосмотр</b>${r.reason ? ' — ' + esc(r.reason) : ''}</p>`).join('');
-  const contacts = (o.contacts || []).slice(0, 4).map((c) => `<div class="om-contact"><span class="om-row-tx"><b>${esc(c.name || 'Контакт')}</b>${c.role ? `<small>${esc(c.role)}</small>` : ''}</span>
-    ${c.phone ? `<a class="om-icon om-icon-sm" href="tel:${esc(c.phone.replace(/[^\d+]/g, ''))}" aria-label="Позвонить: ${esc(c.phone)}" title="${esc(c.phone)}">${ico('phone', 18)}</a>` : ''}</div>`).join('');
-  const r = routeUrl(o);
   const facade = facadeOf(o);
   return `${returned}
     ${facts.length || o.note ? `<section class="om-card om-facts">${facts.map(([l, v]) => `<div><small>${esc(l)}</small><b>${esc(v)}</b></div>`).join('')}
@@ -269,14 +282,51 @@ function taskBlock(o, rec, ui = {}) {
     ? `<div class="om-map" data-map>${(rec.geo && rec.geo.extent) || o.lat != null ? '' : '<span class="om-map-wait">Участок подтягивается по ЕНИ…</span>'}</div>`
     : '<p class="om-muted">Места на карте нет: у объекта нет ЕНИ участка и координат.</p>'}
       ${parcelBlock(o)}
-      <div class="om-place-act">${r ? `<a class="om-btn om-btn-primary" href="${esc(r)}" target="_blank" rel="noopener">${ico('route', 18)}Маршрут</a>` : ''}</div>
-      ${contacts ? `<div class="om-contacts"><span class="om-cap">На месте</span>${contacts}</div>` : ''}
+      ${navPick(o, true)}
+      ${contactsBlock(o, ui)}
     </section>
     ${o.docs.length ? `<a class="om-card om-row om-doclink" href="${href({ v: 'obj', id: o.id, tab: 'docs' })}"><span class="om-row-ico om-t-blue">${ico('docs')}</span><span class="om-row-tx"><b>Документы для выезда</b><small>${esc(o.docs.slice(0, 3).map((d) => d.type || d.name).join(', '))}${o.docs.length > 3 ? '…' : ''}</small></span><b class="om-n">${o.docs.length}</b>${ico('chev', 18)}</a>` : ''}
     ${(o.ois || []).length ? `<section class="om-card om-comp"><h2 class="om-card-h">Состав объекта</h2>${o.ois.map((x) => oiRow(o, x, facade[x.id])).join('')}</section>` : ''}
     ${foundBlock(o)}
     ${(o.inventories || []).length ? `<section class="om-card om-comp"><h2 class="om-card-h">Описи</h2>${o.inventories.map((x) => invRow(o, x)).join('')}</section>` : ''}
     ${finishBlock(o, ui)}`;
+}
+
+// Контакты на месте: из учреждения и объекта (заранее) и добавленные осмотрщиком на месте (как в приложении
+// «Осмотр», ContactsScreen.kt: ФИО, должность, телефон, почта, заметка; человек — из телефонной книги, если
+// браузер это умеет). Касание телефона — звонок.
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: добавленные лежат в «Результатах осмотра» объекта (resultsOf().contacts) с автором и
+// временем; в контакты учреждения или объекта их переносит тот, кто разбирает осмотр.
+const telOf = (ph) => String(ph || '').replace(/[^\d+]/g, '');
+function contactLine(c, del = '') {
+  return `<div class="om-contact"><span class="om-row-tx"><b>${esc(c.name || 'Контакт')}</b>${c.role || c.from ? `<small>${esc([c.role, c.from].filter(Boolean).join(' · '))}</small>` : ''}${c.note ? `<small>${esc(c.note)}</small>` : ''}</span>
+    ${c.email ? `<a class="om-icon om-icon-sm" href="mailto:${esc(c.email)}" aria-label="Письмо: ${esc(c.email)}" title="${esc(c.email)}">${ico('mail', 18)}</a>` : ''}
+    ${c.phone ? `<a class="om-icon om-icon-sm" href="tel:${esc(telOf(c.phone))}" aria-label="Позвонить: ${esc(c.phone)}" title="${esc(c.phone)}">${ico('phone', 18)}</a>` : ''}
+    ${del ? `<button type="button" class="om-icon om-icon-sm" data-ct-del="${esc(del)}" aria-label="Убрать контакт ${esc(c.name || c.phone)}" title="Убрать">${ico('trash', 18)}</button>` : ''}</div>`;
+}
+const myContacts = (o) => (resultsOf(o.typeId, o.ocId).contacts || []).filter((c) => !c.deleted);
+function contactsBlock(o, ui = {}) {
+  const pre = o.contacts || [];
+  const mine = myContacts(o);
+  const ro = o.state === 'done' && !(o.returned || []).length;
+  const pick = typeof navigator !== 'undefined' && navigator.contacts && navigator.contacts.select;
+  return `<div class="om-contacts"><span class="om-cap">Контакты</span>
+    ${pre.slice(0, 4).map((c) => contactLine(c)).join('')}
+    ${pre.length > 4 ? `<details class="om-ct-more"><summary>Ещё ${pre.length - 4}</summary>${pre.slice(4).map((c) => contactLine(c)).join('')}</details>` : ''}
+    ${mine.length ? `<span class="om-cap om-cap-sub">Добавлены на месте</span>${mine.map((c) => contactLine(c, ro ? '' : c.id)).join('')}` : ''}
+    ${!pre.length && !mine.length ? '<p class="om-muted">Контактов нет</p>' : ''}
+    ${ro ? '' : `<details class="om-ct-add"${ui.contactOpen ? ' open' : ''}><summary>Добавить контакт</summary>
+      <form class="om-ct-form" data-ct-add novalidate>
+        ${pick ? '<button type="button" class="om-btn" data-ct-pick>Из телефонной книги</button>' : ''}
+        <label class="om-flabel" for="om-ct-name">ФИО</label><input class="om-input" id="om-ct-name" name="name" autocomplete="off" maxlength="120">
+        <label class="om-flabel" for="om-ct-role">Должность</label><input class="om-input" id="om-ct-role" name="role" autocomplete="off" maxlength="120">
+        <label class="om-flabel" for="om-ct-phone">Телефон</label><input class="om-input" id="om-ct-phone" name="phone" type="tel" inputmode="tel" autocomplete="off" maxlength="40">
+        <label class="om-flabel" for="om-ct-email">Почта</label><input class="om-input" id="om-ct-email" name="email" type="email" autocomplete="off" maxlength="120">
+        <label class="om-flabel" for="om-ct-note">Заметка</label><input class="om-input" id="om-ct-note" name="note" autocomplete="off" maxlength="200">
+        <p class="om-hint om-hint-diff" data-ct-err hidden></p>
+        <button class="om-btn om-btn-primary" type="submit">Сохранить контакт</button>
+      </form></details>`}
+  </div>`;
 }
 
 // Сведения участка по Кадастру — свёрнутым блоком: строка на месте сразу, сведения
@@ -757,22 +807,13 @@ function cadRows(person) {
 const cadWaits = (x) => !x.result || x.review === 'returned';
 const waitingCad = (person) => cadRows(person).filter((r) => !r.closed).flatMap((r) => r.rows).filter(cadWaits).length;
 
-// Маршрут до точки в навигаторе — на выбор осмотрщика (пользователь 16.11.2026: «предложение проложить
-// маршрут через навигатор (2гис apple, гугл или иное)»). «Другой» — geo:-ссылка: телефон предложит
-// установленные навигаторы.
-const navLinks = (p) => [
-  ['2ГИС', `https://2gis.kg/directions/points/%7C${p.lon}%2C${p.lat}`],
-  ['Apple Карты', `https://maps.apple.com/?daddr=${p.lat},${p.lon}`],
-  ['Google Карты', `https://www.google.com/maps/dir/?api=1&destination=${p.lat},${p.lon}`],
-  ['Другой', `geo:${p.lat},${p.lon}?q=${p.lat},${p.lon}(${encodeURIComponent(p.name || '')})`],
-];
 function branchCard(b) {
   return `<section class="om-card om-branch" aria-label="Филиал Кадастра">
     <span class="om-cap">Филиал Кадастра</span>
     <b>${esc(b.name)}</b>
     <span>${esc(b.address)}</span>
     <span class="om-branch-who">${esc(b.person)} · <a href="tel:${esc(b.phone.replace(/[^\d+]/g, ''))}">${esc(b.phone)}</a></span>
-    ${b.lat != null ? `<div class="om-nav" role="group" aria-label="Маршрут в навигаторе">${navLinks(b).map(([l, u]) => `<a class="om-btn" href="${esc(u)}" target="_blank" rel="noopener">${esc(l)}</a>`).join('')}</div>` : ''}
+    ${navLinks(b).length ? navGrid(b) : ''}
   </section>`;
 }
 
@@ -966,7 +1007,7 @@ export function mountOsmotr(host) {
   let mapKey = '';
   let savedAt = '';
   // Состояние экрана объекта: подтверждение «Осмотр закончен» (по объекту).
-  const ui = { asking: false, askFor: '', filters: false, cadRow: '' };
+  const ui = { asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false };
   // Выбранные позиции описи (в одну карточку) — по описи; сменилась опись — выбор снимается.
   const sel = new Set();
   let selFor = '';
@@ -1280,6 +1321,49 @@ export function mountOsmotr(host) {
     if (!cur) return;
     mine().filter(isLive).forEach((a) => requestMove(a.id, { date: form.date.value, reason: form.reason.value, note: form.note.value.trim() }));
   });
+  // --- контакты на месте ---
+  scope.on('submit', '[data-ct-add]', (e, form) => {
+    e.preventDefault();
+    if (!cur) return;
+    const v = (k) => form[k].value.trim();
+    const err = form.querySelector('[data-ct-err]');
+    const say = (t, f) => { err.textContent = t; err.hidden = !t; if (f) form[f].focus(); };
+    if (!v('name') && !v('phone')) return say('Укажите ФИО или телефон', 'name');
+    if (v('phone') && telOf(v('phone')).replace(/\D/g, '').length < 6) return say('Телефон — не меньше шести цифр', 'phone');
+    if (v('email') && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v('email'))) return say('Почта указана с ошибкой', 'email');
+    const res = resultsOf(cur.typeId, cur.ocId);
+    const had = (res.contacts || []).filter((c) => !c.deleted);
+    if (v('phone') && [...(cur.contacts || []), ...had].some((c) => telOf(c.phone) && telOf(c.phone) === telOf(v('phone')))) return say('Контакт с этим телефоном уже есть', 'phone');
+    (res.contacts = res.contacts || []).push({ id: 'ct' + Date.now().toString(36), name: v('name'), role: v('role'), phone: v('phone'), email: v('email'), note: v('note'), by: session.state.person, at: new Date().toISOString() });
+    saveResults();
+    ui.contactOpen = false;
+    dirty = false;
+    changed();
+    render();
+  });
+  scope.on('click', '[data-ct-del]', (e, b) => {
+    if (!cur) return;
+    const c = (resultsOf(cur.typeId, cur.ocId).contacts || []).find((x) => x.id === b.dataset.ctDel);
+    if (!c) return;
+    Object.assign(c, { deleted: true, deletedBy: session.state.person, deletedAt: new Date().toISOString() });
+    saveResults();
+    changed();
+    render();
+  });
+  // toggle не всплывает — раскрытие формы ловится по щелчку заголовка.
+  scope.on('click', '.om-ct-add > summary', (e, sm) => { ui.contactOpen = !sm.parentElement.open; });
+  // Телефонная книга — Contact Picker API (Chrome на Android): один человек, без доступа ко всей книге.
+  scope.on('click', '[data-ct-pick]', async (e, b) => {
+    const form = b.closest('form');
+    try {
+      const [c] = await navigator.contacts.select(['name', 'tel', 'email'], { multiple: false });
+      if (!c) return;
+      if (c.name && c.name[0]) form.name.value = c.name[0];
+      if (c.tel && c.tel[0]) form.phone.value = c.tel[0];
+      if (c.email && c.email[0]) form.email.value = c.email[0];
+    } catch (err) { /* отказ или закрыто — поля как были */ }
+  });
+
   scope.on('submit', '[data-outcome]', (e, form) => {
     e.preventDefault();
     if (!cur) return;
@@ -1334,10 +1418,10 @@ export function mountOsmotr(host) {
   }
   // Форма отчёта или ответа на запрос заполняется — фоновая перерисовка ждёт (иначе введённое пропадёт).
   let dirty = false;
-  scope.on('input', '[data-morning], [data-evening], [data-cad]', () => { dirty = true; });
+  scope.on('input', '[data-morning], [data-evening], [data-cad], [data-ct-add]', () => { dirty = true; });
   scope.on('change', '[data-morning], [data-evening], [data-cad]', () => { dirty = true; });
   let t = 0;
-  const onChanged = () => { clearTimeout(t); t = setTimeout(() => { const v = q.v || 'today'; if (v !== 'app' && !(dirty && (v === 'report' || v === 'cad'))) render(); }, 300); };
+  const onChanged = () => { clearTimeout(t); t = setTimeout(() => { const v = q.v || 'today'; if (v !== 'app' && !(dirty && (v === 'report' || v === 'cad' || v === 'obj'))) render(); }, 300); };
   window.addEventListener('inside:inspections', onChanged);
   const unsub = session.subscribe(onChanged);
   const offGeo = onGeoDone(onChanged);

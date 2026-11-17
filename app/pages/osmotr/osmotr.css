@@ -163,6 +163,18 @@ a.om-row:hover{background:#f7f9fb}
 .om-place-act:empty{display:none}
 .om-contacts{display:flex;flex-direction:column;gap:6px;padding-top:10px;border-top:1px solid #e3eaf2}
 .om-contact{display:flex;align-items:center;gap:10px}
+.om-contact .om-row-tx{flex:1;min-width:0}
+.om-cap-sub{margin-top:6px}
+.om-ct-more>summary,.om-ct-add>summary{min-height:40px;display:flex;align-items:center;font-weight:600;color:var(--om-blue-700);cursor:pointer}
+.om-ct-form{display:flex;flex-direction:column;gap:6px;padding-top:4px}
+.om-ct-form .om-btn-primary{margin-top:6px}
+/* Маршрут: кнопка раскрывает выбор навигатора на месте */
+.om-navpick{margin-top:8px}
+.om-navpick>summary{list-style:none;width:100%;justify-content:center}
+.om-navpick>summary::-webkit-details-marker{display:none}
+.om-next .om-navpick{margin-top:0}
+.om-next .om-nav{grid-template-columns:1fr}
+.om-next .om-nav .om-btn{padding:0 8px}
 .om-card.om-doclink{display:flex;margin-bottom:12px;border-left:4px solid var(--om-blue);padding:10px 14px}
 .om-comp{padding:0 0 4px;overflow:hidden;margin-bottom:12px;border-left:4px solid var(--om-blue)}
 .om-card-h{margin:0;padding:12px 16px;font-size:17px;font-weight:700;background:#f4f8fb;border-bottom:1px solid #e3eaf2}
