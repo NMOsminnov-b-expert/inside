@@ -1129,6 +1129,23 @@ export async function answerCadRow(reqId, rowId, { result, scanDate = '', answer
   changed();
   return row;
 }
+// Открепить скан ответа (пользователь 17.11.2026: «нужна возможность открепить прикрепленный скан»; ответы на
+// вопрос: «Строка снова ждёт», после принятия ЦОД — «Нельзя»). Строка возвращается в «Ждёт ответа»: ответ, дата
+// скана, пояснение и отметка ЦОД снимаются, из очереди «Сканы с осмотров» строка уходит сама (её там держит
+// result 'got' или review). Принятый ЦОД скан — документ объекта: не открепляется (null).
+export const cadFileAccepted = (row) => !!(row && ((row.file && row.file.docId) || (row.review && row.review.state === 'accepted')));
+export function detachCadFile(reqId, rowId) {
+  const r = cadRequest(reqId);
+  const row = r && r.rows.find((x) => x.id === rowId);
+  if (!row || !row.file || cadFileAccepted(row)) return null;
+  (row.log = row.log || []).push({ at: now(), by: session.state.person, kind: 'detach', text: row.file.name || '' });
+  delete row.file;
+  delete row.review;
+  Object.assign(row, { result: '', scanDate: '', answer: '', answeredAt: '', answeredBy: '' });
+  changed();
+  return row;
+}
+
 // Имя файла ответа — «№ учреждения + ЕНИ + название документа» (заметки
 // пользователя 12.10.2026); номер учреждения передаёт страница.
 export const cadFileName = (row, instCode = '') => `${[instCode, row.eni, row.doc].filter(Boolean).join(' ')}.pdf`.replace(/[\\/:*?"<>|]+/g, ' ');

@@ -202,6 +202,17 @@ export function addItemPhoto(invId, itemId, file, { by = '', assignId = '' } = {
   return photo;
 }
 
+// Убрать снимок позиции: остаётся с пометкой deleted (кто и когда), на экранах не показывается.
+export function removeItemPhoto(invId, itemId, photoId, { by = '' } = {}) {
+  const k = mk(invId, itemId);
+  const cur = marks.get(k);
+  const ph = cur && (cur.photos || []).find((x) => x.id === photoId);
+  if (!ph) return null;
+  Object.assign(ph, { deleted: true, deletedBy: by, deletedAt: new Date().toISOString() });
+  scheduleSave();
+  return ph;
+}
+
 // «Нет в описи» — предмет есть на месте, в описи его нет (Б4).
 export function extrasOf(invId) {
   return extras.get(invId) || [];

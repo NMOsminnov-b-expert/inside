@@ -30,9 +30,9 @@ import { foldSearch, fmtEni } from '../../kernel/fmt.js';
 import { session, roleLabel } from '../../kernel/session.js';
 import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto } from '../../kernel/inspectionResults.js';
-import { takeForDay, planOf, absenceOn, absenceLabel, startWork, myAssignsOn, finishWork, requestMove, skipReasons, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow } from '../../kernel/inspections.js';
+import { takeForDay, planOf, absenceOn, absenceLabel, startWork, myAssignsOn, finishWork, requestMove, skipReasons, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow, detachCadFile, cadFileAccepted } from '../../kernel/inspections.js';
 import { osrmKm, dayPoints } from '../inspections/route.js';
-import { markItem, markOf, addItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
+import { markItem, markOf, addItemPhoto, removeItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
 import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, FOUND_CATS } from '../inspection/tasks.js';
 import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay, inventoryOf, titleOf } from './data.js';
@@ -100,6 +100,7 @@ const I = {
   phone: '<path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2"/>',
   mail: '<path d="M3 6h18v12H3zM3 7l9 6 9-6"/>',
   book: '<path d="M4 4h7a3 3 0 0 1 3 3v13a2 2 0 0 0-2-2H4zM20 4h-6M20 4v14h-6"/>',
+  clip: '<path d="M21 11.5 12.5 20a5 5 0 0 1-7-7L14 4.5a3.3 3.3 0 0 1 4.7 4.7l-8.5 8.5a1.7 1.7 0 0 1-2.4-2.4L15.5 7.6"/>',
   route: '<path d="M6 19a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM18 9a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM6 15V9a4 4 0 0 1 4-4h4M18 9v6a4 4 0 0 1-4 4h-4"/>',
   copy: '<path d="M9 9h11v11H9zM5 15H4V4h11v1"/>',
   layers: '<path d="m12 3 9 5-9 5-9-5zM3 13l9 5 9-5"/>',
@@ -614,7 +615,7 @@ function photosOfCard(o, inv, members) {
     return (resultsOf(o.typeId, o.ocId).photos || []).filter((p) => p.oiId === inv.oiId && !p.deleted && p.dataUrl
       && ((p.units || []).some((id) => ids.has(id)) || (!p.units && names.has(p.cat))));
   }
-  return members.flatMap((x) => (markOf(inv.id, x.id) || {}).photos || []).filter((p) => p.dataUrl);
+  return members.flatMap((x) => ((markOf(inv.id, x.id) || {}).photos || []).map((p) => ({ ...p, itemId: x.id }))).filter((p) => p.dataUrl && !p.deleted);
 }
 // Состояние позиции, как в приложении: снято / осмотрено ранее / не осмотрено; нерабочее — отдельно.
 function statusOf(o, inv, it) {
@@ -774,7 +775,7 @@ function viewItem(o, q) {
     ${ro ? '' : `<a class="om-btn om-btn-wide" href="${href({ v: 'inv', id: o.id, inv: inv.id, to: lead.id })}">Добавить из описи</a>`}
     <div class="om-group om-form om-item">
       <div class="om-field"><span class="om-flabel">Снимки${members.length > 1 ? ' карточки' : ''}${photos.length ? ' · ' + photos.length : ''}</span>
-        ${photos.length ? `<div class="om-thumbs">${photos.map((p) => `<span class="om-thumb"><img src="${esc(p.dataUrl)}" alt="Снимок позиции" loading="lazy"></span>`).join('')}</div>` : ''}
+        ${photos.length ? `<div class="om-thumbs">${photos.map((p) => `<a class="om-thumb" href="${href({ v: 'file', src: 'inv', id: o.id, inv: inv.id, it: it.id, ph: p.id })}" aria-label="Открыть снимок"><img src="${esc(p.dataUrl)}" alt="Снимок позиции" loading="lazy"></a>`).join('')}</div>` : ''}
         ${ro ? '' : `<div class="om-shoot-act"><label class="om-btn om-btn-primary">${ico('camera', 18)}Снять<input type="file" accept="image/*" capture="environment" multiple hidden data-mk-shoot></label>
           <label class="om-btn">${ico('photo', 18)}Из галереи<input type="file" accept="image/*" multiple hidden data-mk-shoot></label></div>`}</div>
       <div class="om-field"><label class="om-flabel" for="om-mk-comment">Комментарий</label>
@@ -918,10 +919,70 @@ function cadRows(person) {
       const rec = x.typeId && x.ocId ? loadTask(x.typeId, x.ocId) : null;
       return { id: x.id, doc: x.doc || '', title: rec ? titleOf(rec, x.ocId) : '', eni: fmtEni(x.eni) || x.eni || '', inst: x.inst || '',
         result: x.result || '', resultLabel: x.result ? cadResultLabel(x.result) : 'Ждёт', answer: x.answer || '', scanDate: x.scanDate || '',
-        file: x.file ? x.file.name || '' : '', review: state(x) };
+        file: x.file ? x.file.name || '' : '', fileObj: x.file ? { name: x.file.name || '', ...(x.file.attached || {}) } : null, locked: cadFileAccepted(x), review: state(x) };
     }),
   }));
 }
+// --- прикреплённые файлы: карточка (миниатюра, имя, вид, размер; «Открыть», «Открепить») и просмотр ----------
+// Пользователь 17.11.2026: «нужна возможность открепить прикрепленный скан… Ну и так же открыть его просмотр.
+// Оформляем красиво». Открепление — с подтверждением в строке, без окна поверх экрана.
+const isPdfFile = (f) => !!f && (/pdf/i.test(f.mime || '') || f.kind === 'pdf' || /\.pdf$/i.test(f.name || ''));
+const fileSize = (n) => (!n ? '' : n < 1024 * 1024 ? Math.max(1, Math.round(n / 1024)) + ' КБ' : (n / 1024 / 1024).toFixed(1).replace('.', ',') + ' МБ');
+const fileMeta = (f) => [isPdfFile(f) ? 'PDF' : 'Снимок', f.pageCount > 1 ? f.pageCount + ' стр.' : '', fileSize(f.size)].filter(Boolean).join(' · ');
+// f — { name, mime, kind, dataUrl, size, pageCount }; open — адрес просмотра; detach — { key, attr, ask, text, label } или null.
+function fileCard(f, open, detach = null, note = '') {
+  const prev = isPdfFile(f) ? `<span class="om-file-pdf" aria-hidden="true">PDF</span>` : f.dataUrl ? `<img src="${esc(f.dataUrl)}" alt="" loading="lazy">` : `<span class="om-file-pdf" aria-hidden="true">${ico('photo', 20)}</span>`;
+  const asking = detach && detach.ask;
+  return `<div class="om-file${asking ? ' asking' : ''}">
+    <a class="om-file-prev" href="${open}" aria-label="Открыть: ${esc(f.name || 'файл')}">${prev}</a>
+    <a class="om-file-tx" href="${open}"><b>${esc(f.name || 'Файл')}</b><small>${esc(fileMeta(f))}</small>${note ? `<small class="om-file-note">${esc(note)}</small>` : ''}</a>
+    <span class="om-file-act">
+      <a class="om-btn om-btn-sm" href="${open}">${ico('photo', 16)}Открыть</a>
+      ${detach && !asking ? `<button type="button" class="om-btn om-btn-sm om-btn-ghost-danger" data-detach-ask="${esc(detach.key)}">${ico('trash', 16)}${esc(detach.label || 'Открепить')}</button>` : ''}
+    </span>
+    ${asking ? `<div class="om-file-ask" role="group" aria-label="Подтверждение">
+      <span>${esc(detach.text)}</span>
+      <span class="om-file-ask-act"><button type="button" class="om-btn om-btn-sm om-btn-danger" ${detach.attr}>${esc(detach.label || 'Открепить')}</button>
+      <button type="button" class="om-btn om-btn-sm" data-detach-ask="">Отмена</button></span></div>` : ''}
+  </div>`;
+}
+// Просмотр файла во всю страницу: снимок — картинкой, PDF — встроенным просмотрщиком браузера.
+function viewFile(all, q, ui) {
+  let f = null;
+  let backTo = href({ v: 'today' });
+  let backLabel = 'Назад';
+  let detach = null;
+  if (q.src === 'cad') {
+    const r = cadRows(session.state.person).find((x) => x.id === q.r);
+    const x = r && r.rows.find((y) => y.id === q.row);
+    backTo = href({ v: 'cad', r: q.r });
+    backLabel = r ? `Запрос № ${r.no}` : 'Запросы документов';
+    if (x && x.fileObj) {
+      f = x.fileObj;
+      if (!x.locked && !r.closed) detach = { key: 'view', ask: ui.detachAsk === 'view', attr: `data-cad-detach="${esc(q.r)}|${esc(q.row)}"`, text: 'Открепить скан? Ответ «Получен» снимется, строка снова будет ждать ответа.' };
+    }
+  } else if (q.src === 'inv') {
+    const o = all.find((x) => x.id === q.id);
+    const inv = o && inventoryOf(session.state.person, o.id, q.inv);
+    const it = inv && inv.items.find((x) => x.id === q.it);
+    backTo = href({ v: 'item', id: q.id, inv: q.inv, it: q.it });
+    backLabel = it ? it.name : 'Позиция описи';
+    const ph = it && photosOfCard(o, inv, cardOf(o, inv, it)).find((x) => x.id === q.ph);
+    if (ph) {
+      f = { name: ph.name || 'Снимок позиции', mime: 'image/*', dataUrl: ph.dataUrl, size: ph.size };
+      if (o.state !== 'done' && it.own !== false) detach = { key: 'view', ask: ui.detachAsk === 'view', label: 'Удалить снимок', attr: `data-inv-ph-del="${esc(ph.id)}"`, text: 'Удалить снимок позиции?' };
+    }
+  }
+  if (!f || !f.dataUrl) return `${back(backTo, backLabel)}<div class="om-card om-empty">Файла нет — он откреплён или удалён</div>`;
+  return `${back(backTo, backLabel)}
+    <h1 class="om-title om-title-sm om-file-title">${esc(f.name || 'Файл')}</h1>
+    <p class="om-muted">${esc(fileMeta(f))}</p>
+    ${isPdfFile(f) ? `<iframe class="om-docview" src="${esc(f.dataUrl)}" title="${esc(f.name || 'PDF')}"></iframe>` : `<img class="om-docimg" src="${esc(f.dataUrl)}" alt="${esc(f.name || 'Снимок')}">`}
+    <div class="om-file-bar"><a class="om-btn" href="${esc(f.dataUrl)}" download="${esc(f.name || 'файл')}">${ico('docs', 18)}Скачать</a>
+      ${detach ? (detach.ask ? `<span class="om-file-ask"><span>${esc(detach.text)}</span><span class="om-file-ask-act"><button type="button" class="om-btn om-btn-danger" ${detach.attr}>${esc(detach.label || 'Открепить')}</button><button type="button" class="om-btn" data-detach-ask="">Отмена</button></span></span>`
+    : `<button type="button" class="om-btn om-btn-ghost-danger" data-detach-ask="view">${ico('trash', 18)}${esc(detach.label || 'Открепить')}</button>`) : ''}</div>`;
+}
+
 // Ждёт осмотрщика: без ответа или возвращён ЦОД.
 const cadWaits = (x) => !x.result || x.review === 'returned';
 const waitingCad = (person) => cadRows(person).filter((r) => !r.closed).flatMap((r) => r.rows).filter(cadWaits).length;
@@ -949,10 +1010,10 @@ function cadChip(x) {
   const [rw, tone] = CAD_REVIEW[x.review] || ['', 'blue'];
   return `<span class="om-chip om-t-${tone}">${esc(x.review === 'wait' ? x.resultLabel : rw)}</span>`;
 }
-function viewCad(q, openRow) {
+function viewCad(q, openRow, detachAsk = '') {
   const list = cadRows(session.state.person);
   const r = q.r && list.find((x) => x.id === q.r);
-  if (r) return viewCadOne(r, q, openRow);
+  if (r) return viewCadOne(r, q, openRow, detachAsk);
   const shown = list.filter((x) => (q.s === 'closed' ? x.closed : !x.closed));
   return `${back(href({ v: 'menu' }), 'Меню')}
     <h1 class="om-title om-title-sm">Запросы документов</h1>
@@ -965,7 +1026,7 @@ function viewCad(q, openRow) {
         ${wait ? `<b class="om-n om-t-violet" title="Ждут ответа">${wait}</b>` : ''}${ico('chev', 18)}</a>`;
   }).join('')}</div>` : `<div class="om-card om-empty">${q.s === 'closed' ? 'Закрытых запросов нет' : 'Открытых запросов нет'}</div>`}`;
 }
-function viewCadOne(r, q, openRow) {
+function viewCadOne(r, q, openRow, detachAsk = '') {
   const f = CAD_FILTERS.find(([k]) => k === (q.f || '')) || CAD_FILTERS[0];
   const needle = lc(q.q);
   const hit = (x) => !needle || lc(`${x.doc} ${x.title} ${x.eni} ${x.eni.replace(/\D/g, '')} ${x.inst}`).includes(needle);
@@ -977,12 +1038,15 @@ function viewCadOne(r, q, openRow) {
     const open = x.id === openRow && !r.closed;
     return `<div class="om-cadline${open ? ' open' : ''}" data-row="${esc(x.id)}">
       <button type="button" class="om-cadline-h" data-cad-open="${esc(x.id)}" aria-expanded="${open}"${r.closed ? ' disabled' : ''}>
-        <span class="om-cadline-tx"><b>${esc(x.doc || 'Документ')}</b><small>${esc([x.eni, x.title].filter(Boolean).join(' · '))}</small></span>${cadChip(x)}</button>
-      ${open ? `<form class="om-cadrow" data-cad="${esc(r.id)}" data-row="${esc(x.id)}" data-next="${esc(nextWait(x.id))}">
-        <dl class="om-dl">${[['Учреждение', x.inst], ['Ответ', x.result ? x.resultLabel + (x.file ? ' · ' + x.file : '') : ''], ['Пояснение', x.answer]].filter(([, v]) => v).map(([l, v]) => `<dt>${esc(l)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+        <span class="om-cadline-tx"><b>${esc(x.doc || 'Документ')}</b><small>${esc([x.eni, x.title].filter(Boolean).join(' · '))}</small></span>${x.fileObj ? `<span class="om-clip" title="Прикреплён скан: ${esc(x.fileObj.name)}" aria-label="Прикреплён скан">${ico('clip', 16)}</span>` : ''}${cadChip(x)}</button>
+      ${open ? `<form class="om-cadrow" data-cad="${esc(r.id)}" data-row="${esc(x.id)}" data-next="${esc(nextWait(x.id))}" data-has-file="${x.fileObj ? 1 : 0}">
+        <dl class="om-dl">${[['Учреждение', x.inst], ['Ответ', x.result ? x.resultLabel : ''], ['Пояснение', x.answer]].filter(([, v]) => v).map(([l, v]) => `<dt>${esc(l)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>
+        ${x.fileObj ? fileCard(x.fileObj, href({ v: 'file', src: 'cad', r: r.id, row: x.id }),
+    x.locked ? null : { key: x.id, ask: detachAsk === x.id, attr: `data-cad-detach="${esc(r.id)}|${esc(x.id)}"`, text: 'Открепить скан? Ответ «Получен» снимется, строка снова будет ждать ответа.' },
+    x.locked ? 'Принят ЦОД — документ объекта' : '') : ''}
         <div class="om-ms" role="group" aria-label="Ответ">${CAD_RESULTS.map(([k, l]) => `<label class="om-opt om-opt-r"><input type="radio" name="result" value="${k}"${x.result === k ? ' checked' : ''}>${l}</label>`).join('')}</div>
-        <div class="om-cad-got"><label class="om-btn">${ico('camera', 18)}Скан или PDF<input type="file" name="file" accept="image/*,application/pdf" capture="environment" hidden data-cad-file></label>
-          <span class="om-muted om-cad-fname"></span>
+        <div class="om-cad-got">${x.locked ? '' : `<label class="om-btn">${ico('camera', 18)}${x.fileObj ? 'Заменить скан' : 'Скан или PDF'}<input type="file" name="file" accept="image/*,application/pdf" capture="environment" hidden data-cad-file></label>
+          <div class="om-cad-pick" hidden></div>`}
           <label class="om-flabel" for="om-cd-${esc(x.id)}">Дата документа</label><input class="om-input" type="date" id="om-cd-${esc(x.id)}" name="scanDate" value="${esc(x.scanDate)}"></div>
         <textarea class="om-input" name="answer" rows="2" maxlength="300" placeholder="Пояснение" aria-label="Пояснение">${esc(x.answer)}</textarea>
         <p class="om-hint om-hint-diff" data-cad-err hidden></p>
@@ -1125,7 +1189,7 @@ export function mountOsmotr(host) {
   let mapKey = '';
   let savedAt = '';
   // Состояние экрана объекта: подтверждение «Осмотр закончен» (по объекту).
-  const ui = { asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false, take: '', takeDay: '' };
+  const ui = { asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false, take: '', takeDay: '', detachAsk: '' };
   // Оглавление инструкций — сразу: подсказки «Инструкция: …» у ОИ и позиций описи.
   instrIndex(() => { const v = q.v || 'today'; if (v === 'oi' || v === 'item' || v === 'instr') render(); });
   // Выбранные позиции описи (в одну карточку) — по описи; сменилась опись — выбор снимается.
@@ -1146,7 +1210,7 @@ export function mountOsmotr(host) {
     const notes = notesOf(person);
     const unread = notes.filter((n) => n.unread).length;
     const todayN = all.filter((o) => o.plannedAt === isoDay() && o.state !== 'done' && !o.removed).length;
-    const inObj = ['obj', 'doc', 'oi', 'sec', 'ph', 'inv', 'item'].includes(v);
+    const inObj = ['obj', 'doc', 'oi', 'sec', 'ph', 'inv', 'item'].includes(v) || (v === 'file' && q.src === 'inv');
     const o = inObj ? all.find((x) => x.id === q.id) : null;
     cur = o || null;
     if (ui.askFor !== q.id) ui.asking = false;
@@ -1154,7 +1218,7 @@ export function mountOsmotr(host) {
     const screen = v === 'trips' ? viewTrips(all, q, unread) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
         : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
-          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow) : v === 'plans' ? viewPlans(all, ui) : v === 'instr' ? viewInstr(q, () => { if ((q.v || '') === 'instr') render(); })
+          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow, ui.detachAsk) : v === 'file' ? viewFile(all, q, ui) : v === 'plans' ? viewPlans(all, ui) : v === 'instr' ? viewInstr(q, () => { if ((q.v || '') === 'instr') render(); })
           : v === 'inv' ? viewInv(o, q, sel, ui.filters) : v === 'item' ? viewItem(o, q) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'
@@ -1166,7 +1230,7 @@ export function mountOsmotr(host) {
     const ae = document.activeElement;
     const focus = ae && ae.id && scope.root.contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
     const top0 = (scope.$('.om-app') || {}).dataset?.v === v ? (scope.$('.om-scr') || {}).scrollTop || 0 : 0;
-    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${inObj || v === 'report' || v === 'cad' || v === 'plans' || v === 'instr' ? '' : bottomNav(v, todayN)}</div>`);
+    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${inObj || ['report', 'cad', 'plans', 'instr', 'file'].includes(v) ? '' : bottomNav(v, todayN)}</div>`);
     if (top0) scope.$('.om-scr').scrollTop = top0;
     // Инструкция из поиска — к найденному месту.
     else if (v === 'instr' && q.id && q.b) { const h = scope.$('#om-ib-' + CSS.escape(q.b)); if (h) h.scrollIntoView({ block: 'center' }); }
@@ -1386,9 +1450,46 @@ export function mountOsmotr(host) {
 
   // --- запросы документов из Кадастра ---
   scope.on('click', '[data-cad-open]', (e, b) => { ui.cadRow = ui.cadRow === b.dataset.cadOpen ? '' : b.dataset.cadOpen; dirty = false; render(); });
+  // Выбранный, но не отправленный файл — карточкой с «Убрать» (до отправки ответа).
   scope.on('change', '[data-cad-file]', (e, input) => {
-    const n = input.closest('form').querySelector('.om-cad-fname');
-    if (n) n.textContent = input.files && input.files[0] ? input.files[0].name : '';
+    const box = input.closest('form').querySelector('.om-cad-pick');
+    const f = input.files && input.files[0];
+    if (!box) return;
+    box.hidden = !f;
+    box.innerHTML = f ? `<div class="om-file om-file-new"><span class="om-file-prev">${/pdf/i.test(f.type) ? '<span class="om-file-pdf" aria-hidden="true">PDF</span>' : `<img src="${esc(URL.createObjectURL(f))}" alt="">`}</span>
+      <span class="om-file-tx"><b>${esc(f.name)}</b><small>${esc(fileMeta({ name: f.name, mime: f.type, size: f.size }))} · будет отправлен с ответом</small></span>
+      <span class="om-file-act"><button type="button" class="om-btn om-btn-sm" data-cad-file-clear>Убрать</button></span></div>` : '';
+  });
+  scope.on('click', '[data-cad-file-clear]', (e, b) => {
+    const form = b.closest('form');
+    form.file.value = '';
+    const box = form.querySelector('.om-cad-pick');
+    box.hidden = true; box.innerHTML = '';
+  });
+  // Открепить: первый щелчок — подтверждение в строке; второй — само действие.
+  scope.on('click', '[data-detach-ask]', (e, b) => { ui.detachAsk = b.dataset.detachAsk; dirty = false; render(); });
+  scope.on('click', '[data-cad-detach]', (e, b) => {
+    const [reqId, rowId] = b.dataset.cadDetach.split('|');
+    const row = detachCadFile(reqId, rowId);
+    ui.detachAsk = '';
+    if (!row) { host.toast('Скан принят ЦОД — открепить нельзя', 'warn'); render(); return; }
+    host.toast('Скан откреплён — строка снова ждёт ответа', 'ok');
+    if ((q.v || '') === 'file') { location.hash = href({ v: 'cad', r: reqId }); return; }
+    render();
+  });
+  scope.on('click', '[data-inv-ph-del]', (e, b) => {
+    const o = cur;
+    const inv = o && inventoryOf(session.state.person, o.id, q.inv);
+    const it = inv && inv.items.find((x) => x.id === q.it);
+    if (!it) return;
+    const ph = photosOfCard(o, inv, cardOf(o, inv, it)).find((x) => x.id === b.dataset.invPhDel);
+    if (!ph) return;
+    if (inv.kind === 'mech') removePhoto(o.typeId, o.ocId, ph.id);
+    else removeItemPhoto(inv.id, ph.itemId, ph.id, { by: session.state.person });
+    saveResults();
+    ui.detachAsk = '';
+    host.toast('Снимок удалён', 'ok');
+    location.hash = href({ v: 'item', id: o.id, inv: inv.id, it: it.id });
   });
   scope.on('submit', '[data-cad]', async (e, form) => {
     e.preventDefault();
@@ -1397,7 +1498,7 @@ export function mountOsmotr(host) {
     const file = form.file.files && form.file.files[0];
     const say = (t) => { err.textContent = t; err.hidden = !t; };
     if (!result) return say('Выберите ответ: получен, нет или отказ');
-    if (result === 'got' && !file) return say('Нужен скан или PDF документа');
+    if (result === 'got' && !file && form.dataset.hasFile !== '1') return say('Нужен скан или PDF документа');
     say('');
     const row = await answerCadRow(form.dataset.cad, form.dataset.row, { result, scanDate: form.scanDate.value, answer: form.answer.value.trim(), file: file || null, fileName: file ? file.name : '' });
     if (!row) return say('Строка запроса не найдена');
@@ -1551,7 +1652,7 @@ export function mountOsmotr(host) {
 
   render();
   return {
-    onRoute(route) { const prevV = q.v; q = route.query || {}; render(); if ((q.v !== prevV || q.v !== 'search') && !(q.v === 'plans' && q.at) && !(q.v === 'instr' && q.b)) scope.root.querySelector('.om-scr')?.scrollTo(0, 0); },
+    onRoute(route) { const prevV = q.v; q = route.query || {}; ui.detachAsk = ''; render(); if ((q.v !== prevV || q.v !== 'search') && !(q.v === 'plans' && q.at) && !(q.v === 'instr' && q.b)) scope.root.querySelector('.om-scr')?.scrollTo(0, 0); },
     destroy() {
       dropMap();
       clearTimeout(t);
