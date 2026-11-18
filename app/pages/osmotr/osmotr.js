@@ -33,7 +33,7 @@ import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto } from '../../kernel/inspectionResults.js';
 import { carryOver, nextWorkday, takeForDay, planOf, absenceOn, absenceLabel, startWork, myAssignsOn, finishWork, requestMove, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow, detachCadFile, cadFileAccepted } from '../../kernel/inspections.js';
 import { osrmKm, dayPoints } from '../inspections/route.js';
-import { periodOf, statsFor, fmtMetric } from '../inspections/statsData.js';
+import { periodOf, statsFor, fmtMetric, accountsFor, ACCOUNTS } from '../inspections/statsData.js';
 import { markItem, markOf, addItemPhoto, removeItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
 import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, FOUND_CATS } from '../inspection/tasks.js';
@@ -321,6 +321,8 @@ function viewStats(q) {
     <nav class="om-segs" aria-label="Период">${STAT_UNITS.map(([k, l]) => `<a class="om-seg${p.unit === k ? ' on' : ''}" href="${href({ v: 'stats', u: k })}" aria-current="${p.unit === k}">${l}</a>`).join('')}</nav>
     <div class="om-daynav">${step(p.offset + 1, '‹', 'Предыдущий период')}<b>${esc(p.label)}</b>${step(p.offset - 1, '›', 'Следующий период')}</div>
     ${p.current && p.unit !== 'day' ? '<p class="om-muted">Текущий период — по сегодня</p>' : ''}
+    <h2 class="om-cap om-sec">Осмотрено по счетам, ед.</h2>
+    <div class="om-group">${(() => { const acc = accountsFor(session.state.person, p); return ACCOUNTS.map(([k, label]) => `<div class="om-row om-stat om-acc"><span class="om-row-tx"><span>${esc(label)}</span><small>${k}</small></span><b class="om-n">${acc[k]}</b></div>`).join(''); })()}</div>
     ${STAT_GROUPS.map(([title, rows]) => `<h2 class="om-cap om-sec">${esc(title)}</h2>
     <div class="om-group">${rows.filter(([k]) => !(p.unit === 'day' && DAY_SKIP.includes(k))).map(([k, label, fmt]) => `<div class="om-row om-stat"><span class="om-row-tx">${esc(label)}</span><b class="om-n">${fmtMetric(me[k], fmt)}</b></div>`).join('')}</div>`).join('')}`;
 }

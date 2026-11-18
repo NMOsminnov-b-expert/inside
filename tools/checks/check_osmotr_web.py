@@ -17,7 +17,9 @@
     отчёты дня, дорога), числа расходятся с расчётом экрана статистики
     регионального менеджера (statsData.statsFor), переключатель периода и
     шаг назад не меняют период; «День» — не сегодняшний или шаг назад не
-    открывает вчера; есть сравнение с командой (медиана) — его
+    открывает вчера; «Осмотрено по счетам» (18.11.2026): отметка описи
+    «осмотрено» не прибавляет к своему счёту (31123 — счета 31123120 и
+    31123130, остальное — 31122) или мебель прибавляет; есть сравнение с командой (медиана) — его
     осмотрщику не показывают;
   * «К осмотру / Осмотрено / Все» — не те строки;
   * отбор по подведомственным в «Выездах» (18.11.2026: «по подведкам
@@ -122,9 +124,9 @@ def run(t):
     def stat_screen():
         return pg.evaluate("""() => ({ label: document.querySelector('.om-daynav b')?.textContent,
           groups: [...document.querySelectorAll('.om-sec')].map((h) => h.textContent),
-          v: [...document.querySelectorAll('.om-stat .om-n')].map((e) => e.textContent) })""")
+          v: [...document.querySelectorAll('.om-stat:not(.om-acc) .om-n')].map((e) => e.textContent) })""")
     scr = stat_screen()
-    t.ck(scr['groups'] == ['Объём', 'Отчёты дня', 'Дорога'], 'группы статистики: %s' % scr['groups'])
+    t.ck(scr['groups'] == ['Осмотрено по счетам, ед.', 'Объём', 'Отчёты дня', 'Дорога'], 'группы статистики: %s' % scr['groups'])
     t.ck(scr['label'] == month['label'] and scr['v'] == month['v'], 'месяц на экране %s %s, расчёт %s %s' % (scr['label'], scr['v'], month['label'], month['v']))
     t.ck(pg.locator('.om-bnav').count() == 0, 'на экране статистики — нижняя панель разделов (это вложенный экран)')
     t.ck('медиан' not in pg.locator('.om-scr').inner_text().lower(), 'осмотрщику показано сравнение с командой')
@@ -146,6 +148,33 @@ def run(t):
     t.ck(t.wait_until("() => /[?&]u=day&o=1/.test(location.hash) && !(document.querySelector('.om-daynav b')?.textContent || '').startsWith('Сегодня')"), 'шаг назад от сегодня не открыл вчера')
     yest_v = [x for i, x in enumerate(pg.evaluate(STATS, ['day', 1])['v']) if i not in (2, 3)]
     t.ck(stat_screen()['v'] == yest_v, 'вчера: на экране %s, расчёт %s' % (stat_screen()['v'], yest_v))
+
+    # По счетам (18.11.2026): отметки описи «осмотрено» сегодня — компьютер (31123130) в 31123, котёл в 31122 по
+    # количеству в позиции, мебель не учитывается; числа на экране — те же, что у расчёта accountsFor.
+    def acc_screen():
+        return pg.evaluate("() => Object.fromEntries([...document.querySelectorAll('.om-acc')].map((e) => [e.querySelector('small').textContent, +e.querySelector('.om-n').textContent]))")
+    t.open('#/osmotr?v=stats&u=day', wait='.om-app[data-v="stats"]')
+    acc0 = acc_screen()
+    t.ck(sorted(acc0) == ['31111', '31112', '31121', '31122', '31123'], 'счета на экране: %s' % sorted(acc0))
+    made_inv = pg.evaluate("""async () => {
+      const iv = await import('./app/kernel/inventories.js');
+      const s = (await import('./app/kernel/session.js')).session.state;
+      const pick = (f) => { for (const inv of iv.allInventories()) { const it = inv.items.find((x) => f(x) && !iv.markOf(inv.id, x.id)); if (it) return [inv.id, it]; } return null; };
+      const comp = pick((x) => x.acc === '31123130'); const boil = pick((x) => x.acc === '31122100' && x.kind !== 'Мебель'); const furn = pick((x) => x.kind === 'Мебель');
+      if (!comp || !boil || !furn) return null;
+      [comp, boil, furn].forEach(([id, it]) => iv.markItem(id, it.id, { state: 'seen' }, { by: s.person }));
+      (await import('./app/kernel/inspections.js')).changed();
+      return { comp: comp[1].qty || 1, boil: boil[1].qty || 1 };
+    }""")
+    t.ck(made_inv, 'в описях нет компьютера, оборудования и мебели без отметки — не на чем проверять счета')
+    # Тот же адрес не перерисовывает экран — сначала на главную.
+    t.open('#/osmotr', wait='.om-app[data-v="today"]')
+    t.open('#/osmotr?v=stats&u=day', wait='.om-app[data-v="stats"]')
+    acc1 = acc_screen()
+    t.ck(acc1['31123'] - acc0['31123'] == made_inv['comp'], '31123: было %d, стало %d, отмечен компьютер ×%d' % (acc0['31123'], acc1['31123'], made_inv['comp']))
+    t.ck(acc1['31122'] - acc0['31122'] == made_inv['boil'], '31122: было %d, стало %d, отмечено оборудование ×%d (мебель не считается)' % (acc0['31122'], acc1['31122'], made_inv['boil']))
+    calc = pg.evaluate("async () => { const d = await import('./app/pages/inspections/statsData.js'); const s = (await import('./app/kernel/session.js')).session.state; const t = new Date(); const day = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`; return d.accountsFor(s.person, { from: day, to: day }); }")
+    t.ck(acc1 == calc, 'по счетам: на экране %s, расчёт %s' % (acc1, calc))
     t.open('#/osmotr', wait='.om-app[data-v="today"]')
 
     # --- выезды: отбор по типам ---
