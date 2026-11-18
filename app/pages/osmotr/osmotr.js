@@ -52,7 +52,15 @@ const KINDS = [
   { key: 'vehicle', label: 'Транспорт', test: (o) => o.entity === 'vehicle' },
   { key: 'inv', label: 'Оборудование', test: (o) => o.entity === 'inventory' || (o.inventories || []).length > 0 },
 ];
-const byKind = (list, f) => { const k = KINDS.find((x) => x.key === f); return k ? list.filter(k.test) : list; };
+// Несколько типов сразу (пользователь 18.11.2026: «тип имущества тоже должен чекбоксом выделяться, вдруг я захочу
+// посмотреть тс и недвижку у определённых учреждений»): &f — ключи через «|», объект подходит под любой из них.
+const kindSel = (f) => String(f || '').split('|').filter((k) => KINDS.some((x) => x.key === k));
+const byKind = (list, f) => {
+  const ks = KINDS.filter((x) => kindSel(f).includes(x.key));
+  return ks.length ? list.filter((o) => ks.some((k) => k.test(o))) : list;
+};
+// Заголовок «Выездов»: один тип — его имя, несколько или ни одного — «Мне осмотреть».
+const kindTitle = (f) => { const ks = kindSel(f); return ks.length === 1 ? KINDS.find((x) => x.key === ks[0]).label : 'Мне осмотреть'; };
 
 // Состояние словом — как в приложении (EstateUi.kt, estateState).
 function stateOf(o) {
@@ -124,11 +132,15 @@ const top = (title, right = '') => `<header class="om-top"><h1 class="om-h1">${e
 const back = (to, label) => `<a class="om-back" href="${esc(to)}">${ico('back', 18)}<span>${esc(label)}</span></a>`;
 const bell = (n) => `<a class="om-icon" href="${href({ v: 'notes' })}" aria-label="Входящие${n ? ': новых ' + n : ''}" title="Входящие">${ico('bell')}${n ? `<b class="om-badge">${n > 99 ? '99+' : n}</b>` : ''}</a>`;
 
+// Типы — переключатели: касание добавляет тип к выбранным или снимает его; «Все» снимает выбор.
 function kindChips(list, f, v, keep = {}) {
-  const all = `<a class="om-seg${!f ? ' on' : ''}" href="${href({ v, ...keep })}" aria-current="${!f}">Все <b>${list.length}</b></a>`;
+  const sel = kindSel(f);
+  const all = `<a class="om-seg${!sel.length ? ' on' : ''}" href="${href({ v, ...keep })}" aria-current="${!sel.length}">Все <b>${list.length}</b></a>`;
   return `<nav class="om-segs" aria-label="Тип объектов">${all}${KINDS.map((k) => {
     const n = byKind(list, k.key).length;
-    return `<a class="om-seg${f === k.key ? ' on' : ''}${n ? '' : ' none'}" href="${href({ v, f: k.key, ...keep })}" aria-current="${f === k.key}">${esc(k.label)} <b>${n}</b></a>`;
+    const on = sel.includes(k.key);
+    const next = on ? sel.filter((x) => x !== k.key) : [...sel, k.key];
+    return `<a class="om-seg${on ? ' on' : ''}${n ? '' : ' none'}" href="${href({ v, f: next.join('|'), ...keep })}" aria-pressed="${on}">${esc(k.label)} <b>${n}</b></a>`;
   }).join('')}</nav>`;
 }
 
@@ -373,8 +385,9 @@ const orgSel = (q) => String(q.i || '').split('|').filter(Boolean);
 const byOrg = (list, sel) => (sel.length ? list.filter((o) => sel.includes(orgOf(o))) : list);
 function orgFilters(all, q, open) {
   const sel = orgSel(q);
+  const kinds = kindSel(q.f);
   const kinded = byKind(all, q.f);
-  const kind = KINDS.find((k) => k.key === q.f);
+  const pool = byOrg(all, sel);
   const heads = [...new Set(all.map(headOf))].sort((a, b) => (a === NO_HEAD) - (b === NO_HEAD) || a.localeCompare(b, 'ru'));
   const box = (key, label) => `<label class="om-radio"><input type="checkbox" data-org value="${esc(key)}"${sel.includes(key) ? ' checked' : ''}><span>${esc(label)}</span><b class="om-n">${kinded.filter((o) => orgOf(o) === key).length}</b></label>`;
   const group = (h) => {
@@ -384,9 +397,14 @@ function orgFilters(all, q, open) {
     return `<fieldset class="om-radios om-orgs"><legend class="om-flabel">${esc(h)}</legend>
       ${self ? box(h, pods.length ? 'Само учреждение' : h) : ''}${pods.map((x) => box(h + ' · ' + x, x)).join('')}</fieldset>`;
   };
-  const btn = `<button type="button" class="om-icon om-filter-btn${open ? ' on' : ''}" data-trip-filters aria-expanded="${open}" aria-controls="om-trip-filters" aria-label="Подведомственные${sel.length ? ': выбрано ' + sel.length : ''}" title="Подведомственные">${ico('filter', 20)}${sel.length ? `<b class="om-badge">${sel.length}</b>` : ''}</button>`;
+  // Счётчик на кнопке — всё отмеченное в панели: типы и подведомственные.
+  const nOn = sel.length + kinds.length;
+  const btn = `<button type="button" class="om-icon om-filter-btn${open ? ' on' : ''}" data-trip-filters aria-expanded="${open}" aria-controls="om-trip-filters" aria-label="Фильтры${nOn ? ': выбрано ' + nOn : ''}" title="Фильтры">${ico('filter', 20)}${nOn ? `<b class="om-badge">${nOn}</b>` : ''}</button>`;
+  // Тип — первым: число у типа — под выбранными подведомственными, у подведомственной — под выбранными типами.
+  const kindBox = (k) => `<label class="om-radio"><input type="checkbox" data-kind value="${k.key}"${kinds.includes(k.key) ? ' checked' : ''}><span>${esc(k.label)}</span><b class="om-n">${byKind(pool, k.key).length}</b></label>`;
   const panel = open ? `<div class="om-card om-filters" id="om-trip-filters">
-      <p class="om-flabel">Подведомственные${kind ? ' · ' + esc(kind.label) : ''}</p>
+      <fieldset class="om-radios om-orgs"><legend class="om-flabel">Тип имущества</legend>${KINDS.map(kindBox).join('')}</fieldset>
+      <p class="om-flabel">Подведомственные${kinds.length ? ' · ' + esc(KINDS.filter((k) => kinds.includes(k.key)).map((k) => k.label).join(', ')) : ''}</p>
       ${heads.map(group).join('')}</div>` : '';
   return { btn, panel, sel };
 }
@@ -398,8 +416,7 @@ function viewTrips(all, q, unread, filtersOpen = false) {
   const s = q.s || 'open';
   const extra = EXTRA[s];
   const shown = list.filter(extra ? extra.test : (TRIP_TABS.find((t) => t.key === s) || TRIP_TABS[0]).test);
-  const kind = KINDS.find((k) => k.key === q.f);
-  return `${top(kind ? kind.label : 'Мне осмотреть', bell(unread))}
+  return `${top(kindTitle(q.f), bell(unread))}
     <div class="om-tripbar">${kindChips(pool, q.f, 'trips', { s: q.s, i: q.i })}${hf.btn}</div>
     ${hf.panel}
     ${hf.sel.length ? `<p class="om-filter">${esc(hf.sel.join('; '))} <a href="${href({ v: 'trips', f: q.f, s: q.s })}">Сбросить</a></p>` : ''}
@@ -1511,6 +1528,9 @@ export function mountOsmotr(host) {
   });
   scope.on('change', '[data-invsort]', (e, el) => { location.hash = href({ ...q, sort: el.value }); });
   scope.on('click', '[data-trip-filters]', () => { ui.tripFilters = !ui.tripFilters; render(); });
+  scope.on('change', '[data-kind]', () => {
+    location.hash = href({ ...q, f: scope.$$('[data-kind]').filter((x) => x.checked).map((x) => x.value).join('|') });
+  });
   scope.on('change', '[data-org]', () => {
     location.hash = href({ ...q, i: scope.$$('[data-org]').filter((x) => x.checked).map((x) => x.value).join('|') });
   });

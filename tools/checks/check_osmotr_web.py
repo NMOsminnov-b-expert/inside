@@ -25,6 +25,10 @@
     учреждение) назначенных объектов; две отмеченные вместе с типом
     «Недвижимое» показывают не те объекты или не те числа во вкладках и
     типах; смена вкладки теряет отбор; «Сбросить» его не снимает;
+  * несколько типов сразу (18.11.2026: «тип имущества тоже должен чекбоксом
+    выделяться»): чекбокс «Транспорт» в панели не добавляет ТС к уже
+    выбранному «Недвижимому» у тех же подведомственных, кнопка типа не
+    снимает свой тип;
   * какой-то из назначенных объектов не открывается (сведения участка по
     Кадастру, ТС, описи — 16.11.2026 падал объект со сведениями участка);
   * в объекте нет ЕНИ, состояния, вкладки документов, документ с файлом не
@@ -167,8 +171,10 @@ def run(t):
     shown_orgs = sorted(pg.eval_on_selector_all('[data-org]', 'els => els.map((e) => e.value)'))
     t.ck(shown_orgs == orgs, 'подведомственные в панели %s, у объектов %s' % (shown_orgs, orgs))
     real_orgs = sorted({org_of(o) for o in objs if o['entity'] == 'real'}, key=lambda h: -sum(1 for o in objs if o['entity'] == 'real' and org_of(o) == h))
-    pick = real_orgs[:2]
-    t.ck(len(pick) == 2, 'у недвижимого меньше двух подведомственных — нечего отбирать вместе')
+    # Вторая — с транспортом, если такая есть: на ней проверяется выбор двух типов сразу.
+    veh_orgs = [h for h in sorted({org_of(o) for o in objs if o['entity'] == 'vehicle'}) if h != real_orgs[0]]
+    pick = [real_orgs[0], veh_orgs[0] if veh_orgs else real_orgs[1]]
+    t.ck(len(set(pick)) == 2, 'меньше двух подведомственных — нечего отбирать вместе')
     for i, h in enumerate(pick):
         pg.locator('[data-org][value="%s"]' % h.replace('"', '\\"')).check()
         t.wait_until("() => decodeURIComponent(location.hash).split('i=')[1]?.split('|').length === %d" % (i + 1))
@@ -179,6 +185,15 @@ def run(t):
     want = [o for o in sel if o['entity'] == 'real' and o['state'] != 'done' and not o['removed']]
     t.ck(pg.locator('.om-obj').count() == len(want), 'подведомственные + недвижимое, к осмотру: %d строк, ожидалось %d' % (pg.locator('.om-obj').count(), len(want)))
     t.ck(chip_n('Все') == len(sel), 'тип «Все» при отборе подведомственных: %d, ожидалось %d' % (chip_n('Все'), len(sel)))
+    # Два типа сразу: чекбокс «Транспорт» в панели добавляет ТС к недвижимому у тех же подведомственных.
+    pg.locator('[data-kind][value="vehicle"]').check()
+    t.ck(t.wait_until("() => /f=real%7Cvehicle|f=real\\|vehicle/.test(location.hash) && /[?&]i=/.test(location.hash) && document.querySelectorAll('.om-seg.on').length === 2"),
+         'чекбокс «Транспорт» не добавил тип к «Недвижимому»')
+    want2 = [o for o in sel if o['entity'] in ('real', 'vehicle') and o['state'] != 'done' and not o['removed']]
+    t.ck(pg.locator('.om-obj').count() == len(want2), 'недвижимое + транспорт у подведомственных, к осмотру: %d строк, ожидалось %d' % (pg.locator('.om-obj').count(), len(want2)))
+    t.ck(pg.locator('.om-h1', has_text='Мне осмотреть').count() == 1, 'при двух типах заголовок — не «Мне осмотреть»')
+    pg.locator('.om-segs .om-seg', has_text='Транспорт').click()
+    t.ck(t.wait_until("() => /f=real(&|$)/.test(location.hash) && !document.querySelector('[data-kind][value=vehicle]:checked')"), 'кнопка «Транспорт» не сняла свой тип')
     pg.locator('.om-tab3', has_text='Все').click()
     t.ck(t.wait_until("() => /s=all/.test(location.hash) && /[?&]i=/.test(location.hash) && document.querySelector('.om-tab3.on')?.textContent.startsWith('Все')"),
          'вкладка «Все» потеряла отбор по подведомственным')
