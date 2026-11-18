@@ -56,24 +56,9 @@ body[data-page="osmotr"] .content{height:100dvh;overflow:hidden;padding:0;backgr
 .om-seg.on b{color:rgba(255,255,255,.75)}
 .om-seg.none{opacity:.55}
 
-/* Главная: плитка «осмотреть» и следующий объект */
-.om-hero{display:grid;grid-template-columns:118px 1fr;gap:12px;margin-bottom:6px}
-.om-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:120px;border-radius:22px;background:#fff;border:2px solid #8fb8e0;box-shadow:var(--om-card-sh);text-align:center}
-.om-tile b{font-size:38px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
-.om-tile span{font-size:13px;color:var(--om-muted)}
-.om-next{display:flex;flex-direction:column;gap:4px;min-width:0;padding:14px;border-radius:22px;background:linear-gradient(135deg,#e2d4f3,#d5e3f6);box-shadow:var(--om-card-sh)}
-.om-next .om-cap{color:#7a41b8}
-.om-next-title{font-weight:700;font-size:16px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.om-next-none{justify-content:center;color:var(--om-muted);font-size:14px}
-.om-mono{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:12px;color:var(--om-muted);letter-spacing:.02em}
-.om-next-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:6px}
-/* На узком экране кнопки встают друг под другом, а не выталкивают страницу вбок. */
-.om-next-act .om-btn{flex:1 1 auto;min-width:0;padding:0 12px}
-
 /* Кнопки — «пилюли» стенда */
 .om-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:14px;background:rgba(255,255,255,.75);border:1px solid var(--om-glass-line);font-weight:600;font-size:15px;color:var(--om-ink);white-space:nowrap;cursor:pointer}
 .om-btn-primary{background:linear-gradient(180deg,#4b8fe2,#2f74d0);border-color:#2a6bc2;color:#fff;box-shadow:0 6px 16px rgba(47,116,208,.35)}
-.om-next .om-btn-primary{background:#7a41b8;border-color:#6b37a3;box-shadow:0 6px 16px rgba(122,65,184,.3)}
 
 /* Группа строк — белая плашка с разделителями */
 .om-group{background:#fff;border-radius:var(--om-r);box-shadow:var(--om-card-sh);overflow:hidden}

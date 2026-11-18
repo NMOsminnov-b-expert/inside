@@ -1,14 +1,17 @@
 # -*- coding: utf-8 -*-
 """
 Веб-страница осмотрщика (pages/osmotr/osmotr.js) — перенос приложения «Осмотр»
-в веб, этап 1 (16.11.2026): «Сегодня», «Выезды», поиск, меню, входящие, объект
+в веб, этап 1 (16.11.2026): «Мои объекты» (до 18.11.2026 — «Сегодня»), «Выезды», поиск, меню, входящие, объект
 и документы для выезда. Образец вида — мобильный вид стенда E•state.
 
 Что ловит сценарий:
   * отбор по типам объектов (недвижимое, транспорт, оборудование) в «Выездах»
-    не сходится с назначенными объектами или не отбирает; на «Сегодня» он есть
+    не сходится с назначенными объектами или не отбирает; на главной он есть
     (его там быть не должно — 16.11.2026);
-  * плитка «осмотреть сегодня» и «Просрочено» считают не те назначения;
+  * главная «Мои объекты» (18.11.2026): заголовок не «Объекты к осмотру», вкладка
+    внизу не «Мои объекты»; в списке «В работе» не только начатые («В работе»
+    и «На доосмотр») — туда попал не начатый объект или не попал начатый;
+  * «Просрочено» считает не те назначения;
   * «К осмотру / Осмотрено / Все» — не те строки;
   * какой-то из назначенных объектов не открывается (сведения участка по
     Кадастру, ТС, описи — 16.11.2026 падал объект со сведениями участка);
@@ -49,25 +52,37 @@ def run(t):
     pg.set_viewport_size({'width': 400, 'height': 860})
     t.open('#/osmotr', wait='.om-app[data-v="today"]')
 
-    # --- данные: просроченный выезд (вчерашняя дата у открытого назначения) ---
-    late = pg.evaluate("""async (day) => {
+    # --- данные: просроченный выезд (вчерашняя дата у открытого назначения) и начатый осмотр
+    # у другого объекта; третий открытый объект остаётся не начатым ---
+    made = pg.evaluate("""async (day) => {
       const k = await import('./app/kernel/inspections.js');
       const s = (await import('./app/kernel/session.js')).session.state;
-      const a = k.assignmentsOfPerson(s.person).find((x) => x.state !== 'done');
-      if (!a) return null;
-      k.takeForDay(a.id, day); k.changed();
-      return a.typeId + '|' + a.ocId;
+      const open = k.assignmentsOfPerson(s.person).filter((x) => x.state !== 'done');
+      const keys = [...new Set(open.map((x) => x.typeId + '|' + x.ocId))];
+      if (keys.length < 2) return null;
+      const a = open.find((x) => x.typeId + '|' + x.ocId === keys[0]);
+      k.takeForDay(a.id, day);
+      const [typeId, ocId] = keys[1].split('|');
+      k.startWork(s.person, typeId, ocId); k.changed();
+      return { late: keys[0], started: keys[1] };
     }""", iso(-1))
-    t.ck(late, 'у осмотрщика нет ни одного открытого назначения — сценарию не на чем проверять')
-    pg.wait_for_timeout(500)
+    t.ck(made, 'у осмотрщика меньше двух открытых объектов — сценарию не на чем проверять')
+    late, started = made['late'], made['started']
+    t.ck(t.wait_until("(k) => [...document.querySelectorAll('.om-list .om-obj')].some((e) => decodeURIComponent(e.getAttribute('href')).includes(k))", started),
+         'начатый объект %s не появился в «В работе»' % started)
     objs = pg.evaluate(OBJS)
     t.ck(len(objs) > 0, 'назначенных объектов нет')
 
-    # --- главная: без отбора по типам (16.11.2026: «На экране сегодня их по идее не будет») ---
-    t.ck(pg.locator('.om-segs').count() == 0, 'на «Сегодня» есть отбор по типам — он только там, где видны объекты')
-    today_open = [o for o in objs if o['plannedAt'] == iso() and o['state'] != 'done' and not o['removed']]
-    t.ck(pg.locator('.om-tile b').inner_text().strip() == str(len(today_open)),
-         'плитка «осмотреть сегодня»: %s, ожидалось %d' % (pg.locator('.om-tile b').inner_text(), len(today_open)))
+    # --- главная «Мои объекты»: без отбора по типам (16.11.2026: «На экране сегодня их по идее не будет») ---
+    t.ck(pg.locator('.om-segs').count() == 0, 'на главной есть отбор по типам — он только там, где видны объекты')
+    t.ck(pg.locator('.om-h1', has_text='Объекты к осмотру').count() == 1, 'заголовок главной — не «Объекты к осмотру»')
+    t.ck(pg.locator('.om-btab.on', has_text='Мои объекты').count() == 1, 'вкладка внизу — не «Мои объекты»')
+    work = [o for o in objs if not o['removed'] and o['state'] != 'done' and (o['state'] == 'progress' or o['returned'])]
+    shown = pg.eval_on_selector_all('.om-list .om-obj', 'els => els.map((e) => decodeURIComponent(e.getAttribute("href")))')
+    t.ck(len(shown) == len(work), '«В работе»: %d строк, начатых объектов %d' % (len(shown), len(work)))
+    t.ck(any(started in h for h in shown), 'начатый объект %s не в списке «В работе»' % started)
+    idle = [o['id'] for o in objs if o['state'] == 'assigned' and not o['returned'] and not o['removed']]
+    t.ck(not any(i in h for i in idle for h in shown), 'в «В работе» попал не начатый объект')
     t.ck(pg.locator('.om-row', has_text='Просрочено').count() == 1, 'на главной нет «Просрочено» при просроченном выезде')
     t.ck(pg.locator('.om-row', has_text='Все мои объекты').locator('.om-n').inner_text().strip() == str(len(objs)), '«Все мои объекты» — не все назначенные')
 

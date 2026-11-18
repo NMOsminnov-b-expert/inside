@@ -13,7 +13,7 @@
 // состояние) осмотрщику не показываются и не правятся. Отдельных разделов
 // «как доехать» и «где опознать» нет — сведения встроены в экраны.
 //
-// Экраны — адресом #/osmotr?v=…: today (главная «Сегодня»), trips («Выезды»,
+// Экраны — адресом #/osmotr?v=…: today (главная «Мои объекты»), trips («Выезды»,
 // &f — отбор по типам: real, vehicle, inv; &s — open, done, all, back, late), search, menu, notes, obj (&id —
 // «typeId|ocId», &tab — task, docs), doc (&id, &doc — документ), oi (&id, &oi — объект имущества: разделы
 // осмотра раскрываемыми блоками), sec (&id, &oi, &s — тот же экран ОИ с раскрытым разделом), app —
@@ -267,13 +267,17 @@ function dayRow() {
   return `<a class="om-row" href="${href({ v: 'report' })}"><span class="om-row-ico${e ? ' om-t-green' : ''}">${ico('task')}</span><span class="om-row-tx"><span>Отчёт дня</span><small>${st}</small></span>${ico('chev', 18)}</a>`;
 }
 
+// Главная осмотрщика — «Мои объекты» (пользователь 18.11.2026: вкладку «Сегодня» переименовать в «Мои объекты»,
+// заголовок — «Объекты к осмотру», дата под ним остаётся; вместо плитки «осмотреть сегодня» и «Следующий» —
+// список объектов в работе). В работе — только начатые: «В работе» и «На доосмотр» (пользователь 18.11.2026),
+// назначенные, но не начатые, — в «Выездах».
+const inWork = (o) => !o.removed && o.state !== 'done' && (o.state === 'progress' || (o.returned || []).length > 0);
 function viewToday(all, q, unread) {
-  // Отбор по типам — только там, где видны сами объекты (16.11.2026), на «Сегодня» его нет.
+  // Отбор по типам — только там, где видны сами объекты (16.11.2026), на главной его нет.
   const list = all;
   const today = isoDay();
   const open = list.filter((o) => o.state !== 'done' && !o.removed);
-  const todays = open.filter((o) => o.plannedAt === today);
-  const next = todays[0] || open[0];
+  const work = open.filter(inWork);
   const back2 = open.filter((o) => (o.returned || []).length);
   const late = open.filter((o) => o.plannedAt && o.plannedAt < today);
   const noDateN = open.filter((o) => !o.plannedAt).length;
@@ -284,20 +288,10 @@ function viewToday(all, q, unread) {
     back2.length ? `<a class="om-row" href="${href({ v: 'trips', s: 'back' })}"><span class="om-row-ico om-t-amber">${ico('alert')}</span><span class="om-row-tx">На доосмотр</span><b class="om-n om-t-amber">${back2.length}</b>${ico('chev', 18)}</a>` : '',
     late.length ? `<a class="om-row" href="${href({ v: 'trips', s: 'late' })}"><span class="om-row-ico om-t-rose">${ico('alert')}</span><span class="om-row-tx">Просрочено</span><b class="om-n om-t-rose">${late.length}</b>${ico('chev', 18)}</a>` : '',
   ].join('');
-  return `${top('Сегодня', bell(unread))}
+  return `${top('Объекты к осмотру', bell(unread))}
     <p class="om-hello">${WEEKDAYS[d.getDay()]}, ${d.getDate()} ${MONTHS[d.getMonth()]}${name ? ` · добрый день, ${esc(name)}` : ''}</p>
-    <section class="om-hero">
-      <a class="om-tile" href="${href({ v: 'trips' })}"><b>${todays.length}</b><span>осмотреть сегодня</span></a>
-      ${next ? `<div class="om-next">
-        <span class="om-cap">Следующий</span>
-        <a class="om-next-title" href="${href({ v: 'obj', id: next.id })}">${esc(next.title)}</a>
-        ${next.eni ? `<span class="om-mono">${esc(fmtEni(next.eni) || next.eni)}</span>` : ''}
-        <span class="om-next-act">
-          ${routeBtn(next)}
-          <a class="om-btn om-btn-primary" href="${href({ v: 'obj', id: next.id })}">Открыть</a>
-        </span></div>`
-        : '<div class="om-next om-next-none"><span class="om-cap">Следующий</span><span>Назначенных объектов нет</span></div>'}
-    </section>
+    <h2 class="om-cap om-sec">В работе · ${work.length}</h2>
+    <div class="om-list">${work.length ? work.map(objRow).join('') : '<div class="om-card om-empty">Начатых осмотров нет</div>'}</div>
     ${urgent ? `<h2 class="om-cap om-sec">Срочно</h2><div class="om-group">${urgent}</div>` : ''}
     <h2 class="om-cap om-sec">Мои задачи</h2>
     <div class="om-group">
@@ -883,7 +877,7 @@ function viewReport(q, rerender) {
   const prev = new Date(d); prev.setDate(d.getDate() - 1);
   const next = new Date(d); next.setDate(d.getDate() + 1);
   const dayLink = (x, label) => `<a class="om-btn om-btn-sm" href="${href({ v: 'report', date: isoDay(x) })}">${label}</a>`;
-  return `${back(href({ v: 'today' }), 'Сегодня')}
+  return `${back(href({ v: 'today' }), 'Мои объекты')}
     <h1 class="om-title om-title-sm">Отчёт дня</h1>
     <div class="om-daynav">${dayLink(prev, '‹')}<b>${d.getDate()} ${MONTHS[d.getMonth()]}, ${WEEKDAYS[d.getDay()].toLowerCase()}</b>${date < isoDay() ? dayLink(next, '›') : '<span class="om-btn om-btn-sm om-off" aria-hidden="true">›</span>'}</div>
     ${open ? '' : '<p class="om-warn">Срок сдачи отчёта за этот день прошёл</p>'}
@@ -1185,10 +1179,10 @@ function viewDoc(o, q) {
         : `<img class="om-docimg" src="${esc(f.dataUrl)}" alt="${esc(name)}">`}`;
 }
 
-// Нижняя панель главных разделов (как у стенда: Сегодня, Выезды, Поиск, Меню).
+// Нижняя панель главных разделов (как у стенда; «Сегодня» стал «Мои объекты» 18.11.2026).
 function bottomNav(v, todayN) {
   const at = { today: 'today', trips: 'trips', search: 'search', menu: 'menu', notes: 'menu' }[v] || 'today';
-  const items = [['today', 'today', 'Сегодня', todayN], ['trips', 'trips', 'Выезды'], ['search', 'search', 'Поиск'], ['menu', 'menu', 'Меню']];
+  const items = [['today', 'today', 'Мои объекты', todayN], ['trips', 'trips', 'Выезды'], ['search', 'search', 'Поиск'], ['menu', 'menu', 'Меню']];
   return `<nav class="om-bnav" aria-label="Разделы">${items.map(([k, icon, label, n]) => `<a class="om-btab${at === k ? ' on' : ''}" href="${href({ v: k })}" aria-current="${at === k}">${ico(icon, 22)}${n ? `<b class="om-badge">${n}</b>` : ''}<span>${label}</span></a>`).join('')}</nav>`;
 }
 
@@ -1247,7 +1241,7 @@ export function mountOsmotr(host) {
     if (top0) scope.$('.om-scr').scrollTop = top0;
     // Инструкция из поиска — к найденному месту.
     else if (v === 'instr' && q.id && q.b) { const h = scope.$('#om-ib-' + CSS.escape(q.b)); if (h) h.scrollIntoView({ block: 'center' }); }
-    // «Без даты» с «Сегодня» — сразу к своему разделу (раздел внизу «Планов», как в приложении).
+    // «Без даты» с «Моих объектов» — сразу к своему разделу (раздел внизу «Планов», как в приложении).
     else if (v === 'plans' && q.at === 'nodate') { const h = scope.$('#om-nodate'); if (h) h.scrollIntoView({ block: 'start' }); }
     const el = focus && document.getElementById(focus.id);
     if (el && scope.root.contains(el)) { el.focus({ preventScroll: true }); try { if (focus.a != null) el.setSelectionRange(focus.a, focus.b); } catch { /* у списка выделения нет */ } }
