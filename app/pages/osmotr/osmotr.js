@@ -1827,7 +1827,10 @@ export function mountOsmotr(host) {
 
   render();
   return {
-    onRoute(route) { const prevV = q.v; q = route.query || {}; ui.detachAsk = ''; render(); if ((q.v !== prevV || q.v !== 'search') && !(q.v === 'plans' && q.at) && !(q.v === 'instr' && q.b)) scope.root.querySelector('.om-scr')?.scrollTo(0, 0); },
+    // Наверх — только при переходе на другой экран. Отбор на том же экране (отметка в фильтрах «Выездов», вкладка,
+    // поиск, период статистики) прокрутку не сбрасывает (пользователь 18.11.2026: «после того как ставлю галочку
+    // страница прыгает как будто обновляется»).
+    onRoute(route) { const prevV = q.v; q = route.query || {}; ui.detachAsk = ''; render(); const same = q.v === prevV && ['search', 'trips', 'stats'].includes(q.v); if (!same && !(q.v === 'plans' && q.at) && !(q.v === 'instr' && q.b)) scope.root.querySelector('.om-scr')?.scrollTo(0, 0); },
     destroy() {
       dropMap();
       clearTimeout(t);

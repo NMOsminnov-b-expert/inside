@@ -27,7 +27,8 @@
     типах; смена вкладки теряет отбор; «Сбросить всё» его не снимает;
   * вид фильтров (18.11.2026, «красивее сделай»): учреждения не раскрываются,
     крестик на плашке выбранного не снимает одну подведомственную, «Показать
-    N» показывает не число строк списка или не сворачивает панель;
+    N» показывает не число строк списка или не сворачивает панель; отметка
+    в панели прокручивает экран наверх («страница прыгает» — 18.11.2026);
   * несколько типов сразу (18.11.2026: «тип имущества тоже должен чекбоксом
     выделяться»): чекбокс «Транспорт» в панели не добавляет ТС к уже
     выбранному «Недвижимому» у тех же подведомственных, кнопка типа не
@@ -188,8 +189,13 @@ def run(t):
     pick = [real_orgs[0], veh_orgs[0] if veh_orgs else real_orgs[1]]
     t.ck(len(set(pick)) == 2, 'меньше двух подведомственных — нечего отбирать вместе')
     for i, h in enumerate(pick):
-        pg.locator('[data-org][value="%s"]' % h.replace('"', '\\"')).check()
+        box = pg.locator('[data-org][value="%s"]' % h.replace('"', '\\"'))
+        # Прокрутка — скриптом: панель перерисовывается по событиям данных, ссылка на узел устаревает.
+        y0 = pg.evaluate("(v) => { const el = [...document.querySelectorAll('[data-org]')].find((x) => x.value === v); el.scrollIntoView({ block: 'center' }); return document.querySelector('.om-scr').scrollTop; }", h)
+        box.check()
         t.wait_until("() => decodeURIComponent(location.hash).split('i=')[1]?.split('|').length === %d" % (i + 1))
+        y1 = pg.evaluate("() => document.querySelector('.om-scr').scrollTop")
+        t.ck(abs(y1 - y0) < 2, 'отметка в фильтре сбросила прокрутку: было %d, стало %d' % (y0, y1))
     pg.locator('.om-segs .om-seg', has_text='Недвижимое').click()
     t.ck(t.wait_until("() => /f=real/.test(location.hash) && /[?&]i=/.test(location.hash) && document.querySelector('.om-seg.on')?.textContent.includes('Недвижимое')"),
          'тип «Недвижимое» сбросил отбор по подведомственным')
