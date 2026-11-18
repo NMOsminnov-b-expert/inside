@@ -16,7 +16,8 @@
     задачах» или она не ведёт на экран; на экране не три группы (объём,
     отчёты дня, дорога), числа расходятся с расчётом экрана статистики
     регионального менеджера (statsData.statsFor), переключатель периода и
-    шаг назад не меняют период; есть сравнение с командой (медиана) — его
+    шаг назад не меняют период; «День» — не сегодняшний или шаг назад не
+    открывает вчера; есть сравнение с командой (медиана) — его
     осмотрщику не показывают;
   * «К осмотру / Осмотрено / Все» — не те строки;
   * какой-то из назначенных объектов не открывается (сведения участка по
@@ -95,7 +96,8 @@ def run(t):
     # --- статистика: строка в «Моих задачах» → экран; те же числа, что у регионального менеджера ---
     STATS = """async ([u, o]) => { const d = await import('./app/pages/inspections/statsData.js');
       const s = (await import('./app/kernel/session.js')).session.state;
-      const p = d.periodOf(u, o); const r = d.statsFor(new Map(), [s.person], p).rows[0];
+      const day = (n) => { const x = new Date(); x.setDate(x.getDate() - n); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`; };
+      const p = u === 'day' ? { from: day(o), to: day(o), upto: day(o), label: '' } : d.periodOf(u, o); const r = d.statsFor(new Map(), [s.person], p).rows[0];
       return { label: p.label, v: [r.objects, r.oi, r.workdays, r.oiPerDay, r.repOnTime, r.repLate, r.repMissed, r.repShare, r.km, r.litres, r.kmPerObj, r.lPerObj]
         .map((x, i) => d.fmtMetric(x, [3, 7].includes(i) ? (i === 7 ? 'pct' : 'dec') : [8, 9, 10, 11].includes(i) ? 'dec' : 'int')) }; }"""
     row = pg.locator('.om-row', has_text='Статистика')
@@ -121,6 +123,16 @@ def run(t):
     prev = pg.evaluate(STATS, ['week', 1])
     t.ck(t.wait_until("(l) => document.querySelector('.om-daynav b')?.textContent === l", prev['label']), 'шаг назад не открыл прошлую неделю')
     t.ck(stat_screen()['v'] == prev['v'], 'прошлая неделя: на экране %s, расчёт %s' % (stat_screen()['v'], prev['v']))
+    # День: сегодня и шаг назад — вчера (18.11.2026: «за сегодня тоже сделай»).
+    pg.locator('.om-segs .om-seg', has_text='День').click()
+    t.ck(t.wait_until("() => (document.querySelector('.om-daynav b')?.textContent || '').startsWith('Сегодня')"), '«День» открыл не сегодня')
+    # за день рабочих дней и ОИ на рабочий день нет (третий и четвёртый показатели)
+    today_v = [x for i, x in enumerate(pg.evaluate(STATS, ['day', 0])['v']) if i not in (2, 3)]
+    t.ck(stat_screen()['v'] == today_v, 'сегодня: на экране %s, расчёт %s' % (stat_screen()['v'], today_v))
+    pg.locator('.om-daynav a[aria-label="Предыдущий период"]').click()
+    t.ck(t.wait_until("() => /[?&]u=day&o=1/.test(location.hash) && !(document.querySelector('.om-daynav b')?.textContent || '').startsWith('Сегодня')"), 'шаг назад от сегодня не открыл вчера')
+    yest_v = [x for i, x in enumerate(pg.evaluate(STATS, ['day', 1])['v']) if i not in (2, 3)]
+    t.ck(stat_screen()['v'] == yest_v, 'вчера: на экране %s, расчёт %s' % (stat_screen()['v'], yest_v))
     t.open('#/osmotr', wait='.om-app[data-v="today"]')
 
     # --- выезды: отбор по типам ---

@@ -272,22 +272,30 @@ function dayRow() {
 
 // --- статистика осмотрщика ---------------------------------------------------------------------
 // Пользователь 18.11.2026: «добавь статистику в мои задачи» — строка в «Моих задачах», касание открывает экран.
-// Показатели — объём, отчёты дня, дорога; период — неделя, месяц, квартал с шагом назад и вперёд; без сравнения
+// Показатели — объём, отчёты дня, дорога; период — день (18.11.2026: «за сегодня тоже сделай»), неделя, месяц,
+// квартал с шагом назад и вперёд; без сравнения
 // с командой (медиана и «хуже медианы» — только у регионального менеджера). Счёт — тот же, что на экране
 // «Статистика» регионального менеджера (pages/inspections/statsData.js), — одни и те же числа в обоих местах.
 // Подписи — как там же (METRICS и таблица осмотрщика).
-const STAT_UNITS = [['week', 'Неделя'], ['month', 'Месяц'], ['quarter', 'Квартал']];
+const STAT_UNITS = [['day', 'День'], ['week', 'Неделя'], ['month', 'Месяц'], ['quarter', 'Квартал']];
 const STAT_GROUPS = [
   ['Объём', [['objects', 'Объектов', 'int'], ['oi', 'Осмотрено ОИ', 'int'], ['workdays', 'Рабочих дней в периоде', 'int'], ['oiPerDay', 'ОИ на рабочий день', 'dec']]],
   ['Отчёты дня', [['repOnTime', 'Сдано вовремя', 'int'], ['repLate', 'Сдано поздно', 'int'], ['repMissed', 'Не сдано', 'int'], ['repShare', 'Отчёты дня вовремя', 'pct']]],
   ['Дорога', [['km', 'Пробег, км', 'dec'], ['litres', 'Бензин, л', 'dec'], ['kmPerObj', 'Пробег на объект, км', 'dec'], ['lPerObj', 'Бензин на объект, л', 'dec']]],
 ];
+// За один день рабочие дни и выработка на рабочий день ничего не говорят — не показываются.
+const DAY_SKIP = ['workdays', 'oiPerDay'];
 // Сводки записей (первый аргумент statsFor) нужны только показателю «Факт к норме осмотра» — его здесь нет,
 // поэтому реестр целиком не поднимается.
 const myStats = (person, period) => statsFor(new Map(), [person], period).rows[0];
 function statPeriod(q) {
   const unit = STAT_UNITS.some(([k]) => k === q.u) ? q.u : 'month';
-  return periodOf(unit, Math.max(0, parseInt(q.o, 10) || 0));
+  const offset = Math.max(0, parseInt(q.o, 10) || 0);
+  if (unit !== 'day') return periodOf(unit, offset);
+  // День — свой: у общего выбора периода (statsData.periodOf) дня нет, а считать его можно тем же statsFor.
+  const today = isoDay();
+  const d = addDays(today, -offset);
+  return { unit, offset, from: d, to: d, upto: d, label: dayHead(d, today), current: offset === 0 };
 }
 function viewStats(q) {
   const p = statPeriod(q);
@@ -298,9 +306,9 @@ function viewStats(q) {
     <h1 class="om-title om-title-sm">Статистика</h1>
     <nav class="om-segs" aria-label="Период">${STAT_UNITS.map(([k, l]) => `<a class="om-seg${p.unit === k ? ' on' : ''}" href="${href({ v: 'stats', u: k })}" aria-current="${p.unit === k}">${l}</a>`).join('')}</nav>
     <div class="om-daynav">${step(p.offset + 1, '‹', 'Предыдущий период')}<b>${esc(p.label)}</b>${step(p.offset - 1, '›', 'Следующий период')}</div>
-    ${p.current ? '<p class="om-muted">Текущий период — по сегодня</p>' : ''}
+    ${p.current && p.unit !== 'day' ? '<p class="om-muted">Текущий период — по сегодня</p>' : ''}
     ${STAT_GROUPS.map(([title, rows]) => `<h2 class="om-cap om-sec">${esc(title)}</h2>
-    <div class="om-group">${rows.map(([k, label, fmt]) => `<div class="om-row om-stat"><span class="om-row-tx">${esc(label)}</span><b class="om-n">${fmtMetric(me[k], fmt)}</b></div>`).join('')}</div>`).join('')}`;
+    <div class="om-group">${rows.filter(([k]) => !(p.unit === 'day' && DAY_SKIP.includes(k))).map(([k, label, fmt]) => `<div class="om-row om-stat"><span class="om-row-tx">${esc(label)}</span><b class="om-n">${fmtMetric(me[k], fmt)}</b></div>`).join('')}</div>`).join('')}`;
 }
 // Строка «Статистика» в «Моих задачах»: итог текущего месяца.
 function statsRow() {
