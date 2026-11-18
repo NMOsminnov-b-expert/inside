@@ -24,7 +24,10 @@
     делай»): в панели не все пары «учреждение · подведомственная» (или само
     учреждение) назначенных объектов; две отмеченные вместе с типом
     «Недвижимое» показывают не те объекты или не те числа во вкладках и
-    типах; смена вкладки теряет отбор; «Сбросить» его не снимает;
+    типах; смена вкладки теряет отбор; «Сбросить всё» его не снимает;
+  * вид фильтров (18.11.2026, «красивее сделай»): учреждения не раскрываются,
+    крестик на плашке выбранного не снимает одну подведомственную, «Показать
+    N» показывает не число строк списка или не сворачивает панель;
   * несколько типов сразу (18.11.2026: «тип имущества тоже должен чекбоксом
     выделяться»): чекбокс «Транспорт» в панели не добавляет ТС к уже
     выбранному «Недвижимому» у тех же подведомственных, кнопка типа не
@@ -168,6 +171,15 @@ def run(t):
     t.ck(t.wait_until("() => !!document.getElementById('om-trip-filters')"), 'кнопка фильтра не открыла панель подведомственных')
     org_of = lambda o: ((o['head'] or 'Без учреждения') + (' · ' + o['podved'] if o['podved'] else ''))
     orgs = sorted({org_of(o) for o in objs})
+    # Учреждения свёрнуты (18.11.2026, «красивее сделай») — раскрыть все; каждое раскрытие перерисовывает панель.
+    for _ in range(60):
+        closed = pg.locator('[data-head-toggle][aria-expanded="false"]')
+        if not closed.count():
+            break
+        n_closed = closed.count()
+        closed.first.click()
+        t.wait_until("() => document.querySelectorAll('[data-head-toggle][aria-expanded=\"false\"]').length === %d" % (n_closed - 1))
+    t.ck(pg.locator('[data-head-toggle][aria-expanded="false"]').count() == 0, 'учреждения в панели не раскрываются')
     shown_orgs = sorted(pg.eval_on_selector_all('[data-org]', 'els => els.map((e) => e.value)'))
     t.ck(shown_orgs == orgs, 'подведомственные в панели %s, у объектов %s' % (shown_orgs, orgs))
     real_orgs = sorted({org_of(o) for o in objs if o['entity'] == 'real'}, key=lambda h: -sum(1 for o in objs if o['entity'] == 'real' and org_of(o) == h))
@@ -199,8 +211,23 @@ def run(t):
          'вкладка «Все» потеряла отбор по подведомственным')
     n_all = len([o for o in sel if o['entity'] == 'real'])
     t.ck(pg.locator('.om-obj').count() == n_all, 'подведомственные + недвижимое, все: %d строк, ожидалось %d' % (pg.locator('.om-obj').count(), n_all))
-    pg.locator('.om-filter a', has_text='Сбросить').click()
-    t.ck(t.wait_until("() => !/[?&]i=/.test(location.hash) && !document.querySelector('[data-org]:checked')"), '«Сбросить» не снял отбор по подведомственным')
+    # Выбранное — плашками: крестик снимает одну подведомственную, остальные остаются.
+    t.ck(pg.locator('.om-fchip').count() == 2, 'плашек выбранных подведомственных: %d, отмечено 2' % pg.locator('.om-fchip').count())
+    pg.locator('.om-fchip').first.click()
+    t.ck(t.wait_until("() => decodeURIComponent(location.hash).split('i=')[1]?.split('&')[0].split('|').length === 1 && document.querySelectorAll('.om-fchip').length === 1"),
+         'крестик на плашке не снял подведомственную')
+    # Плашки — в порядке панели (по учреждениям), не в порядке отметок: оставшаяся — из адреса.
+    left = pg.evaluate("() => decodeURIComponent(location.hash).split('i=')[1].split('&')[0]")
+    t.ck(left in pick, 'после снятия плашки в отборе %r — не из отмеченных' % left)
+    rest = [o for o in objs if org_of(o) == left and o['entity'] == 'real']
+    t.ck(t.wait_until("() => document.querySelectorAll('.om-obj').length === %d" % len(rest)), 'после снятия плашки: %d строк, ожидалось %d' % (pg.locator('.om-obj').count(), len(rest)))
+    # «Показать N» — число строк списка, кнопка сворачивает панель.
+    btn = pg.locator('.om-ffoot [data-trip-filters]')
+    t.ck(btn.inner_text().strip() == 'Показать %d' % len(rest), '«%s», строк в списке %d' % (btn.inner_text().strip(), len(rest)))
+    btn.click()
+    t.ck(t.wait_until("() => !document.getElementById('om-trip-filters')"), '«Показать» не свернул панель')
+    pg.locator('.om-fclear').click()
+    t.ck(t.wait_until("() => !/[?&]i=/.test(location.hash) && !/[?&]f=/.test(location.hash) && !document.querySelector('.om-fchip')"), '«Сбросить всё» не снял отбор')
 
     # --- «Просрочено» → выезды с отбором ---
     t.open('#/osmotr', wait='.om-app[data-v="today"]')
