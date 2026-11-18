@@ -183,6 +183,7 @@ a.om-oi-link:hover{background:#f7f9fb}
 /* Осмотр ОИ: шапка и разделы (как «Сведения» литеры на стенде) */
 .om-oihead{display:flex;align-items:center;gap:14px;margin-top:18px}
 .om-oihead small{font-size:14px;color:var(--om-muted)}
+.om-oifacts{margin-top:10px}
 .om-sq-lg{width:56px;height:56px;border-radius:14px;font-size:22px;background:var(--t50);color:var(--t)}
 .om-sq-sm{width:30px;height:30px;border-radius:8px;font-size:13px;font-variant-numeric:tabular-nums}
 .om-title-oi{font-size:22px;line-height:1.2}

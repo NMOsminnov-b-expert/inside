@@ -39,7 +39,7 @@ import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
 import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, FOUND_CATS } from '../inspection/tasks.js';
 import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay, inventoryOf, titleOf } from './data.js';
 import { notesOf, markRead } from './feed.js';
-import { pwaSections, pwaDefaults } from './params.js';
+import { pwaSections, pwaDefaults, OBJ_KIND } from './params.js';
 import { instrIndex, instrDoc, instrUrl, sectionsOf, searchInstr, allDocs, instrForItem, instrForPlace } from './instructions.js';
 
 const HREF = '#/osmotr';
@@ -630,7 +630,8 @@ function oiCtx(o, oiId) {
   const r = resultsOf(o.typeId, o.ocId);
   const own = (r.assets || {})[oiId] || {};
   const def = pwaDefaults(oi);
-  const values = { ...def, ...own, ...(def.f || own.f ? { f: { ...(def.f || {}), ...(own.f || {}) } } : {}) };
+  // Тип ОИ — всегда из состава (раздел fixed), даже если в результатах осталось прежнее значение.
+  const values = { ...def, ...own, ...(def[OBJ_KIND] ? { [OBJ_KIND]: def[OBJ_KIND] } : {}), ...(def.f || own.f ? { f: { ...(def.f || {}), ...(own.f || {}) } } : {}) };
   const photos = (r.photos || []).filter((p) => p.oiId === oiId && !p.deleted).length;
   // Закончен — только просмотр; ОИ, возвращённый на доосмотр, снова правится.
   const ro = o.state === 'done' && row.review !== 'returned';
@@ -678,7 +679,10 @@ function viewOi(o, q, opened, savedAt) {
   const returned = (o.returned || []).filter((r) => r.oiIds.includes(ctx.row.id))
     .map((r) => `<p class="om-warn"><b>На доосмотр</b>${r.reason ? ' — ' + esc(r.reason) : ''}</p>`).join('');
   const note = ctx.secs.find((s) => s.key === 'comments');
-  const secs = ctx.secs.filter((s) => s !== note && visibleFields(s, ctx.values).length);
+  const secs = ctx.secs.filter((s) => s !== note && !s.fixed && visibleFields(s, ctx.values).length);
+  // Неизменяемые разделы (тип ОИ из состава) — фактами под шапкой.
+  const facts = ctx.secs.filter((s) => s.fixed).flatMap((s) => visibleFields(s, ctx.values))
+    .map((f) => [f.label, shown(getValue(ctx.values, f.path || f.key))]).filter(([, v]) => v);
   const flat = ctx.oi.card === 'vehicle';
   let n = 0;
   const form = flat
@@ -697,6 +701,7 @@ function viewOi(o, q, opened, savedAt) {
   const chipTone = p.requiredLeft ? 'om-t-amber' : p.filled === p.total ? 'om-t-green' : 'om-t-blue';
   return `${back(href({ v: 'obj', id: o.id }), o.title)}
     <div class="om-oihead">${h.sq}<div class="om-row-tx"><h1 class="om-title om-title-oi">${esc(h.name)}</h1>${h.sub ? `<small>${esc(h.sub)}</small>` : ''}</div></div>
+    ${facts.length ? `<dl class="om-dl om-oifacts">${facts.map(([l, v]) => `<dt>${esc(l)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
     <div class="om-idrow">${p.total ? `<span class="om-chip ${chipTone}" title="${esc(progressText(p))}">заполнено ${p.filled} из ${p.total}</span>` : ''}${ctx.ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}<span class="om-saved" role="status" aria-live="polite">${savedAt ? 'Сохранено ' + esc(savedAt) : ''}</span></div>
     ${returned}
     ${instrHint(instrForPlace(ctx.oi.card === 'land' || ctx.oi.card === 'vehicle' ? ctx.oi.card : 'building', { objKind: getValue(ctx.values, 'objKind'), buildType: getValue(ctx.values, 'buildType') }, (o.ois || []).some((x) => x.id !== ctx.row.id && /жил/i.test(x.oiType || ''))))}
