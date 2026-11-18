@@ -306,6 +306,14 @@ textarea.om-input{resize:vertical;line-height:1.4}
 .om-filters{display:flex;flex-direction:column;gap:10px;margin-bottom:10px;padding:12px 14px}
 .om-fgroup .om-flabel{font-size:12px;margin-bottom:4px;color:var(--om-muted)}
 .om-fgroup .om-segs-line{margin:0}
+/* «Выезды»: типы объектов и кнопка подведомственных в одну строку; подведомственные — чекбоксы с числом справа,
+   группами по головному учреждению. */
+.om-tripbar{display:flex;align-items:flex-start;gap:8px}
+.om-tripbar .om-segs{flex:1;min-width:0}
+.om-filters > p.om-flabel{margin:0}
+.om-orgs legend.om-flabel{padding:0;margin-bottom:2px;font-weight:600;color:var(--om-ink)}
+.om-orgs .om-radio span{flex:1;min-width:0}
+.om-orgs .om-radio .om-n{margin-left:auto}
 .om-price{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px}
 .om-price .om-input{font-variant-numeric:tabular-nums;text-align:right}
 

@@ -227,6 +227,8 @@ export function myObjects(person) {
       note: list.map((a) => a.note).filter(Boolean).join('\n'), by: list[0].by || '',
       // ЕНИ — назначенных ОИ (решение пользователя 05.11.2026 «Только назначенных ОИ»), объект целиком — всех.
       eni: foldEniList(ois.map((x) => x.eni).filter(Boolean)) || rec.eni || '', address: rec.address || '', institution: [rec.institution, rec.podved].filter(Boolean).join(' · '),
+      // Головное учреждение и подведомственная — отбор по подведомственным в «Выездах» (18.11.2026).
+      head: rec.institution || '', podved: rec.podved || '',
       lat: gps ? gps[0] : null, lon: gps ? gps[1] : null, contour: ringOf(rec.geo), geoSrc: rec.geo && rec.geo.src ? rec.geo.src : '',
       // Сведения участка по Кадастру — строками, как подпись участка на карте макета (kernel/cadastreTip.js).
       parcel: rec.geo && rec.geo.extent ? parcelRows({ NAZNACHENI: rec.geo.purpose, PROPFOR_NAME: rec.geo.use, PROPFORM_NAME: rec.geo.ownForm, DOMCODE: rec.geo.house, ...(rec.geo.props || {}) },

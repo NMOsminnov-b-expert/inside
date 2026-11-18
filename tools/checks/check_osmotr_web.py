@@ -20,6 +20,11 @@
     открывает вчера; есть сравнение с командой (медиана) — его
     осмотрщику не показывают;
   * «К осмотру / Осмотрено / Все» — не те строки;
+  * отбор по подведомственным в «Выездах» (18.11.2026: «по подведкам
+    делай»): в панели не все пары «учреждение · подведомственная» (или само
+    учреждение) назначенных объектов; две отмеченные вместе с типом
+    «Недвижимое» показывают не те объекты или не те числа во вкладках и
+    типах; смена вкладки теряет отбор; «Сбросить» его не снимает;
   * какой-то из назначенных объектов не открывается (сведения участка по
     Кадастру, ТС, описи — 16.11.2026 падал объект со сведениями участка);
   * в объекте нет ЕНИ, состояния, вкладки документов, документ с файлом не
@@ -45,7 +50,7 @@ TOUCHES = (
 DATA = "await import('./app/pages/osmotr/data.js')"
 OBJS = """async () => { const d = %s; const s = (await import('./app/kernel/session.js')).session.state;
   return d.myObjects(s.person).map((o) => ({ id: o.id, entity: o.entity, state: o.state, removed: o.removed, plannedAt: o.plannedAt,
-    title: o.title, eni: o.eni, docs: o.docs.length, inv: (o.inventories || []).length, returned: (o.returned || []).length })); }""" % DATA
+    title: o.title, eni: o.eni, head: o.head, podved: o.podved, docs: o.docs.length, inv: (o.inventories || []).length, returned: (o.returned || []).length })); }""" % DATA
 
 
 def iso(days=0):
@@ -152,6 +157,35 @@ def run(t):
          'отбор «Транспорт» не включился')
     open_veh = [o for o in veh if o['state'] != 'done' and not o['removed']]
     t.ck(pg.locator('.om-obj').count() == len(open_veh), '«Транспорт» к осмотру: %d строк, ожидалось %d' % (pg.locator('.om-obj').count(), len(open_veh)))
+
+    # --- выезды: подведомственные (несколько, чекбоксами) вместе с типом ---
+    t.open('#/osmotr?v=trips', wait='.om-app[data-v="trips"]')
+    pg.locator('[data-trip-filters]').click()
+    t.ck(t.wait_until("() => !!document.getElementById('om-trip-filters')"), 'кнопка фильтра не открыла панель подведомственных')
+    org_of = lambda o: ((o['head'] or 'Без учреждения') + (' · ' + o['podved'] if o['podved'] else ''))
+    orgs = sorted({org_of(o) for o in objs})
+    shown_orgs = sorted(pg.eval_on_selector_all('[data-org]', 'els => els.map((e) => e.value)'))
+    t.ck(shown_orgs == orgs, 'подведомственные в панели %s, у объектов %s' % (shown_orgs, orgs))
+    real_orgs = sorted({org_of(o) for o in objs if o['entity'] == 'real'}, key=lambda h: -sum(1 for o in objs if o['entity'] == 'real' and org_of(o) == h))
+    pick = real_orgs[:2]
+    t.ck(len(pick) == 2, 'у недвижимого меньше двух подведомственных — нечего отбирать вместе')
+    for i, h in enumerate(pick):
+        pg.locator('[data-org][value="%s"]' % h.replace('"', '\\"')).check()
+        t.wait_until("() => decodeURIComponent(location.hash).split('i=')[1]?.split('|').length === %d" % (i + 1))
+    pg.locator('.om-segs .om-seg', has_text='Недвижимое').click()
+    t.ck(t.wait_until("() => /f=real/.test(location.hash) && /[?&]i=/.test(location.hash) && document.querySelector('.om-seg.on')?.textContent.includes('Недвижимое')"),
+         'тип «Недвижимое» сбросил отбор по подведомственным')
+    sel = [o for o in objs if org_of(o) in pick]
+    want = [o for o in sel if o['entity'] == 'real' and o['state'] != 'done' and not o['removed']]
+    t.ck(pg.locator('.om-obj').count() == len(want), 'подведомственные + недвижимое, к осмотру: %d строк, ожидалось %d' % (pg.locator('.om-obj').count(), len(want)))
+    t.ck(chip_n('Все') == len(sel), 'тип «Все» при отборе подведомственных: %d, ожидалось %d' % (chip_n('Все'), len(sel)))
+    pg.locator('.om-tab3', has_text='Все').click()
+    t.ck(t.wait_until("() => /s=all/.test(location.hash) && /[?&]i=/.test(location.hash) && document.querySelector('.om-tab3.on')?.textContent.startsWith('Все')"),
+         'вкладка «Все» потеряла отбор по подведомственным')
+    n_all = len([o for o in sel if o['entity'] == 'real'])
+    t.ck(pg.locator('.om-obj').count() == n_all, 'подведомственные + недвижимое, все: %d строк, ожидалось %d' % (pg.locator('.om-obj').count(), n_all))
+    pg.locator('.om-filter a', has_text='Сбросить').click()
+    t.ck(t.wait_until("() => !/[?&]i=/.test(location.hash) && !document.querySelector('[data-org]:checked')"), '«Сбросить» не снял отбор по подведомственным')
 
     # --- «Просрочено» → выезды с отбором ---
     t.open('#/osmotr', wait='.om-app[data-v="today"]')

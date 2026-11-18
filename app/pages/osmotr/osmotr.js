@@ -14,7 +14,7 @@
 // «как доехать» и «где опознать» нет — сведения встроены в экраны.
 //
 // Экраны — адресом #/osmotr?v=…: today (главная «Мои объекты»), trips («Выезды»,
-// &f — отбор по типам: real, vehicle, inv; &s — open, done, all, back, late), search, menu, notes, obj (&id —
+// &f — отбор по типам: real, vehicle, inv; &s — open, done, all, back, late; &i — подведомственные «учреждение · подведомственная» через «|»), search, menu, notes, obj (&id —
 // «typeId|ocId», &tab — task, docs), doc (&id, &doc — документ), oi (&id, &oi — объект имущества: разделы
 // осмотра раскрываемыми блоками), sec (&id, &oi, &s — тот же экран ОИ с раскрытым разделом), app —
 // приложение «Осмотр» в рамке (пока перенос не закончен), stats (&u — week, month, quarter; &o — шагов назад) — своя
@@ -124,11 +124,11 @@ const top = (title, right = '') => `<header class="om-top"><h1 class="om-h1">${e
 const back = (to, label) => `<a class="om-back" href="${esc(to)}">${ico('back', 18)}<span>${esc(label)}</span></a>`;
 const bell = (n) => `<a class="om-icon" href="${href({ v: 'notes' })}" aria-label="Входящие${n ? ': новых ' + n : ''}" title="Входящие">${ico('bell')}${n ? `<b class="om-badge">${n > 99 ? '99+' : n}</b>` : ''}</a>`;
 
-function kindChips(list, f, v) {
-  const all = `<a class="om-seg${!f ? ' on' : ''}" href="${href({ v })}" aria-current="${!f}">Все <b>${list.length}</b></a>`;
+function kindChips(list, f, v, keep = {}) {
+  const all = `<a class="om-seg${!f ? ' on' : ''}" href="${href({ v, ...keep })}" aria-current="${!f}">Все <b>${list.length}</b></a>`;
   return `<nav class="om-segs" aria-label="Тип объектов">${all}${KINDS.map((k) => {
     const n = byKind(list, k.key).length;
-    return `<a class="om-seg${f === k.key ? ' on' : ''}${n ? '' : ' none'}" href="${href({ v, f: k.key })}" aria-current="${f === k.key}">${esc(k.label)} <b>${n}</b></a>`;
+    return `<a class="om-seg${f === k.key ? ' on' : ''}${n ? '' : ' none'}" href="${href({ v, f: k.key, ...keep })}" aria-current="${f === k.key}">${esc(k.label)} <b>${n}</b></a>`;
   }).join('')}</nav>`;
 }
 
@@ -360,16 +360,51 @@ const TRIP_TABS = [
 const EXTRA = { back: { label: 'На доосмотр', test: (o) => (o.returned || []).length && o.state !== 'done' },
   late: { label: 'Просрочено', test: (o) => o.plannedAt && o.plannedAt < isoDay() && o.state !== 'done' && !o.removed } };
 
-function viewTrips(all, q, unread) {
-  const list = byKind(all, q.f);
+// Отбор по подведомственным (пользователь 18.11.2026: «добавить фильтры по учреждениям где можно будет выбрать
+// несколько учреждений через чекбоксы, а также одновременно фильтровать по типу имущества»; уточнение — «по
+// подведкам делай»): отметка — подведомственная организация, под заголовком своего головного учреждения; объекты
+// самого учреждения без подведомственной — отметка «Само учреждение». Несколько сразу; вместе с типом и вкладкой
+// состояния. Панель — как фильтры описи: кнопка со счётчиком, свёрнута.
+const NO_HEAD = 'Без учреждения';
+const headOf = (o) => o.head || NO_HEAD;
+// Ключ отметки — «учреждение · подведомственная» (подведомственные с одним именем у разных учреждений не путаются).
+const orgOf = (o) => (o.podved ? headOf(o) + ' · ' + o.podved : headOf(o));
+const orgSel = (q) => String(q.i || '').split('|').filter(Boolean);
+const byOrg = (list, sel) => (sel.length ? list.filter((o) => sel.includes(orgOf(o))) : list);
+function orgFilters(all, q, open) {
+  const sel = orgSel(q);
+  const kinded = byKind(all, q.f);
+  const kind = KINDS.find((k) => k.key === q.f);
+  const heads = [...new Set(all.map(headOf))].sort((a, b) => (a === NO_HEAD) - (b === NO_HEAD) || a.localeCompare(b, 'ru'));
+  const box = (key, label) => `<label class="om-radio"><input type="checkbox" data-org value="${esc(key)}"${sel.includes(key) ? ' checked' : ''}><span>${esc(label)}</span><b class="om-n">${kinded.filter((o) => orgOf(o) === key).length}</b></label>`;
+  const group = (h) => {
+    const mine = all.filter((o) => headOf(o) === h);
+    const pods = [...new Set(mine.map((o) => o.podved).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ru'));
+    const self = mine.some((o) => !o.podved);
+    return `<fieldset class="om-radios om-orgs"><legend class="om-flabel">${esc(h)}</legend>
+      ${self ? box(h, pods.length ? 'Само учреждение' : h) : ''}${pods.map((x) => box(h + ' · ' + x, x)).join('')}</fieldset>`;
+  };
+  const btn = `<button type="button" class="om-icon om-filter-btn${open ? ' on' : ''}" data-trip-filters aria-expanded="${open}" aria-controls="om-trip-filters" aria-label="Подведомственные${sel.length ? ': выбрано ' + sel.length : ''}" title="Подведомственные">${ico('filter', 20)}${sel.length ? `<b class="om-badge">${sel.length}</b>` : ''}</button>`;
+  const panel = open ? `<div class="om-card om-filters" id="om-trip-filters">
+      <p class="om-flabel">Подведомственные${kind ? ' · ' + esc(kind.label) : ''}</p>
+      ${heads.map(group).join('')}</div>` : '';
+  return { btn, panel, sel };
+}
+
+function viewTrips(all, q, unread, filtersOpen = false) {
+  const hf = orgFilters(all, q, filtersOpen);
+  const pool = byOrg(all, hf.sel);
+  const list = byKind(pool, q.f);
   const s = q.s || 'open';
   const extra = EXTRA[s];
   const shown = list.filter(extra ? extra.test : (TRIP_TABS.find((t) => t.key === s) || TRIP_TABS[0]).test);
   const kind = KINDS.find((k) => k.key === q.f);
   return `${top(kind ? kind.label : 'Мне осмотреть', bell(unread))}
-    ${kindChips(all, q.f, 'trips')}
-    <nav class="om-tabs3" aria-label="Состояние">${TRIP_TABS.map((t) => `<a class="om-tab3${s === t.key ? ' on' : ''}" href="${href({ v: 'trips', f: q.f, s: t.key })}" aria-current="${s === t.key}">${esc(t.label)} <b>${list.filter(t.test).length}</b></a>`).join('')}</nav>
-    ${extra ? `<p class="om-filter">${esc(extra.label)} · ${shown.length} <a href="${href({ v: 'trips', f: q.f })}">Показать все к осмотру</a></p>` : ''}
+    <div class="om-tripbar">${kindChips(pool, q.f, 'trips', { s: q.s, i: q.i })}${hf.btn}</div>
+    ${hf.panel}
+    ${hf.sel.length ? `<p class="om-filter">${esc(hf.sel.join('; '))} <a href="${href({ v: 'trips', f: q.f, s: q.s })}">Сбросить</a></p>` : ''}
+    <nav class="om-tabs3" aria-label="Состояние">${TRIP_TABS.map((t) => `<a class="om-tab3${s === t.key ? ' on' : ''}" href="${href({ v: 'trips', f: q.f, s: t.key, i: q.i })}" aria-current="${s === t.key}">${esc(t.label)} <b>${list.filter(t.test).length}</b></a>`).join('')}</nav>
+    ${extra ? `<p class="om-filter">${esc(extra.label)} · ${shown.length} <a href="${href({ v: 'trips', f: q.f, i: q.i })}">Показать все к осмотру</a></p>` : ''}
     <div class="om-list">${shown.length ? shown.map(objRow).join('') : '<div class="om-card om-empty">Здесь пусто</div>'}</div>`;
 }
 
@@ -1246,7 +1281,7 @@ export function mountOsmotr(host) {
   let mapKey = '';
   let savedAt = '';
   // Состояние экрана объекта: подтверждение «Осмотр закончен» (по объекту).
-  const ui = { asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false, take: '', takeDay: '', detachAsk: '' };
+  const ui = { tripFilters: false, asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false, take: '', takeDay: '', detachAsk: '' };
   // Оглавление инструкций — сразу: подсказки «Инструкция: …» у ОИ и позиций описи.
   instrIndex(() => { const v = q.v || 'today'; if (v === 'oi' || v === 'item' || v === 'instr') render(); });
   // Выбранные позиции описи (в одну карточку) — по описи; сменилась опись — выбор снимается.
@@ -1272,7 +1307,7 @@ export function mountOsmotr(host) {
     cur = o || null;
     if (ui.askFor !== q.id) ui.asking = false;
     if (selFor !== q.id + '|' + q.inv + '|' + (q.to || '')) { sel.clear(); selFor = q.id + '|' + q.inv + '|' + (q.to || ''); }
-    const screen = v === 'trips' ? viewTrips(all, q, unread) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
+    const screen = v === 'trips' ? viewTrips(all, q, unread, ui.tripFilters) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
         : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
           : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow, ui.detachAsk) : v === 'file' ? viewFile(all, q, ui) : v === 'plans' ? viewPlans(all, ui) : v === 'stats' ? viewStats(q) : v === 'instr' ? viewInstr(q, () => { if ((q.v || '') === 'instr') render(); })
@@ -1475,6 +1510,10 @@ export function mountOsmotr(host) {
     input._t = setTimeout(() => { q = { ...q, [input.dataset.invnum]: input.value.replace(/\D/g, '') }; history.replaceState(null, '', href(q)); render(); }, 400);
   });
   scope.on('change', '[data-invsort]', (e, el) => { location.hash = href({ ...q, sort: el.value }); });
+  scope.on('click', '[data-trip-filters]', () => { ui.tripFilters = !ui.tripFilters; render(); });
+  scope.on('change', '[data-org]', () => {
+    location.hash = href({ ...q, i: scope.$$('[data-org]').filter((x) => x.checked).map((x) => x.value).join('|') });
+  });
   scope.on('input', '[data-invq]', (e, input) => {
     clearTimeout(input._t);
     input._t = setTimeout(() => { q = { ...q, q: input.value.trim() }; history.replaceState(null, '', href(q)); render(); }, 250);
