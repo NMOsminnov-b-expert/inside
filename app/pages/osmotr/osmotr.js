@@ -894,7 +894,8 @@ function viewItem(o, q) {
   const lead = members[0];
   const comment = rawMark(o, inv, lead).comment;
   const similar = ro ? [] : similarOf(o, inv, members);
-  const facts = (x) => [['Инв. номер', x.inv], ['Модель', x.model], ['Тип имущества', x.kind], ['МОЛ', x.mol], ['Подразделение', x.dept], ['Список', x.list], ['Кол-во', x.qty > 1 ? x.qty : '']].filter(([, v]) => v);
+  const facts = (x) => [['Инв. номер', x.inv], ['Модель', x.model], ['Тип имущества', x.kind], ['МОЛ', x.mol], ['Подразделение', x.dept], ['Список', x.list], ['Кол-во', x.qty > 1 ? x.qty : ''],
+    ['Балансовая стоимость, сом', Number(x.balance) ? Number(x.balance).toLocaleString('ru-RU') : '']].filter(([, v]) => v);
   const memberHTML = (x) => {
     const s = statusOf(o, inv, x);
     const m = rawMark(o, inv, x);

@@ -15,7 +15,8 @@
     позиции;
   * у позиции остались ручные «Найдено / Не найдено» или «Требуется ремонт»
     (16.11.2026: «заполняет только если нерабочее»);
-  * в карточке нет МОЛ, модели, типа имущества;
+  * в карточке нет МОЛ, модели, типа имущества, балансовой стоимости (у описи и
+    у единицы механизмов; пользователь 18.11.2026);
   * выбранные позиции не собираются в одну карточку; снимок карточки не
     засчитывается всем её позициям;
   * «Нерабочее» ставится без снимков; «Отметить осмотренным» не ставит
@@ -36,7 +37,17 @@ TOUCHES = ('app/pages/osmotr/*', 'app/kernel/inventories.js', 'app/kernel/inspec
 OBJS = """async () => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
   return d.myObjects(s.person).flatMap((o) => o.inventories.map((x) => ({ obj: o.id, inv: x.id, kind: x.kind, count: x.count }))); }"""
 INV = """async ([obj, inv]) => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
-  const x = d.inventoryOf(s.person, obj, inv); return x && { kind: x.kind, oiId: x.oiId || '', items: x.items.map((it) => ({ id: it.id, inv: it.inv, name: it.name, cost: it.cost, qty: it.qty, priority: String(it.priority || ''), own: it.own !== false })) }; }"""
+  const x = d.inventoryOf(s.person, obj, inv); return x && { kind: x.kind, oiId: x.oiId || '', items: x.items.map((it) => ({ id: it.id, inv: it.inv, name: it.name, cost: it.cost, balance: it.balance, qty: it.qty, priority: String(it.priority || ''), own: it.own !== false })) }; }"""
+
+
+def balance_shown(body, it):
+    """Строка «Балансовая стоимость, сом» с суммой позиции (пробелы разрядов не в счёт)."""
+    if not float(it.get('balance') or 0):
+        return True
+    digits = ''.join(ch for ch in body if not ch.isspace())
+    return 'Балансоваястоимость,сом' in digits and str(int(round(float(it['balance'])))) in digits
+
+
 MARK = """async ([inv, it]) => (await import('./app/kernel/inventories.js')).markOf(inv, it) || {}"""
 UNIT = """async ([obj, oi, it]) => { const [t, c] = obj.split('|'); const r = (await import('./app/kernel/inspectionResults.js')).resultsOf(t, c);
   return (((r.assets[oi] || {}).u) || {})[it] || {}; }"""
@@ -140,6 +151,7 @@ def run(t):
     body = pg.locator('.om-scr').inner_text()
     for w in ('Модель', 'Тип имущества', 'МОЛ', 'Инв. номер'):
         t.ck(w in body, 'в карточке позиции нет «%s»' % w)
+    t.ck(balance_shown(body, it0), 'в карточке позиции описи нет балансовой стоимости (%s)' % it0.get('balance'))
     t.ck('Место' not in body, 'в карточке позиции есть «Место» — в описях его нет (16.11.2026: «Не выдумывай»)')
     for w in ('Не найдено', 'Требуется ремонт', 'Причина ремонта'):
         t.ck(w not in body, 'в карточке позиции осталось «%s» (16.11.2026: «заполняет только если нерабочее»)' % w)
@@ -209,8 +221,10 @@ def run(t):
     if mech:
         pg.evaluate(FINISH, [mech['obj'], False])
         md = pg.evaluate(INV, [mech['obj'], mech['inv']])
-        u = md['items'][0]
+        u = next((x for x in md['items'] if float(x['balance'] or 0)), md['items'][0])
         go(t, item_q(mech['obj'], mech['inv'], u['id']), '.om-app[data-v="item"] .om-members')
+        t.ck(float(u['balance'] or 0) > 0, 'у единиц механизмов в демо нет стоимости — балансовую не проверить')
+        t.ck(balance_shown(pg.locator('.om-scr').inner_text(), u), 'в карточке единицы механизмов нет балансовой стоимости (%s)' % u.get('balance'))
         pg.locator('[data-mk-shoot]').first.set_input_files([{'name': 'u.png', 'mimeType': 'image/png', 'buffer': PNG}])
         t.ck(t.wait_until("async (a) => (await (%s)(a)).found === 'Найдено'" % UNIT, [mech['obj'], md['oiId'], u['id']]), 'снимок единицы механизмов не отметил её осмотренной')
         t.wait_until("() => !document.querySelector('[data-mk-broken]').disabled")

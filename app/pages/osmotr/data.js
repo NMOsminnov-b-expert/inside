@@ -120,9 +120,11 @@ export function inventoriesOf(rec, list, ois) {
       model: it.model || '', kind: it.kind || '', mol: it.mol || '',
       own: own(it), who: own(it) ? '' : whoOf(it) || 'не в вашей части' })) });
   });
+  // Стоимость единицы механизмов в карточке ОИ — балансовая (mechanisms/form/view.js, уточнение 17.09.2026);
+  // cost — для отбора и порядка по стоимости, balance — в карточку позиции.
   ois.filter((o) => o.card === 'mech').forEach((o) => {
     out.push({ id: 'mech:' + o.id, kind: 'mech', oiId: o.id, title: oiLabel(o),
-      items: (o.mechanisms || []).map((u, i) => ({ id: u.id, no: i + 1, inv: u.inv || '', name: u.name || 'Единица', place: '', qty: u.qty || 1, cost: u.cost || '', balance: '', priority: '', list: '', dept: '',
+      items: (o.mechanisms || []).map((u, i) => ({ id: u.id, no: i + 1, inv: u.inv || '', name: u.name || 'Единица', place: '', qty: u.qty || 1, cost: u.cost || '', balance: u.cost || '', priority: '', list: '', dept: '',
         model: (u.params && u.params.model) || u.model || '', kind: u.type || '', mol: '', own: true, who: '' })) });
   });
   return out.map((x) => ({ ...x, folder: `${MACHINES}/${clean(x.title)}` }));
