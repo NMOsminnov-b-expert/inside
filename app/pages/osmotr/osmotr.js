@@ -17,7 +17,8 @@
 // &f — отбор по типам: real, vehicle, inv; &s — open, done, all, back, late), search, menu, notes, obj (&id —
 // «typeId|ocId», &tab — task, docs), doc (&id, &doc — документ), oi (&id, &oi — объект имущества: разделы
 // осмотра раскрываемыми блоками), sec (&id, &oi, &s — тот же экран ОИ с раскрытым разделом), app —
-// приложение «Осмотр» в рамке (пока перенос не закончен).
+// приложение «Осмотр» в рамке (пока перенос не закончен), stats (&u — week, month, quarter; &o — шагов назад) — своя
+// статистика.
 //
 // Прежний экран осмотрщика (#/insp, pages/inspector) убран 16.11.2026; его
 // адреса открывают эту страницу. Общее для осмотров — в pages/inspection.
@@ -32,6 +33,7 @@ import { loadMapLibre, createMap, ownParcelsGL } from '../../kernel/mapgl.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto } from '../../kernel/inspectionResults.js';
 import { carryOver, nextWorkday, takeForDay, planOf, absenceOn, absenceLabel, startWork, myAssignsOn, finishWork, requestMove, logEvent, eventsOf, changed, isLive, assignmentsOfPerson, reportOf, saveReport, lateWorkdays, LATE_REPORT_WORKDAYS, workdayOf, allCadRequests, cadBranch, cadKindLabel, cadResultLabel, answerCadRow, detachCadFile, cadFileAccepted } from '../../kernel/inspections.js';
 import { osrmKm, dayPoints } from '../inspections/route.js';
+import { periodOf, statsFor, fmtMetric } from '../inspections/statsData.js';
 import { markItem, markOf, addItemPhoto, removeItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
 import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, FOUND_CATS } from '../inspection/tasks.js';
@@ -110,6 +112,7 @@ const I = {
   camera: '<path d="M4 7h3l2-3h6l2 3h3v13H4z"/><circle cx="12" cy="13" r="4"/>',
   photo: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
+  stats: '<path d="M4 4v16h16M8 16v-4M12 16V8M16 16v-6"/>',
 };
 const ico = (k, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k] || ''}</svg>`;
 // Значок — по типу ОЦ, как в приложении (EstateUi.kt, typeIcon): участок — слои карты.
@@ -267,6 +270,44 @@ function dayRow() {
   return `<a class="om-row" href="${href({ v: 'report' })}"><span class="om-row-ico${e ? ' om-t-green' : ''}">${ico('task')}</span><span class="om-row-tx"><span>Отчёт дня</span><small>${st}</small></span>${ico('chev', 18)}</a>`;
 }
 
+// --- статистика осмотрщика ---------------------------------------------------------------------
+// Пользователь 18.11.2026: «добавь статистику в мои задачи» — строка в «Моих задачах», касание открывает экран.
+// Показатели — объём, отчёты дня, дорога; период — неделя, месяц, квартал с шагом назад и вперёд; без сравнения
+// с командой (медиана и «хуже медианы» — только у регионального менеджера). Счёт — тот же, что на экране
+// «Статистика» регионального менеджера (pages/inspections/statsData.js), — одни и те же числа в обоих местах.
+// Подписи — как там же (METRICS и таблица осмотрщика).
+const STAT_UNITS = [['week', 'Неделя'], ['month', 'Месяц'], ['quarter', 'Квартал']];
+const STAT_GROUPS = [
+  ['Объём', [['objects', 'Объектов', 'int'], ['oi', 'Осмотрено ОИ', 'int'], ['workdays', 'Рабочих дней в периоде', 'int'], ['oiPerDay', 'ОИ на рабочий день', 'dec']]],
+  ['Отчёты дня', [['repOnTime', 'Сдано вовремя', 'int'], ['repLate', 'Сдано поздно', 'int'], ['repMissed', 'Не сдано', 'int'], ['repShare', 'Отчёты дня вовремя', 'pct']]],
+  ['Дорога', [['km', 'Пробег, км', 'dec'], ['litres', 'Бензин, л', 'dec'], ['kmPerObj', 'Пробег на объект, км', 'dec'], ['lPerObj', 'Бензин на объект, л', 'dec']]],
+];
+// Сводки записей (первый аргумент statsFor) нужны только показателю «Факт к норме осмотра» — его здесь нет,
+// поэтому реестр целиком не поднимается.
+const myStats = (person, period) => statsFor(new Map(), [person], period).rows[0];
+function statPeriod(q) {
+  const unit = STAT_UNITS.some(([k]) => k === q.u) ? q.u : 'month';
+  return periodOf(unit, Math.max(0, parseInt(q.o, 10) || 0));
+}
+function viewStats(q) {
+  const p = statPeriod(q);
+  const me = myStats(session.state.person, p);
+  const step = (o, label, aria) => (o < 0 ? `<span class="om-btn om-btn-sm om-off" aria-hidden="true">${label}</span>`
+    : `<a class="om-btn om-btn-sm" href="${href({ v: 'stats', u: p.unit, o: o || '' })}" aria-label="${aria}">${label}</a>`);
+  return `${back(href({ v: 'today' }), 'Мои объекты')}
+    <h1 class="om-title om-title-sm">Статистика</h1>
+    <nav class="om-segs" aria-label="Период">${STAT_UNITS.map(([k, l]) => `<a class="om-seg${p.unit === k ? ' on' : ''}" href="${href({ v: 'stats', u: k })}" aria-current="${p.unit === k}">${l}</a>`).join('')}</nav>
+    <div class="om-daynav">${step(p.offset + 1, '‹', 'Предыдущий период')}<b>${esc(p.label)}</b>${step(p.offset - 1, '›', 'Следующий период')}</div>
+    ${p.current ? '<p class="om-muted">Текущий период — по сегодня</p>' : ''}
+    ${STAT_GROUPS.map(([title, rows]) => `<h2 class="om-cap om-sec">${esc(title)}</h2>
+    <div class="om-group">${rows.map(([k, label, fmt]) => `<div class="om-row om-stat"><span class="om-row-tx">${esc(label)}</span><b class="om-n">${fmtMetric(me[k], fmt)}</b></div>`).join('')}</div>`).join('')}`;
+}
+// Строка «Статистика» в «Моих задачах»: итог текущего месяца.
+function statsRow() {
+  const me = myStats(session.state.person, periodOf('month', 0));
+  return `<a class="om-row" href="${href({ v: 'stats' })}"><span class="om-row-ico om-t-teal">${ico('stats')}</span><span class="om-row-tx"><span>Статистика</span><small>за месяц: объектов ${me.objects}, ОИ ${me.oi}</small></span>${ico('chev', 18)}</a>`;
+}
+
 // Главная осмотрщика — «Мои объекты» (пользователь 18.11.2026: вкладку «Сегодня» переименовать в «Мои объекты»,
 // заголовок — «Объекты к осмотру», дата под ним остаётся; вместо плитки «осмотреть сегодня» и «Следующий» —
 // список объектов в работе). В работе — только начатые: «В работе» и «На доосмотр» (пользователь 18.11.2026),
@@ -296,6 +337,7 @@ function viewToday(all, q, unread) {
     <h2 class="om-cap om-sec">Мои задачи</h2>
     <div class="om-group">
       ${dayRow()}
+      ${statsRow()}
       ${waitingCad(session.state.person) ? `<a class="om-row" href="${href({ v: 'cad' })}"><span class="om-row-ico om-t-violet">${ico('docs')}</span><span class="om-row-tx">Запросы документов</span><b class="om-n om-t-violet">${waitingCad(session.state.person)}</b>${ico('chev', 18)}</a>` : ''}
       ${noDateN ? `<a class="om-row" href="${href({ v: 'plans', at: 'nodate' })}"><span class="om-row-ico">${ico('today')}</span><span class="om-row-tx"><span>Без даты</span><small>взять на день</small></span><b class="om-n">${noDateN}</b>${ico('chev', 18)}</a>` : ''}
       <a class="om-row" href="${href({ v: 'trips', s: 'all' })}"><span class="om-row-ico">${ico('layers')}</span><span class="om-row-tx">Все мои объекты</span><b class="om-n">${list.length}</b>${ico('chev', 18)}</a>
@@ -1225,7 +1267,7 @@ export function mountOsmotr(host) {
     const screen = v === 'trips' ? viewTrips(all, q, unread) : v === 'search' ? viewSearch(all, q) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
         : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
-          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow, ui.detachAsk) : v === 'file' ? viewFile(all, q, ui) : v === 'plans' ? viewPlans(all, ui) : v === 'instr' ? viewInstr(q, () => { if ((q.v || '') === 'instr') render(); })
+          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow, ui.detachAsk) : v === 'file' ? viewFile(all, q, ui) : v === 'plans' ? viewPlans(all, ui) : v === 'stats' ? viewStats(q) : v === 'instr' ? viewInstr(q, () => { if ((q.v || '') === 'instr') render(); })
           : v === 'inv' ? viewInv(o, q, sel, ui.filters) : v === 'item' ? viewItem(o, q) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'
@@ -1237,7 +1279,7 @@ export function mountOsmotr(host) {
     const ae = document.activeElement;
     const focus = ae && ae.id && scope.root.contains(ae) ? { id: ae.id, a: ae.selectionStart, b: ae.selectionEnd } : null;
     const top0 = (scope.$('.om-app') || {}).dataset?.v === v ? (scope.$('.om-scr') || {}).scrollTop || 0 : 0;
-    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${inObj || ['report', 'cad', 'plans', 'instr', 'file'].includes(v) ? '' : bottomNav(v, todayN)}</div>`);
+    scope.setHTML(`<div class="om-app" data-v="${esc(v)}">${asBar}<main class="om-scr">${screen}</main>${inObj || ['report', 'cad', 'plans', 'instr', 'file', 'stats'].includes(v) ? '' : bottomNav(v, todayN)}</div>`);
     if (top0) scope.$('.om-scr').scrollTop = top0;
     // Инструкция из поиска — к найденному месту.
     else if (v === 'instr' && q.id && q.b) { const h = scope.$('#om-ib-' + CSS.escape(q.b)); if (h) h.scrollIntoView({ block: 'center' }); }

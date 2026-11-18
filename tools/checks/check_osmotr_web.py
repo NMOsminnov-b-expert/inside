@@ -12,6 +12,12 @@
     внизу не «Мои объекты»; в списке «В работе» не только начатые («В работе»
     и «На доосмотр») — туда попал не начатый объект или не попал начатый;
   * «Просрочено» считает не те назначения;
+  * статистика осмотрщика (18.11.2026): строки «Статистика» нет в «Моих
+    задачах» или она не ведёт на экран; на экране не три группы (объём,
+    отчёты дня, дорога), числа расходятся с расчётом экрана статистики
+    регионального менеджера (statsData.statsFor), переключатель периода и
+    шаг назад не меняют период; есть сравнение с командой (медиана) — его
+    осмотрщику не показывают;
   * «К осмотру / Осмотрено / Все» — не те строки;
   * какой-то из назначенных объектов не открывается (сведения участка по
     Кадастру, ТС, описи — 16.11.2026 падал объект со сведениями участка);
@@ -85,6 +91,37 @@ def run(t):
     t.ck(not any(i in h for i in idle for h in shown), 'в «В работе» попал не начатый объект')
     t.ck(pg.locator('.om-row', has_text='Просрочено').count() == 1, 'на главной нет «Просрочено» при просроченном выезде')
     t.ck(pg.locator('.om-row', has_text='Все мои объекты').locator('.om-n').inner_text().strip() == str(len(objs)), '«Все мои объекты» — не все назначенные')
+
+    # --- статистика: строка в «Моих задачах» → экран; те же числа, что у регионального менеджера ---
+    STATS = """async ([u, o]) => { const d = await import('./app/pages/inspections/statsData.js');
+      const s = (await import('./app/kernel/session.js')).session.state;
+      const p = d.periodOf(u, o); const r = d.statsFor(new Map(), [s.person], p).rows[0];
+      return { label: p.label, v: [r.objects, r.oi, r.workdays, r.oiPerDay, r.repOnTime, r.repLate, r.repMissed, r.repShare, r.km, r.litres, r.kmPerObj, r.lPerObj]
+        .map((x, i) => d.fmtMetric(x, [3, 7].includes(i) ? (i === 7 ? 'pct' : 'dec') : [8, 9, 10, 11].includes(i) ? 'dec' : 'int')) }; }"""
+    row = pg.locator('.om-row', has_text='Статистика')
+    t.ck(row.count() == 1, 'в «Моих задачах» нет строки «Статистика»')
+    month = pg.evaluate(STATS, ['month', 0])
+    t.ck(('объектов %s' % month['v'][0]) in row.inner_text(), 'строка «Статистика»: %r, объектов за месяц %s' % (row.inner_text(), month['v'][0]))
+    row.click()
+    t.ck(t.wait_until("() => document.querySelector('.om-app')?.dataset.v === 'stats'"), '«Статистика» не открыла экран')
+    def stat_screen():
+        return pg.evaluate("""() => ({ label: document.querySelector('.om-daynav b')?.textContent,
+          groups: [...document.querySelectorAll('.om-sec')].map((h) => h.textContent),
+          v: [...document.querySelectorAll('.om-stat .om-n')].map((e) => e.textContent) })""")
+    scr = stat_screen()
+    t.ck(scr['groups'] == ['Объём', 'Отчёты дня', 'Дорога'], 'группы статистики: %s' % scr['groups'])
+    t.ck(scr['label'] == month['label'] and scr['v'] == month['v'], 'месяц на экране %s %s, расчёт %s %s' % (scr['label'], scr['v'], month['label'], month['v']))
+    t.ck(pg.locator('.om-bnav').count() == 0, 'на экране статистики — нижняя панель разделов (это вложенный экран)')
+    t.ck('медиан' not in pg.locator('.om-scr').inner_text().lower(), 'осмотрщику показано сравнение с командой')
+    pg.locator('.om-segs .om-seg', has_text='Неделя').click()
+    week = pg.evaluate(STATS, ['week', 0])
+    t.ck(t.wait_until("(l) => document.querySelector('.om-daynav b')?.textContent === l", week['label']), '«Неделя» не переключила период')
+    t.ck(stat_screen()['v'] == week['v'], 'неделя: на экране %s, расчёт %s' % (stat_screen()['v'], week['v']))
+    pg.locator('.om-daynav a[aria-label="Предыдущий период"]').click()
+    prev = pg.evaluate(STATS, ['week', 1])
+    t.ck(t.wait_until("(l) => document.querySelector('.om-daynav b')?.textContent === l", prev['label']), 'шаг назад не открыл прошлую неделю')
+    t.ck(stat_screen()['v'] == prev['v'], 'прошлая неделя: на экране %s, расчёт %s' % (stat_screen()['v'], prev['v']))
+    t.open('#/osmotr', wait='.om-app[data-v="today"]')
 
     # --- выезды: отбор по типам ---
     t.open('#/osmotr?v=trips&s=all', wait='.om-app[data-v="trips"]')
