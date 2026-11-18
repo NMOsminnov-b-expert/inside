@@ -117,7 +117,7 @@ export function inventoriesOf(rec, list, ois) {
     const whoOf = (it) => others.filter((h) => inPart(it, h.part)).map((h) => h.person).join(', ');
     out.push({ id, kind: 'inv', title: inv.title, part: mine.map((a) => partLabel((a.invParts || {})[id])).join('; '), items: inv.items.map((it, i) => ({ id: it.id, no: it.no || i + 1, inv: it.inv || '', name: it.name, place: it.place || '',
       qty: it.qty || 1, cost: it.costInitial || '', balance: it.costBalance || '', priority: it.priority || '', list: it.list || '', dept: it.dept || '',
-      model: it.model || '', kind: it.kind || '', mol: it.mol || '',
+      model: it.model || '', kind: it.kind || '', mol: it.mol || '', acc: it.acc || '',
       own: own(it), who: own(it) ? '' : whoOf(it) || 'не в вашей части' })) });
   });
   // Стоимость единицы механизмов в карточке ОИ — балансовая (mechanisms/form/view.js, уточнение 17.09.2026);
@@ -125,7 +125,7 @@ export function inventoriesOf(rec, list, ois) {
   ois.filter((o) => o.card === 'mech').forEach((o) => {
     out.push({ id: 'mech:' + o.id, kind: 'mech', oiId: o.id, title: oiLabel(o),
       items: (o.mechanisms || []).map((u, i) => ({ id: u.id, no: i + 1, inv: u.inv || '', name: u.name || 'Единица', place: '', qty: u.qty || 1, cost: u.cost || '', balance: u.cost || '', priority: '', list: '', dept: '',
-        model: (u.params && u.params.model) || u.model || '', kind: u.type || '', mol: '', own: true, who: '' })) });
+        model: (u.params && u.params.model) || u.model || '', kind: u.type || '', mol: '', acc: '', own: true, who: '' })) });
   });
   return out.map((x) => ({ ...x, folder: `${MACHINES}/${clean(x.title)}` }));
 }

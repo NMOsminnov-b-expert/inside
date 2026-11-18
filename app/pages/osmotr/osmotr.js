@@ -824,10 +824,17 @@ function viewInv(o, q, sel, filtersOpen) {
   const min = Number(q.min) || 0;
   const max = Number(q.max) || 0;
   const cost = (it) => Number(it.cost) || 0;
+  // МОЛ и код учёта — отбором из значений описи (пользователь 18.11.2026: «нужна фильтрация по материальному
+  // ответственному лицу, если его нет поле будет пустым», «фильтрация по кодам учёта»). Код учёта — счёт учёта позиции
+  // (it.acc, kernel/inventories.js); у единиц механизмов ни МОЛ, ни кода нет — поле пустое и не выбирается.
+  const distinct = (k) => [...new Set(rows.map((x) => x.it[k]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'ru'));
+  const mols = distinct('mol');
+  const accs = distinct('acc');
   const list = rows.filter((x) => (!q.f || (q.f === 'none' ? x.it.own !== false && !x.s.inspected : q.f === 'done' ? x.s.inspected : x.s.broken))
     && (!q.p || String(x.it.priority) === q.p) && (!q.l || x.it.list === q.l)
+    && (!q.mol || x.it.mol === q.mol) && (!q.acc || x.it.acc === q.acc)
     && (!min || cost(x.it) >= min) && (!max || cost(x.it) <= max)
-    && (!needle || foldSearch([x.it.inv, x.it.name, x.it.model, x.it.mol, x.it.no].join(' ')).includes(needle)));
+    && (!needle || foldSearch([x.it.inv, x.it.name, x.it.model, x.it.mol, x.it.acc, x.it.no].join(' ')).includes(needle)));
   if (q.sort === 'priority') list.sort((a, b) => (Number(a.it.priority) || 9) - (Number(b.it.priority) || 9) || a.it.no - b.it.no);
   if (q.sort === 'cost') list.sort((a, b) => cost(b.it) - cost(a.it));
   const prios = [...new Set(rows.map((x) => String(x.it.priority || '')).filter(Boolean))].sort();
@@ -835,7 +842,7 @@ function viewInv(o, q, sel, filtersOpen) {
   // Включённые фильтры — строкой под поиском; панель фильтров свёрнута (пользователь 16.11.2026 о шапке
   // описи: «надо причесать по-нормальному. занимает кучу места»).
   const fmtSom = (n) => Number(n).toLocaleString('ru-RU');
-  const onList = [q.l, q.p ? 'П' + q.p : '', min ? 'от ' + fmtSom(min) : '', max ? 'до ' + fmtSom(max) : '',
+  const onList = [q.l, q.p ? 'П' + q.p : '', q.mol ? 'МОЛ ' + q.mol : '', q.acc ? 'код ' + q.acc : '', min ? 'от ' + fmtSom(min) : '', max ? 'до ' + fmtSom(max) : '',
     q.sort === 'cost' ? 'по стоимости' : q.sort === 'priority' ? 'по приоритету' : ''].filter(Boolean);
   const nOn = onList.length;
   const ro = o.state === 'done';
@@ -856,13 +863,15 @@ function viewInv(o, q, sel, filtersOpen) {
     ${filtersOpen ? `<div class="om-card om-filters" id="om-inv-filters">
       ${lists.length > 1 ? `<div class="om-fgroup"><span class="om-flabel">Список</span><div class="om-segs om-segs-line" role="group" aria-label="Список">${lists.map((l) => `<a class="om-seg${q.l === l ? ' on' : ''}" href="${href({ ...q, l: q.l === l ? '' : l })}" aria-current="${q.l === l}">${esc(l)}<b>${own.filter((x) => x.it.list === l).length}</b></a>`).join('')}</div></div>` : ''}
       ${prios.length ? `<div class="om-fgroup"><span class="om-flabel">Приоритет · осмотрено/всего</span><div class="om-segs om-segs-line" role="group" aria-label="Приоритет">${prios.map((p) => `<a class="om-seg${q.p === p ? ' on' : ''}" href="${href({ ...q, p: q.p === p ? '' : p })}" aria-current="${q.p === p}">П${p}<b>${pOf(p).filter((x) => x.s.inspected).length}/${pOf(p).length}</b></a>`).join('')}</div></div>` : ''}
+      ${invSelect('mol', 'МОЛ', mols, q, own)}
+      ${invSelect('acc', 'Код учёта', accs, q, own)}
       <div class="om-fgroup"><span class="om-flabel" title="Первоначальная стоимость позиции по описи">Стоимость, сом</span><div class="om-price">
         <input class="om-input" id="om-inv-min" data-invnum="min" inputmode="numeric" value="${esc(q.min || '')}" placeholder="от" aria-label="Стоимость от, сом">
         <span aria-hidden="true">—</span>
         <input class="om-input" id="om-inv-max" data-invnum="max" inputmode="numeric" value="${esc(q.max || '')}" placeholder="до" aria-label="Стоимость до, сом"></div></div>
       <div class="om-fgroup"><span class="om-flabel">Порядок</span><span class="om-select"><select class="om-input" data-invsort aria-label="Порядок">${[['', 'по №'], ['priority', 'по приоритету'], ['cost', 'по стоимости']].map(([k, l]) => `<option value="${k}"${(q.sort || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></span></div>
     </div>` : ''}
-    ${nOn ? `<p class="om-muted om-found-n">${esc(onList.join(' · '))} · показано ${list.length} из ${rows.length} · <a href="${href({ ...q, p: '', l: '', min: '', max: '', sort: '' })}">сбросить</a></p>` : ''}
+    ${nOn ? `<p class="om-muted om-found-n">${esc(onList.join(' · '))} · показано ${list.length} из ${rows.length} · <a href="${href({ ...q, p: '', l: '', mol: '', acc: '', min: '', max: '', sort: '' })}">сбросить</a></p>` : ''}
     ${list.length ? `<div class="om-group">${list.slice(0, INV_LIMIT).map(({ it, s }) => {
     const can = !ro && it.own !== false && !(target && cardOf(o, inv, target).some((x) => x.id === it.id));
     return `<div class="om-row om-invrow${it.own === false ? ' om-off' : ''}${sel.has(it.id) ? ' om-picked' : ''}">
@@ -874,6 +883,13 @@ function viewInv(o, q, sel, filtersOpen) {
     : '<div class="om-card om-empty">Позиций не найдено</div>'}
     ${inv.kind === 'inv' && !target ? extrasBlock(o, inv, ro) : ''}
     ${bar}`;
+}
+
+// Отбор описи списком значений (МОЛ, код учёта): «Все» и значения с числом своих позиций; значений нет — поле пустое.
+function invSelect(k, label, vals, q, own) {
+  const id = 'om-inv-' + k;
+  const opts = vals.length ? [['', 'Все'], ...vals.map((v) => [v, `${v} · ${own.filter((x) => x.it[k] === v).length}`])] : [['', '']];
+  return `<div class="om-fgroup"><label class="om-flabel" for="${id}">${esc(label)}</label><span class="om-select"><select class="om-input" id="${id}" data-invsel="${k}"${vals.length ? '' : ' disabled'}>${opts.map(([v, l]) => `<option value="${esc(v)}"${(q[k] || '') === v ? ' selected' : ''}>${esc(l)}</option>`).join('')}</select></span></div>`;
 }
 
 // «Нет в описи» — предмет на месте есть, в описи нет: название и комментарий (Б4).
@@ -1564,6 +1580,7 @@ export function mountOsmotr(host) {
     input._t = setTimeout(() => { q = { ...q, [input.dataset.invnum]: input.value.replace(/\D/g, '') }; history.replaceState(null, '', href(q)); render(); }, 400);
   });
   scope.on('change', '[data-invsort]', (e, el) => { location.hash = href({ ...q, sort: el.value }); });
+  scope.on('change', '[data-invsel]', (e, el) => { location.hash = href({ ...q, [el.dataset.invsel]: el.value }); });
   scope.on('click', '[data-trip-filters]', () => { ui.tripFilters = !ui.tripFilters; render(); });
   scope.on('click', '[data-head-toggle]', (e, el) => {
     const h = el.dataset.headToggle;

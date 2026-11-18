@@ -13,6 +13,8 @@
     в карточке «Место» (в описях его нет);
   * отбор по приоритету и по цене (от — до), порядок по стоимости — не те
     позиции;
+  * отбор по МОЛ и по коду учёта — не те позиции или не все значения описи; у
+    единиц механизмов (МОЛ и кода нет) поля не пустые (пользователь 18.11.2026);
   * у позиции остались ручные «Найдено / Не найдено» или «Требуется ремонт»
     (16.11.2026: «заполняет только если нерабочее»);
   * в карточке нет МОЛ, модели, типа имущества, балансовой стоимости (у описи и
@@ -26,6 +28,7 @@
   * отметки механизмов-ОИ не доходят до значений единиц в результатах осмотра;
   * «Нет в описи» не добавляется; на 360 пикселях экраны прокручиваются вбок.
 """
+import re
 from urllib.parse import quote
 
 from harness import use_cadastre_fixture
@@ -37,7 +40,7 @@ TOUCHES = ('app/pages/osmotr/*', 'app/kernel/inventories.js', 'app/kernel/inspec
 OBJS = """async () => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
   return d.myObjects(s.person).flatMap((o) => o.inventories.map((x) => ({ obj: o.id, inv: x.id, kind: x.kind, count: x.count }))); }"""
 INV = """async ([obj, inv]) => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
-  const x = d.inventoryOf(s.person, obj, inv); return x && { kind: x.kind, oiId: x.oiId || '', items: x.items.map((it) => ({ id: it.id, inv: it.inv, name: it.name, cost: it.cost, balance: it.balance, qty: it.qty, priority: String(it.priority || ''), own: it.own !== false })) }; }"""
+  const x = d.inventoryOf(s.person, obj, inv); return x && { kind: x.kind, oiId: x.oiId || '', items: x.items.map((it) => ({ id: it.id, inv: it.inv, name: it.name, cost: it.cost, balance: it.balance, mol: it.mol, acc: it.acc, list: it.list, qty: it.qty, priority: String(it.priority || ''), own: it.own !== false })) }; }"""
 
 
 def balance_shown(body, it):
@@ -48,6 +51,8 @@ def balance_shown(body, it):
     return 'Балансоваястоимость,сом' in digits and str(int(round(float(it['balance'])))) in digits
 
 
+# Список «Вне ТЗ» осмотрщику не виден (osmotr.js OUT_OF_SCOPE).
+OUT_RE = re.compile(r'^вне\s*тз$', re.I)
 MARK = """async ([inv, it]) => (await import('./app/kernel/inventories.js')).markOf(inv, it) || {}"""
 UNIT = """async ([obj, oi, it]) => { const [t, c] = obj.split('|'); const r = (await import('./app/kernel/inspectionResults.js')).resultsOf(t, c);
   return (((r.assets[oi] || {}).u) || {})[it] || {}; }"""
@@ -145,6 +150,37 @@ def run(t):
     got = pg.evaluate(ROWS)
     costs = [float(items[i]['cost'] or 0) for i in got]
     t.ck(costs and max(costs) <= 20000 and costs == sorted(costs, reverse=True), 'цена «до» с порядком «по стоимости» — не тот список')
+
+    # --- отбор по МОЛ и коду учёта ---
+    scope = [x for x in data['items'] if not OUT_RE.match(x.get('list') or '')]
+    for k in ('mol', 'acc'):
+        vals = sorted({x[k] for x in scope if x[k]})
+        t.ck(len(vals) >= 2, 'в описи меньше двух значений «%s» — отбор не на чем проверить' % k)
+        if not vals:
+            continue
+        go(t, inv_q(obj, inv), '.om-app[data-v="inv"] .om-invrow')
+        if not pg.locator('.om-filters').count():
+            pg.locator('[data-filters]').click()
+        t.wait_for('#om-inv-%s' % k)
+        opts = pg.locator('#om-inv-%s option' % k).evaluate_all('(o) => o.map((e) => e.value)')
+        t.ck(opts == [''] + vals, 'отбор «%s»: значения %s, в описи %s' % (k, opts[1:], vals))
+        v = vals[-1]
+        pg.locator('#om-inv-%s' % k).select_option(value=v)
+        t.ck(t.wait_until("([k, v]) => new URLSearchParams(location.hash.split('?')[1]).get(k) === v", [k, v]), 'отбор «%s» не попал в адрес' % k)
+        want = sorted(x['id'] for x in scope if x[k] == v)
+        t.wait_until("([n]) => document.querySelectorAll('.om-invrow').length === n", [min(len(want), 200)])
+        got = sorted(pg.evaluate(ROWS))
+        t.ck(got == want[:200] if len(want) <= 200 else len(got) == 200, 'отбор «%s» = %s: на экране %d, ожидалось %d' % (k, v, len(got), len(want)))
+        t.ck(v in pg.locator('.om-found-n').inner_text(), 'включённый отбор «%s» не виден строкой под поиском' % k)
+    if mech:
+        go(t, inv_q(mech['obj'], mech['inv']), '.om-app[data-v="inv"] .om-invrow')
+        if not pg.locator('.om-filters').count():
+            pg.locator('[data-filters]').click()
+        t.wait_for('#om-inv-mol')
+        for k in ('mol', 'acc'):
+            sel = pg.locator('#om-inv-%s' % k)
+            t.ck(sel.is_disabled() and sel.evaluate("(e) => e.options.length === 1 && e.value === '' && e.options[0].text === ''"),
+                 'у единиц механизмов поле «%s» не пустое (значений нет)' % k)
 
     # --- позиция: опознание, нет ручных «найдено» и «ремонта», нерабочее — после снимков, осмотрено ранее ---
     go(t, item_q(obj, inv, it0['id']), '.om-app[data-v="item"] .om-members')
