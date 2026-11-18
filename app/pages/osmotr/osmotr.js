@@ -680,7 +680,8 @@ function viewOi(o, q, opened, savedAt) {
     .map((r) => `<p class="om-warn"><b>На доосмотр</b>${r.reason ? ' — ' + esc(r.reason) : ''}</p>`).join('');
   const note = ctx.secs.find((s) => s.key === 'comments');
   const secs = ctx.secs.filter((s) => s !== note && !s.fixed && visibleFields(s, ctx.values).length);
-  // Неизменяемые разделы (тип ОИ из состава) — фактами под шапкой.
+  // Неизменяемые разделы (тип ОИ из состава) — плашкой под шапкой: строкой его не замечали (пользователь 18.11.2026:
+  // «сделай его более выделенным, я его даже сначала не заметил»).
   const facts = ctx.secs.filter((s) => s.fixed).flatMap((s) => visibleFields(s, ctx.values))
     .map((f) => [f.label, shown(getValue(ctx.values, f.path || f.key))]).filter(([, v]) => v);
   const flat = ctx.oi.card === 'vehicle';
@@ -701,7 +702,7 @@ function viewOi(o, q, opened, savedAt) {
   const chipTone = p.requiredLeft ? 'om-t-amber' : p.filled === p.total ? 'om-t-green' : 'om-t-blue';
   return `${back(href({ v: 'obj', id: o.id }), o.title)}
     <div class="om-oihead">${h.sq}<div class="om-row-tx"><h1 class="om-title om-title-oi">${esc(h.name)}</h1>${h.sub ? `<small>${esc(h.sub)}</small>` : ''}</div></div>
-    ${facts.length ? `<dl class="om-dl om-oifacts">${facts.map(([l, v]) => `<dt>${esc(l)}</dt><dd>${esc(v)}</dd>`).join('')}</dl>` : ''}
+    ${facts.length ? `<dl class="om-oifacts om-t-blue">${facts.map(([l, v]) => `<div><dt>${esc(l)}</dt><dd>${esc(v)}</dd></div>`).join('')}</dl>` : ''}
     <div class="om-idrow">${p.total ? `<span class="om-chip ${chipTone}" title="${esc(progressText(p))}">заполнено ${p.filled} из ${p.total}</span>` : ''}${ctx.ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}<span class="om-saved" role="status" aria-live="polite">${savedAt ? 'Сохранено ' + esc(savedAt) : ''}</span></div>
     ${returned}
     ${instrHint(instrForPlace(ctx.oi.card === 'land' || ctx.oi.card === 'vehicle' ? ctx.oi.card : 'building', { objKind: getValue(ctx.values, 'objKind'), buildType: getValue(ctx.values, 'buildType') }, (o.ois || []).some((x) => x.id !== ctx.row.id && /жил/i.test(x.oiType || ''))))}
