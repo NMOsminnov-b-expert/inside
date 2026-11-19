@@ -4,14 +4,17 @@
 Пользователь: «добавить в недвижимое и движимое кнопку автомобили выявленные на месте, при нажатии на кнопку будет
 создаваться карточка во вкладке выезды, некоторые поля типа адреса, организации, даты осмотра копируются, в этой
 карточке будут поля марка модель и номер, при выходе с этой страницы будет выбор сохранить или удалить». Ответы: у
-недвижимости и ТС; черновик при объекте; только три поля; выбор — только у этих карточек, пока не сохранён.
+недвижимости и ТС; черновик при объекте; выбор — только у этих карточек, пока не сохранён. Затем: «лучше все поля из тс
+добавь» — марка, модель, госномер, VIN, поля осмотра ТС этой страницы и вкладка «Фото».
 
 Что ловит сценарий:
   * у объекта недвижимости или ТС нет кнопки «Добавить автомобиль», у законченного — есть;
   * кнопка не заводит карточку или не открывает её; не скопированы адрес, учреждение, дата выезда;
-  * в карточке не три поля (марка, модель, госномер) или правка не доходит до записи;
+  * в карточке нет марки, модели, госномера, VIN и полей ТС (пробег, единица, руль, топливо, состояние, комментарий)
+    или правка не доходит до записи (поле ТС — в «Результаты осмотра» по id автомобиля);
+  * вкладка «Фото» или снимок несохранённого автомобиля спрашивают «Сохранить / Удалить»; снимок не привязан к автомобилю;
   * с несохранённой карточки можно уйти ссылкой или «Назад» браузера без выбора «Сохранить / Удалить»;
-  * «Сохранить» без марки, модели и госномера сохраняет;
+  * «Сохранить» без марки, модели, госномера и VIN сохраняет;
   * после «Сохранить» из выбора не уходит туда, куда шли; сохранённая карточка снова спрашивает при уходе;
   * «Удалить» не удаляет автомобиль;
   * во «Выездах» (тип «Транспорт») нет строки автомобиля или она ведёт не на его карточку;
@@ -30,7 +33,10 @@ OBJS = """async () => { const d = await import('./app/pages/osmotr/data.js');
   return { me: s.person, objs: d.myObjects(s.person).map((o) => ({ id: o.id, typeId: o.typeId, ocId: o.ocId, state: o.state, removed: o.removed,
     entity: o.entity, address: o.address, institution: o.institution, plannedAt: o.plannedAt, title: o.title })) }; }"""
 CARS = """async (id) => { const [t, c] = id.split('|'); const r = (await import('./app/kernel/inspectionResults.js')).resultsOf(t, c);
-  return (r.found || []).filter((f) => f.car).map((f) => ({ id: f.id, unsaved: !!f.unsaved, copy: f.copy, f: f.vehicle.f, by: f.foundBy, card: f.card })); }"""
+  return (r.found || []).filter((f) => f.car).map((f) => ({ id: f.id, unsaved: !!f.unsaved, copy: f.copy, f: f.vehicle.f, by: f.foundBy, card: f.card,
+    vals: (r.assets || {})[f.id] || {}, photos: (r.photos || []).filter((p) => p.oiId === f.id && !p.deleted).length })); }"""
+PNG = bytes.fromhex('89504e470d0a1a0a0000000d4948445200000001000000010806000000'
+                    '1f15c4890000000d4944415478da63f8cfc0f01f0005000201a5c0a3d40000000049454e44ae426082')
 
 
 def q_of(pg):
@@ -83,9 +89,11 @@ def run(t):
     t.ck(car['copy'] == {'address': real['address'], 'institution': real['institution'], 'date': want_date}, 'скопировано не то: %s' % car['copy'])
     facts = pg.locator('.om-facts').inner_text()
     t.ck(real['address'] in facts and '%s.%s.%s' % (want_date[8:10], want_date[5:7], want_date[:4]) in facts, 'в карточке не видно адреса и даты осмотра: %s' % facts)
-    labels = pg.locator('.om-car-form .om-flabel').all_inner_texts()
-    t.ck(labels == ['Марка', 'Модель', 'Госномер'], 'поля карточки: %s' % labels)
-    t.ck(pg.locator('.om-idrow .om-chip').inner_text() == 'Не сохранён', 'нет отметки «Не сохранён»')
+    labels = [x.replace('*', '').strip() for x in pg.locator('.om-car-form .om-flabel').all_inner_texts()]
+    t.ck(labels[:4] == ['Марка', 'Модель', 'Госномер', 'VIN'], 'первые поля карточки: %s' % labels)
+    t.ck(all(x in labels for x in ('Пробег', 'Единица измерения расстояния', 'Моточасы, ч', 'Руль', 'Тип топлива', 'Общее состояние')), 'нет полей ТС: %s' % labels)
+    t.ck(pg.locator('.om-note-card .om-flabel', has_text='Комментарий осмотрщика').count() == 1, 'нет комментария осмотрщика')
+    t.ck(pg.locator('.om-idrow .om-chip').first.inner_text() == 'Не сохранён', 'нет отметки «Не сохранён»')
 
     # --- уход ссылкой: выбор; «Сохранить» пустого — отказ; «Остаться» ---
     pg.locator('.om-back').click()
@@ -101,16 +109,41 @@ def run(t):
     pg.fill('#om-car-make', 'Toyota')
     pg.fill('#om-car-model', 'Camry')
     pg.fill('#om-car-plate', '01KG777AAA')
+    pg.fill('#om-car-vin', 'JTDBR32E720123456')
+    pg.fill('#om-f-f_mileage', '120500')
     car = next(c for c in pg.evaluate(CARS, real['id']) if c['id'] == cq['car'])
-    t.ck(car['f'] == {'make': 'Toyota', 'model': 'Camry', 'plate': '01KG777AAA'}, 'поля не дошли до записи: %s' % car['f'])
-    t.ck(pg.locator('.om-title').inner_text() == 'Toyota Camry · 01KG777AAA', 'заголовок карточки: %s' % pg.locator('.om-title').inner_text())
+    t.ck(car['f'] == {'make': 'Toyota', 'model': 'Camry', 'plate': '01KG777AAA', 'vin': 'JTDBR32E720123456'}, 'поля не дошли до записи: %s' % car['f'])
+    vf = car['vals'].get('f', {})
+    t.ck(str(vf.get('mileage')) == '120500', 'пробег не дошёл до «Результатов осмотра» автомобиля: %s' % car['vals'])
 
-    # --- «Назад» браузера: выбор, «Сохранить» — уход туда, куда шли ---
+    # --- «Назад» браузера (с карточки — на объект): выбор, адрес возвращается к карточке; «Остаться» ---
     pg.evaluate("() => history.back()")
     t.ck(t.wait_until("() => !!document.querySelector('#om-leave')"), '«Назад» браузера ушёл без выбора')
     t.ck(q_of(pg).get('v') == 'car', 'после «Назад» адрес не вернулся к карточке')
+    pg.locator('#om-leave [data-car-stay]').click()
+    t.wait_until("() => !document.querySelector('#om-leave')")
+
+    # --- «Фото»: вкладка и снимок несохранённого — без выбора ---
+    pg.locator('.om-objtabs a', has_text='Фото').click()
+    t.ck(t.wait_until("() => new URLSearchParams(location.hash.split('?')[1]).get('tab') === 'photo' && !!document.querySelector('[data-shoot]')"), 'вкладка «Фото» автомобиля не открылась')
+    t.ck(pg.locator('#om-leave').count() == 0, 'вкладка «Фото» спрашивает «Сохранить / Удалить»')
+    pg.locator('[data-shoot]').first.set_input_files([{'name': 'car.png', 'mimeType': 'image/png', 'buffer': PNG}])
+    t.wait_until("() => !!document.querySelector('.om-thumb')")
+    t.ck(next(c for c in pg.evaluate(CARS, real['id']) if c['id'] == cq['car'])['photos'] == 1, 'снимок не привязан к автомобилю')
+    pg.locator('.om-thumb').first.click()
+    t.ck(t.wait_until("() => document.querySelector('.om-app').dataset.v === 'ph'"), 'снимок автомобиля не открылся (или спросил об уходе)')
+    pg.locator('.om-back').click()
+    t.ck(t.wait_until("() => document.querySelector('.om-app').dataset.v === 'car'"), 'со снимка не вернулись в карточку автомобиля')
+    pg.locator('.om-objtabs a', has_text='Сведения').click()
+    t.wait_until("() => !!document.querySelector('#om-car-make')")
+    t.ck(pg.locator('.om-title').inner_text().strip() == 'Toyota Camry · 01KG777AAA', 'заголовок карточки: %s' % pg.locator('.om-title').inner_text())
+
+    # --- смена адреса (уход в «Меню»): выбор, «Сохранить» — уход туда, куда шли ---
+    pg.evaluate("() => { location.hash = '#/osmotr?v=menu'; }")
+    t.ck(t.wait_until("() => !!document.querySelector('#om-leave')"), 'смена адреса ушла без выбора')
     pg.locator('#om-leave [data-car-save]').click()
-    t.ck(t.wait_until("() => document.querySelector('.om-app').dataset.v === 'obj'"), 'после «Сохранить» не ушли с карточки')
+    t.ck(t.wait_until("() => document.querySelector('.om-app').dataset.v === 'menu'"), 'после «Сохранить» не ушли туда, куда шли')
+    go(t, obj_q(real['id']), '.om-app[data-v="obj"] .om-cars')
     car = next(c for c in pg.evaluate(CARS, real['id']) if c['id'] == cq['car'])
     t.ck(not car['unsaved'], 'автомобиль не сохранён')
     block = pg.locator('.om-cars').inner_text() if pg.locator('.om-cars').count() else ''

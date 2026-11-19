@@ -665,7 +665,7 @@ const foundName = (f) => f.name || (f.card === 'vehicle' ? 'Транспортн
 // Литера, добавленная в состав (f.comp), — строкой «Литера Б · Склад», буква — в квадрате, как у литер записи.
 const foundRow = (f) => ({ id: f.id, kind: f.card === 'vehicle' ? 'vehicle' : 'building',
   label: f.comp ? `Литера ${f.letter} · ${foundName(f)}` : foundName(f),
-  oiType: f.comp ? `добавлена на месте · ${foundCat(f.cat).label}` : 'выявлено на месте', found: true, comp: !!f.comp, review: '' });
+  oiType: f.comp ? `добавлена на месте · ${foundCat(f.cat).label}` : 'выявлено на месте', found: true, comp: !!f.comp, car: !!f.car, review: '' });
 // Литеры, добавленные осмотрщиком в состав объекта.
 const compOi = (o) => (o.entity === 'real' ? foundOi(o.typeId, o.ocId).filter((f) => f.comp) : []);
 // Буквы литер состава — записи и добавленных; сравниваются без регистра.
@@ -810,7 +810,9 @@ function foundBlock(o) {
 // кнопку будет создаваться карточка во вкладке выезды, некоторые поля типа адреса, организации, даты осмотра
 // копируются, в этой карточке будут поля марка модель и номер, при выходе с этой страницы будет выбор сохранить или
 // удалить». Ответы: у недвижимости и ТС; черновик при объекте, где нашли (закрывается вместе с ним, разбирает ЦОД);
-// поля — только марка, модель, госномер; выбор при уходе — только у этих карточек, пока автомобиль не сохранён.
+// поля — марка, модель, госномер, VIN и все поля ТС этой страницы со снимками (пользователь 19.11.2026: «лучше все
+// поля из тс добавь»; значения — в «Результатах осмотра» по id автомобиля, как у ОИ); выбор при уходе — только у этих
+// карточек, пока автомобиль не сохранён.
 // Во «Выездах» — строкой под своим объектом (тип «Транспорт»), состояние — объекта; не сохранён — «Не сохранён».
 // Уход с несохранённой карточки (ссылка или «Назад» браузера) останавливается выбором у места действия — под шапкой.
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: автомобиль лежит в «Результатах осмотра» объекта (found, car); станет ли он своей карточкой ТС
@@ -836,26 +838,35 @@ const withCars = (all) => all.flatMap((o) => [o, ...carsOf(o).map((f) => {
 })]);
 function viewCar(o, q, ui) {
   const f = o && carsOf(o).find((x) => x.id === q.car);
-  if (!f) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Автомобиля нет — удалён</div>`;
+  const ctx = f && oiCtx(o, f.id);
+  if (!ctx) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Автомобиля нет — удалён</div>`;
   const c = f.copy || {};
   const v = (f.vehicle || {}).f || {};
-  const ro = o.state === 'done' || !!o.removed;
+  const ro = ctx.ro;
+  const photo = q.tab === 'photo';
   const facts = [['Адрес', c.address], ['Учреждение', c.institution], ['Дата осмотра', fullDate(c.date)]].filter(([, x]) => x);
   const err = ui.carErr ? `<p class="om-warn" role="alert">${esc(ui.carErr)}</p>` : '';
   const acts = '<button class="om-btn om-btn-primary" type="button" data-car-save>Сохранить</button><button class="om-btn om-btn-danger" type="button" data-car-del>Удалить</button>';
   const leave = ui.carLeave ? `<section class="om-card om-comp om-leave om-t-amber" role="alertdialog" aria-labelledby="om-leave-h" id="om-leave">
       <h2 class="om-card-h" id="om-leave-h">Автомобиль не сохранён</h2>${err}
       <div class="om-shoot-act">${acts}<button class="om-btn" type="button" data-car-stay>Остаться</button></div></section>` : '';
-  const field = (k, label) => `<div class="om-field"><label class="om-flabel" for="om-car-${k}">${label}</label><input class="om-input" type="text" id="om-car-${k}" data-car-f="${k}" value="${esc(v[k] || '')}" maxlength="40" autocomplete="off"${ro ? ' disabled' : ''}></div>`;
+  const field = (k, label) => `<div class="om-field"><label class="om-flabel" for="om-car-${k}">${label}</label><input class="om-input" type="text" id="om-car-${k}" data-car-f="${k}" value="${esc(v[k] || '')}" maxlength="${k === 'vin' ? 17 : 40}" autocomplete="off"${ro ? ' disabled' : ''}></div>`;
+  // Поля ТС — те же, что у ТС на этой странице (params.js, vehicle): одним списком, комментарий — отдельной карточкой.
+  const note = ctx.secs.find((s) => s.key === 'comments');
+  const tsFields = ctx.secs.filter((s) => s !== note && !s.fixed).flatMap((s) => visibleFields(s, ctx.values));
+  const p = progressOf(ctx);
+  const tabs = [['', 'docs', 'Сведения'], ['photo', 'camera', 'Фото']];
   return `${back(href({ v: 'obj', id: o.id }), o.title)}
     <p class="om-kicker">Автомобиль, выявленный на месте</p>
     <h1 class="om-title">${esc(carTitle(f))}</h1>
-    <div class="om-idrow">${f.unsaved ? '<span class="om-chip om-t-amber">Не сохранён</span>' : '<span class="om-chip om-t-green">Сохранён</span>'}${ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}</div>
+    <div class="om-idrow">${f.unsaved ? '<span class="om-chip om-t-amber">Не сохранён</span>' : '<span class="om-chip om-t-green">Сохранён</span>'}${p.total ? `<span class="om-chip ${p.filled === p.total ? 'om-t-green' : 'om-t-blue'}">заполнено ${p.filled} из ${p.total}</span>` : ''}${ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}<span class="om-saved" role="status" aria-live="polite"></span></div>
     ${leave}
-    ${facts.length ? `<section class="om-card om-facts">${facts.map(([l, x]) => `<div><small>${esc(l)}</small><b>${esc(x)}</b></div>`).join('')}</section>` : ''}
-    <div class="om-group om-form om-car-form">${field('make', 'Марка')}${field('model', 'Модель')}${field('plate', 'Госномер')}</div>
+    ${photo ? photosBlock(o, ctx, q) : `${facts.length ? `<section class="om-card om-facts">${facts.map(([l, x]) => `<div><small>${esc(l)}</small><b>${esc(x)}</b></div>`).join('')}</section>` : ''}
+    <div class="om-group om-form om-car-form">${field('make', 'Марка')}${field('model', 'Модель')}${field('plate', 'Госномер')}${field('vin', 'VIN')}${tsFields.map((x) => fieldHTML(x, ctx)).join('')}</div>
+    ${note ? `<div class="om-group om-form om-note-card">${note.fields.map((x) => fieldHTML(x, ctx)).join('')}</div>` : ''}
     ${f.unsaved ? `${ui.carLeave ? '' : err}<div class="om-shoot-act om-car-act">${acts}</div>`
-    : ro ? '' : `<button type="button" class="om-btn om-btn-danger om-found-del" data-car-del>${ico('trash', 18)}Удалить автомобиль</button>`}`;
+    : ro ? '' : `<button type="button" class="om-btn om-btn-danger om-found-del" data-car-del>${ico('trash', 18)}Удалить автомобиль</button>`}`}
+    <nav class="om-bnav om-objtabs" aria-label="Разделы автомобиля">${tabs.map(([k, icon, label]) => `<a class="om-btab${(q.tab || '') === k ? ' on' : ''}" href="${href({ v: 'car', id: o.id, car: f.id, tab: k })}" aria-current="${(q.tab || '') === k}">${ico(icon, 22)}<span>${label}${k === 'photo' && ctx.photos ? ` <b>${ctx.photos}</b>` : ''}</span></a>`).join('')}</nav>`;
 }
 
 // --- описи: как в приложении «Осмотр» (Inventory.kt, InventoryScreen.kt, BrowserScreen.kt) ---------------------
@@ -1372,12 +1383,13 @@ function oiTabs(o, ctx, q) {
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: снимки — в памяти вкладки и хранилище браузера (kernel/inspectionResults.js);
 // на сервере — загрузка с очередью и повтором при плохой связи.
 function photosBlock(o, ctx, q) {
+  const at = (x) => (ctx.row.car ? href({ v: 'car', id: o.id, car: ctx.row.id, ...x }) : href({ v: 'oi', id: o.id, oi: ctx.row.id, ...x }));
   const cats = photoCatsOf(ctx.oi);
   const cat = cats.includes(q.cat) ? q.cat : cats[0];
   const list = (resultsOf(o.typeId, o.ocId).photos || []).filter((p) => p.oiId === ctx.row.id && !p.deleted && p.dataUrl);
   const groups = [...new Set([...cats, ...list.map((p) => p.cat)])].map((c) => [c, list.filter((p) => p.cat === c)]).filter(([, l]) => l.length);
   const shoot = ctx.ro ? '' : `<section class="om-card om-shoot"><span class="om-cap">Куда снимаем</span>
-      <div class="om-segs">${cats.map((c) => `<a class="om-seg${c === cat ? ' on' : ''}" href="${href({ v: 'oi', id: o.id, oi: ctx.row.id, tab: 'photo', cat: c })}" aria-current="${c === cat}">${esc(c)}<b>${list.filter((p) => p.cat === c).length || ''}</b></a>`).join('')}</div>
+      <div class="om-segs">${cats.map((c) => `<a class="om-seg${c === cat ? ' on' : ''}" href="${at({ tab: 'photo', cat: c })}" aria-current="${c === cat}">${esc(c)}<b>${list.filter((p) => p.cat === c).length || ''}</b></a>`).join('')}</div>
       <div class="om-shoot-act">
         <label class="om-btn om-btn-primary">${ico('camera', 18)}Снять<input type="file" accept="image/*" capture="environment" multiple hidden data-shoot="${esc(cat)}"></label>
         <label class="om-btn">${ico('photo', 18)}Из галереи<input type="file" accept="image/*" multiple hidden data-shoot="${esc(cat)}"></label>
@@ -1391,7 +1403,7 @@ function photosBlock(o, ctx, q) {
 function viewPhoto(o, q) {
   const ctx = o && oiCtx(o, q.oi);
   const p = ctx && (resultsOf(o.typeId, o.ocId).photos || []).find((x) => x.id === q.ph);
-  const to = ctx ? href({ v: 'oi', id: o.id, oi: ctx.row.id, tab: 'photo' }) : href({ v: 'trips' });
+  const to = !ctx ? href({ v: 'trips' }) : ctx.row.car ? href({ v: 'car', id: o.id, car: ctx.row.id, tab: 'photo' }) : href({ v: 'oi', id: o.id, oi: ctx.row.id, tab: 'photo' });
   if (!p) return `${back(to, 'Фото')}<div class="om-card om-empty">Снимка нет</div>`;
   const cats = photoCatsOf(ctx.oi);
   const opts = cats.includes(p.cat) ? cats : [p.cat, ...cats];
@@ -1568,10 +1580,12 @@ export function mountOsmotr(host) {
     navigator.clipboard && navigator.clipboard.writeText(b.dataset.copy).then(() => { b.classList.add('done'); setTimeout(() => b.classList.remove('done'), 1200); }, () => {});
   });
 
+  // ОИ экрана: у карточки автомобиля, выявленного на месте, — сам автомобиль.
+  const oiOf = () => q.oi || ((q.v || '') === 'car' ? q.car || '' : '');
   // Поле осмотра: значение — в «Результаты осмотра» сразу; первая правка переводит назначение «в работу».
   function saveField(key, value) {
-    if (!cur || !q.oi) return;
-    const vals = valuesOf(cur.typeId, cur.ocId, q.oi);
+    if (!cur || !oiOf()) return;
+    const vals = valuesOf(cur.typeId, cur.ocId, oiOf());
     const prev = getValue(vals, key);
     setValue(vals, key, value);
     if (NET_KEYS.includes(key)) {
@@ -1594,7 +1608,7 @@ export function mountOsmotr(host) {
   // Выбор из списка может открыть или спрятать поля (тип объекта → его признаки) — раздел перерисовывается.
   scope.on('change', 'select[data-f]', (e, el) => { saveField(el.dataset.f, el.value); render(); });
   scope.on('click', '[data-ms]', (e, b) => {
-    const ctx = cur && oiCtx(cur, q.oi);
+    const ctx = cur && oiCtx(cur, oiOf());
     if (!ctx || ctx.ro) return;
     const v0 = getValue(ctx.values, b.dataset.ms);
     const set = new Set(Array.isArray(v0) ? v0 : v0 ? String(v0).split(/,\s*/) : []);
@@ -1993,7 +2007,7 @@ export function mountOsmotr(host) {
     const f = curCar();
     if (!f) return;
     if (foundCarEmpty(f)) {
-      ui.carErr = 'Укажите марку, модель или госномер';
+      ui.carErr = 'Укажите марку, модель, госномер или VIN';
       render();
       scope.$('#om-car-make')?.focus();
       return;
@@ -2010,10 +2024,13 @@ export function mountOsmotr(host) {
     afterCar(href({ v: 'obj', id: cur.id }));
   });
   scope.on('click', '[data-car-stay]', () => { ui.carLeave = ''; ui.carErr = ''; render(); });
+  // Вкладки и снимки самого автомобиля — не уход с карточки.
+  const staysOnCar = (nq) => nq.id === q.id && ((nq.v === 'car' && nq.car === q.car) || (nq.v === 'ph' && nq.oi === q.car));
+  const queryOf = (h) => Object.fromEntries(new URLSearchParams(String(h || '').split('?')[1] || ''));
   // Ссылка с несохранённой карточки — сначала выбор.
   scope.on('click', 'a[href^="#"]', (e, a) => {
     const f = curCar();
-    if (!f || !f.unsaved) return;
+    if (!f || !f.unsaved || staysOnCar(queryOf(a.getAttribute('href')))) return;
     e.preventDefault();
     showLeave(a.getAttribute('href'));
   });
@@ -2027,9 +2044,9 @@ export function mountOsmotr(host) {
 
   // Съёмка: снимки — к этому ОИ, в выбранную категорию.
   scope.on('change', '[data-shoot]', (e, input) => {
-    if (!cur || !q.oi) return;
+    if (!cur || !oiOf()) return;
     const files = [...(input.files || [])];
-    const err = files.map((f) => addPhoto(cur.typeId, cur.ocId, f, { oiId: q.oi, cat: input.dataset.shoot }).error).find(Boolean);
+    const err = files.map((f) => addPhoto(cur.typeId, cur.ocId, f, { oiId: oiOf(), cat: input.dataset.shoot }).error).find(Boolean);
     input.value = '';
     render();
     if (err) { const st = scope.$('.om-shoot'); if (st) st.insertAdjacentHTML('afterbegin', `<p class="om-warn" role="alert">${esc(err)}</p>`); }
@@ -2038,7 +2055,8 @@ export function mountOsmotr(host) {
   scope.on('click', '[data-ph-del]', (e, b) => {
     if (!cur) return;
     removePhoto(cur.typeId, cur.ocId, b.dataset.phDel);
-    location.hash = href({ v: 'oi', id: cur.id, oi: q.oi, tab: 'photo' });
+    const ctx = oiCtx(cur, q.oi);
+    location.hash = ctx && ctx.row.car ? href({ v: 'car', id: cur.id, car: q.oi, tab: 'photo' }) : href({ v: 'oi', id: cur.id, oi: q.oi, tab: 'photo' });
   });
 
   function renderKeepFocus() {
@@ -2075,7 +2093,7 @@ export function mountOsmotr(host) {
     onRoute(route) {
       const nq = route.query || {};
       const f = curCar();
-      if (f && f.unsaved && !(nq.v === 'car' && nq.id === q.id && nq.car === q.car)) {
+      if (f && f.unsaved && !staysOnCar(nq)) {
         const to = location.hash;
         history.replaceState(null, '', href(q));
         showLeave(to);
