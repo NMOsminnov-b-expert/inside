@@ -23,8 +23,10 @@
     нельзя менять», «общие параметры убираем»);
   * обязательные поля участка (сети) не считаются в «обязательных осталось»;
   * снимок не встаёт в выбранную категорию, не переносится, не удаляется;
-  * выявленное на месте строение не добавляется, не открывается своей формой
-    осмотра, не убирается;
+  * выявленное на месте строение не добавляется, не убирается; у «Выявлено на
+    месте» список видов вместо текстового поля, строение без названия
+    добавляется; внутри выявленного — что-то кроме комментария и снимков
+    (пользователь 18.11.2026);
   * «Добавить литеру» (18.11.2026): нет кнопки в «Составе объекта» здания или
     она есть у квартиры; литера без буквы или с буквой, которая уже есть в
     составе, добавляется; добавленная не встаёт в состав с буквой (а встаёт в
@@ -246,13 +248,26 @@ def run(t):
 
     # --- выявлено на месте: добавить строение, осмотреть, убрать ---
     go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] [data-found]')
-    pg.locator('[data-found] select[name=cat]').select_option('prod')
+    t.ck(pg.locator('[data-found] select').count() == 0 and pg.locator('[data-found] input[name=name]').count() == 1,
+         'в «Выявлено на месте» не одно текстовое поле (18.11.2026: «просто текстовое поле»)')
+    n_found = pg.locator('.om-found a.om-oi-link').count()
+    pg.evaluate("() => document.querySelector('[data-found] input[name=name]').removeAttribute('required')")
+    pg.fill('[data-found] input[name=name]', '   ')
+    pg.locator('[data-found] button[type=submit]').click()
+    t.ck(t.wait_until("() => document.activeElement && document.activeElement.name === 'name'"), 'пустое название не вернуло фокус в поле')
+    t.ck(t.wait_until("() => /v=obj/.test(location.hash)") and pg.locator('.om-found a.om-oi-link').count() == n_found, 'строение без названия добавилось')
     pg.fill('[data-found] input[name=name]', 'Склад во дворе')
     pg.locator('[data-found] button[type=submit]').click()
-    t.ck(t.wait_until("() => /v=oi/.test(location.hash) && /oi=found-/.test(location.hash) && !!document.querySelector('.om-secrow')"),
-         'добавленное строение не открылось осмотром ОИ')
+    t.ck(t.wait_until("() => /v=oi/.test(location.hash) && /oi=found-/.test(location.hash) && !!document.querySelector('.om-note-card textarea[data-f=note]')"),
+         'добавленное строение не открылось осмотром ОИ с комментарием')
     t.ck(pg.locator('.om-title').inner_text().strip() == 'Склад во дворе', 'у выявленного не то название: %s' % pg.locator('.om-title').inner_text())
-    t.ck(pg.evaluate(FACT, 'Тип ОИ') == 'Здание' and pg.locator('[data-f="objKind"]').count() == 0, 'у выявленного производственного тип ОИ не «Здание» или правится')
+    t.ck(pg.locator('.om-secrow, .om-oifacts, .om-empty, .om-idrow .om-chip, .om-scr [data-f]:not([data-f=note])').count() == 0,
+         'внутри выявленного не только комментарий и снимки (разделы, тип ОИ, поля или «заполнено»)')
+    t.ck(pg.locator('.om-objtabs .om-btab', has_text='Фото').count() == 1, 'у выявленного нет вкладки «Фото»')
+    note = pg.locator('.om-note-card textarea[data-f="note"]')
+    note.press_sequentially('Металлический, без фундамента')
+    t.ck(t.wait_until("async ([id, oi]) => (await (%s)([id, oi, 'note'])) === 'Металлический, без фундамента'" % VAL,
+                      [obj, pg.evaluate("() => new URLSearchParams(location.hash.split('?')[1]).get('oi')")]), 'комментарий выявленного не сохранился')
     go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] .om-found')
     t.ck(pg.locator('.om-found a.om-oi-link', has_text='Склад во дворе').count() == 1, 'выявленного нет в блоке «Выявлено на месте»')
     pg.locator('.om-found a.om-oi-link', has_text='Склад во дворе').click()

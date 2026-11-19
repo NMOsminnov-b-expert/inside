@@ -645,7 +645,11 @@ function oiCtx(o, oiId) {
   const photos = (r.photos || []).filter((p) => p.oiId === oiId && !p.deleted).length;
   // Закончен — только просмотр; ОИ, возвращённый на доосмотр, снова правится.
   const ro = o.state === 'done' && row.review !== 'returned';
-  return { rec, oi, row, values, own, photos, ro, secs: pwaSections(oi) };
+  // Выявленное на месте строение — только комментарий и снимки (пользователь 18.11.2026: «внутри карточки созданной
+  // выявлено на месте должно быть только комментарий осмотрщика и фото»); литера, добавленная в состав, — форма здания.
+  const onlyNote = f && !f.comp && f.card !== 'vehicle';
+  const secs = onlyNote ? pwaSections(oi).filter((s) => s.key === 'comments') : pwaSections(oi);
+  return { rec, oi, row, values, own, photos, ro, secs };
 }
 const visibleFields = (s, values) => s.fields.filter((f) => !f.visible || f.visible(values));
 // Инженерные сети участка — и в литеру, если литера на участке одна (пользователь 17.11.2026: «Если у нас на участке
@@ -716,7 +720,7 @@ function viewOi(o, q, opened, savedAt) {
     <div class="om-idrow">${p.total ? `<span class="om-chip ${chipTone}" title="${esc(progressText(p))}">заполнено ${p.filled} из ${p.total}</span>` : ''}${ctx.ro ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}<span class="om-saved" role="status" aria-live="polite">${savedAt ? 'Сохранено ' + esc(savedAt) : ''}</span></div>
     ${returned}
     ${instrHint(instrForPlace(ctx.oi.card === 'land' || ctx.oi.card === 'vehicle' ? ctx.oi.card : 'building', { objKind: getValue(ctx.values, 'objKind'), buildType: getValue(ctx.values, 'buildType') }, (o.ois || []).some((x) => x.id !== ctx.row.id && /жил/i.test(x.oiType || ''))))}
-    ${q.tab === 'photo' ? photosBlock(o, ctx, q) : `${form ? `<div class="om-group om-accs">${form}</div>` : '<div class="om-card om-empty">Полей осмотра у этого объекта нет — только снимки</div>'}
+    ${q.tab === 'photo' ? photosBlock(o, ctx, q) : `${form ? `<div class="om-group om-accs">${form}</div>` : note ? '' : '<div class="om-card om-empty">Полей осмотра у этого объекта нет — только снимки</div>'}
       ${note ? `<div class="om-group om-form om-note-card">${note.fields.map((f) => fieldHTML(f, ctx)).join('')}</div>` : ''}`}
     ${ctx.row.found && !ctx.ro && q.tab !== 'photo' ? `<button type="button" class="om-btn om-btn-danger om-found-del" data-found-del="${esc(ctx.row.id)}">${ico('trash', 18)}${ctx.row.comp ? 'Убрать литеру' : 'Убрать выявленное строение'}</button>` : ''}
     ${oiTabs(o, ctx, q)}`;
@@ -754,9 +758,8 @@ function foundBlock(o) {
   return `<section class="om-card om-comp om-found"><h2 class="om-card-h">Выявлено на месте</h2>
     ${list.map((f) => oiRow(o, foundRow(f), null)).join('')}
     ${ro ? (list.length ? '' : '<p class="om-muted om-found-none">Не выявлено</p>') : `<form class="om-found-add" data-found>
-      <label class="om-flabel" for="om-found-cat">Строение, которого нет в составе</label>
-      <span class="om-select"><select class="om-input" id="om-found-cat" name="cat">${FOUND_CATS.map((c) => `<option value="${c.key}">${esc(c.label)}</option>`).join('')}</select></span>
-      <input class="om-input" name="name" maxlength="80" placeholder="Например, склад" aria-label="Название выявленного строения">
+      <label class="om-flabel" for="om-found-name">Строение, которого нет в составе</label>
+      <input class="om-input" id="om-found-name" name="name" maxlength="80" required autocomplete="off" placeholder="Например, склад во дворе">
       <button class="om-btn" type="submit">Добавить строение</button></form>`}</section>`;
 }
 
@@ -1848,7 +1851,11 @@ export function mountOsmotr(host) {
   scope.on('submit', '[data-found]', (e, form) => {
     e.preventDefault();
     if (!cur) return;
-    const f = addFoundOi(cur.typeId, cur.ocId, { cat: form.cat.value, name: form.name.value, by: session.state.person });
+    // Вида у выявленного нет — только название (пользователь 18.11.2026: «не должно быть строго выпадающего списка…
+    // просто текстовое поле»); в записи — вид «Прочее».
+    const name = form.name.value.trim();
+    if (!name) { form.name.focus(); return; }
+    const f = addFoundOi(cur.typeId, cur.ocId, { cat: 'other', name, by: session.state.person });
     startWork(session.state.person, cur.typeId, cur.ocId);
     location.hash = href({ v: 'oi', id: cur.id, oi: f.id });
   });
