@@ -12,7 +12,9 @@
   * осмотрщику видны позиции списка «Вне ТЗ»; нет разбивки по спискам;
     в карточке «Место» (в описях его нет);
   * отбор по приоритету и по цене (от — до), порядок по стоимости — не те
-    позиции;
+    позиции; список сразу не по приоритету (без приоритета — в конце), «по №»
+    не по номеру; в строке позиции список («Основной», «Резерв») вместо
+    приоритета «П1» (пользователь 19.11.2026);
   * отбор по МОЛ и по коду учёта — не те позиции или не все значения описи; у
     единиц механизмов (МОЛ и кода нет) поля не пустые (пользователь 18.11.2026);
   * у позиции остались ручные «Найдено / Не найдено» или «Требуется ремонт»
@@ -40,7 +42,7 @@ TOUCHES = ('app/pages/osmotr/*', 'app/kernel/inventories.js', 'app/kernel/inspec
 OBJS = """async () => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
   return d.myObjects(s.person).flatMap((o) => o.inventories.map((x) => ({ obj: o.id, inv: x.id, kind: x.kind, count: x.count }))); }"""
 INV = """async ([obj, inv]) => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
-  const x = d.inventoryOf(s.person, obj, inv); return x && { kind: x.kind, oiId: x.oiId || '', items: x.items.map((it) => ({ id: it.id, inv: it.inv, name: it.name, cost: it.cost, balance: it.balance, mol: it.mol, acc: it.acc, list: it.list, qty: it.qty, priority: String(it.priority || ''), own: it.own !== false })) }; }"""
+  const x = d.inventoryOf(s.person, obj, inv); return x && { kind: x.kind, oiId: x.oiId || '', items: x.items.map((it) => ({ id: it.id, inv: it.inv, name: it.name, cost: it.cost, balance: it.balance, mol: it.mol, acc: it.acc, list: it.list, no: it.no, qty: it.qty, priority: String(it.priority || ''), own: it.own !== false })) }; }"""
 
 
 def balance_shown(body, it):
@@ -150,6 +152,23 @@ def run(t):
     got = pg.evaluate(ROWS)
     costs = [float(items[i]['cost'] or 0) for i in got]
     t.ck(costs and max(costs) <= 20000 and costs == sorted(costs, reverse=True), 'цена «до» с порядком «по стоимости» — не тот список')
+    # Сразу — по приоритету, внутри — по №; в строке — «П<n>», а не список (пользователь 19.11.2026).
+    go(t, inv_q(obj, inv), '.om-app[data-v="inv"] .om-invrow')
+    got = pg.evaluate(ROWS)
+    key = [(int(items[i]['priority'] or 9), items[i]['no']) for i in got]
+    t.ck(len({k[0] for k in key}) > 1 and key == sorted(key), 'список описи сразу не по приоритету: %s' % key[:12])
+    t.ck(pg.locator('.om-found-n').count() == 0, 'порядок по приоритету считается включённым отбором')
+    smalls = pg.locator('.om-invrow a.om-row-tx small').all_inner_texts()
+    t.ck(all(('П' + items[i]['priority']) in sm for i, sm in zip(got, smalls) if items[i]['priority']), 'в строке позиции нет приоритета «П<n>»')
+    lists_seen = {items[i]['list'] for i in got if items[i]['list']}
+    t.ck(lists_seen and not any(l in sm for sm in smalls for l in lists_seen), 'в строке позиции остался список (%s)' % ', '.join(lists_seen))
+    if not pg.locator('[data-invsort]').count():
+        pg.locator('[data-filters]').click()
+    t.wait_for('[data-invsort]')
+    t.ck(pg.evaluate("() => { const s = document.querySelector('[data-invsort]'); return s.options[s.selectedIndex].text; }") == 'по приоритету', 'в «Порядке» сразу выбрано не «по приоритету»')
+    go(t, inv_q(obj, inv, '&sort=no'), '.om-app[data-v="inv"] .om-invrow')
+    nos = [items[i]['no'] for i in pg.evaluate(ROWS)]
+    t.ck(nos == sorted(nos) and 'по №' in pg.locator('.om-found-n').inner_text(), 'порядок «по №» — не по номеру или не виден строкой')
 
     # --- отбор по МОЛ и коду учёта ---
     scope = [x for x in data['items'] if not OUT_RE.match(x.get('list') or '')]

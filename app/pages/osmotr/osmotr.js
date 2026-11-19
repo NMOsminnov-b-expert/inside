@@ -981,15 +981,17 @@ function viewInv(o, q, sel, filtersOpen) {
     && (!q.mol || x.it.mol === q.mol) && (!q.acc || x.it.acc === q.acc)
     && (!min || cost(x.it) >= min) && (!max || cost(x.it) <= max)
     && (!needle || foldSearch([x.it.inv, x.it.name, x.it.model, x.it.mol, x.it.acc, x.it.no].join(' ')).includes(needle)));
-  if (q.sort === 'priority') list.sort((a, b) => (Number(a.it.priority) || 9) - (Number(b.it.priority) || 9) || a.it.no - b.it.no);
+  // Порядок по умолчанию — по приоритету (пользователь 19.11.2026: «этот список изначально должен фильтроваться по
+  // приоритету»); позиции без приоритета — в конце, внутри приоритета — по №.
   if (q.sort === 'cost') list.sort((a, b) => cost(b.it) - cost(a.it));
+  else if (q.sort !== 'no') list.sort((a, b) => (Number(a.it.priority) || 9) - (Number(b.it.priority) || 9) || a.it.no - b.it.no);
   const prios = [...new Set(rows.map((x) => String(x.it.priority || '')).filter(Boolean))].sort();
   const pOf = (p) => own.filter((x) => String(x.it.priority) === p);
   // Включённые фильтры — строкой под поиском; панель фильтров свёрнута (пользователь 16.11.2026 о шапке
   // описи: «надо причесать по-нормальному. занимает кучу места»).
   const fmtSom = (n) => Number(n).toLocaleString('ru-RU');
   const onList = [q.l, q.p ? 'П' + q.p : '', q.mol ? 'МОЛ ' + q.mol : '', q.acc ? 'код ' + q.acc : '', min ? 'от ' + fmtSom(min) : '', max ? 'до ' + fmtSom(max) : '',
-    q.sort === 'cost' ? 'по стоимости' : q.sort === 'priority' ? 'по приоритету' : ''].filter(Boolean);
+    q.sort === 'cost' ? 'по стоимости' : q.sort === 'no' ? 'по №' : ''].filter(Boolean);
   const nOn = onList.length;
   const ro = o.state === 'done';
   const target = q.to ? inv.items.find((x) => x.id === q.to) : null;
@@ -1015,15 +1017,17 @@ function viewInv(o, q, sel, filtersOpen) {
         <input class="om-input" id="om-inv-min" data-invnum="min" inputmode="numeric" value="${esc(q.min || '')}" placeholder="от" aria-label="Стоимость от, сом">
         <span aria-hidden="true">—</span>
         <input class="om-input" id="om-inv-max" data-invnum="max" inputmode="numeric" value="${esc(q.max || '')}" placeholder="до" aria-label="Стоимость до, сом"></div></div>
-      <div class="om-fgroup"><span class="om-flabel">Порядок</span><span class="om-select"><select class="om-input" data-invsort aria-label="Порядок">${[['', 'по №'], ['priority', 'по приоритету'], ['cost', 'по стоимости']].map(([k, l]) => `<option value="${k}"${(q.sort || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></span></div>
+      <div class="om-fgroup"><span class="om-flabel">Порядок</span><span class="om-select"><select class="om-input" data-invsort aria-label="Порядок">${[['', 'по приоритету'], ['no', 'по №'], ['cost', 'по стоимости']].map(([k, l]) => `<option value="${k}"${(q.sort === 'priority' ? '' : q.sort || '') === k ? ' selected' : ''}>${l}</option>`).join('')}</select></span></div>
     </div>` : ''}
     ${nOn ? `<p class="om-muted om-found-n">${esc(onList.join(' · '))} · показано ${list.length} из ${rows.length} · <a href="${href({ ...q, p: '', l: '', mol: '', acc: '', min: '', max: '', sort: '' })}">сбросить</a></p>` : ''}
     ${list.length ? `<div class="om-group">${list.slice(0, INV_LIMIT).map(({ it, s }) => {
     const can = !ro && it.own !== false && !(target && cardOf(o, inv, target).some((x) => x.id === it.id));
+    // В строке — приоритет («П1»), а не список «Основной / Резерв» (пользователь 19.11.2026: «нужно убрать основной
+    // резерв и так далее, заменить его на цифру приоритета»).
     return `<div class="om-row om-invrow${it.own === false ? ' om-off' : ''}${sel.has(it.id) ? ' om-picked' : ''}">
       ${can ? `<button type="button" class="om-check" data-sel="${esc(it.id)}" aria-pressed="${sel.has(it.id)}" aria-label="Отметить: ${esc(it.name)}"></button>` : `<span class="om-invno">${esc(String(it.no))}</span>`}
       <a class="om-row-tx" href="${picking ? '#' : href({ v: 'item', id: o.id, inv: inv.id, it: it.id })}"${picking ? ` data-sel="${esc(it.id)}"` : ''}><b>${esc(it.name)}</b>
-        <small>${esc([it.inv, it.model, it.list].filter(Boolean).join(' · ') || 'без инв. номера')}${s.size > 1 ? ` · в карточке ${s.size} шт` : ''}${it.own === false ? ' · осматривает ' + esc(it.who) : ''}</small></a>
+        <small>${esc([it.inv, it.model, it.priority ? 'П' + it.priority : ''].filter(Boolean).join(' · ') || 'без инв. номера')}${s.size > 1 ? ` · в карточке ${s.size} шт` : ''}${it.own === false ? ' · осматривает ' + esc(it.who) : ''}</small></a>
       ${statusChip(s)}</div>`;
   }).join('')}</div>${list.length > INV_LIMIT ? `<p class="om-muted om-more">Показаны первые ${INV_LIMIT} из ${list.length} — уточните поиск</p>` : ''}`
     : '<div class="om-card om-empty">Позиций не найдено</div>'}
