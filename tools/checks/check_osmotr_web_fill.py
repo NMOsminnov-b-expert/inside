@@ -285,7 +285,9 @@ def run(t):
     pg.locator('[data-liter-open]').click()
     t.wait_for('[data-liter] #om-liter-letter')
     t.ck(pg.evaluate("() => document.activeElement && document.activeElement.id") == 'om-liter-letter', 'форма литеры открылась без фокуса на букве')
-    pg.select_option('#om-liter-cat', 'prod')
+    # Вида при добавлении нет (пользователь 19.11.2026: «при добавлении литеры убрать поле Вид»).
+    t.ck(pg.locator('[data-liter] select, #om-liter-cat').count() == 0 and 'Вид' not in pg.locator('[data-liter]').inner_text(),
+         'в форме «Добавить литеру» осталось поле «Вид»')
     pg.fill('#om-liter-name', 'Склад у ворот')
     pg.evaluate("() => document.querySelector('#om-liter-letter').removeAttribute('required')")
     pg.locator('[data-liter] button[type=submit]').click()
@@ -304,7 +306,12 @@ def run(t):
          'у добавленной литеры не та буква или название: %s / %s' % (pg.locator('.om-oihead .om-sq').inner_text(), pg.locator('.om-title').inner_text()))
     lb = pg.locator('.om-secrow b').all_inner_texts()
     t.ck('Санузел' in lb and 'Инженерные сети' in lb, 'у добавленной литеры не форма здания: %s' % lb)
-    t.ck(pg.evaluate(FACT, 'Тип ОИ') == 'Здание', 'у литеры вида «Производственно-складское» тип ОИ не «Здание»: %s' % pg.evaluate(FACT, 'Тип ОИ'))
+    t.ck(pg.evaluate(FACT, 'Тип ОИ') == 'Здание', 'у литеры без вида тип ОИ не «Здание»: %s' % pg.evaluate(FACT, 'Тип ОИ'))
+    rec = pg.evaluate("""async (oi) => { const tk = await import('./app/pages/inspection/tasks.js'); const d = await import('./app/pages/osmotr/data.js');
+      const s = (await import('./app/kernel/session.js')).session.state; const o = d.myObjects(s.person).find((x) => x.id === decodeURIComponent(location.hash.match(/id=([^&]+)/)[1]));
+      const f = tk.foundOi(o.typeId, o.ocId).find((x) => x.id === oi); return f && { cat: f.cat, litKind: f.litKind, residential: f.residential }; }""",
+      pg.evaluate("() => decodeURIComponent(location.hash.match(/oi=([^&]+)/)[1])"))
+    t.ck(rec == {'cat': '', 'litKind': '', 'residential': False}, 'литера без вида записана с видом: %s' % rec)
     go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] [data-liter-open]')
     t.ck(pg.evaluate(LETTERS) == had + [new], 'добавленной литеры нет в «Составе объекта»: %s' % pg.evaluate(LETTERS))
     t.ck(pg.locator('.om-found a.om-oi-link').count() == found_n, 'добавленная литера попала в «Выявлено на месте»')

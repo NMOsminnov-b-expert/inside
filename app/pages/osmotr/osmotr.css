@@ -259,8 +259,7 @@ textarea.om-input{resize:vertical;line-height:1.4}
 .om-found-none{padding:10px 16px}
 .om-found-del{width:100%;margin-top:14px}
 .om-liter-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 32px);margin:10px 16px 12px}
-.om-liter-grid{display:grid;grid-template-columns:96px 1fr;gap:10px}
-.om-liter-grid .om-flabel{margin-bottom:6px}
+.om-liter-letter{max-width:96px}
 .om-liter-add .om-warn{margin:0}
 
 /* Комментарий осмотрщика — прямо на экране ОИ, под разделами */

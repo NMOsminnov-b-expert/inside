@@ -289,7 +289,7 @@ export function oiLabel(oi) {
 
   if (oi.card === 'building') {
     // Выявленное на осмотре — по факту, без литеры.
-    if (oi.draft) return ['Выявлено', name || foundCat(oi.cat).label].join(' · ');
+    if (oi.draft) return ['Выявлено', name || (oi.cat ? foundCat(oi.cat).label : oi.letter ? 'Литера ' + oi.letter : 'Строение')].join(' · ');
     const head = oi.letter ? 'Литера ' + oi.letter : 'Строение';
     return same(head) ? head : [head, name].filter(Boolean).join(' · ');
   }
@@ -462,8 +462,10 @@ const stamp = (d) => `${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYe
 // letter и comp — литера, добавленная осмотрщиком в состав объекта (страница осмотрщика, 18.11.2026): та же запись
 // «выявлено», с буквой литеры и пометкой «в составе»; на экране объекта она стоит в «Составе объекта», а не в
 // «Выявлено на месте».
+// cat: '' — без вида (литера состава, пользователь 19.11.2026: «при добавлении литеры убрать поле Вид»): тип
+// осмотрщик выбирает в самой карточке литеры («Тип и класс капитальности»).
 export function addFoundOi(typeId, ocId, { cat = 'other', name = '', landId = '', by = '', letter = '', comp = false } = {}) {
-  const c = foundCat(cat);
+  const c = cat === '' ? { key: '', litKind: '', residential: false } : foundCat(cat);
   const item = {
     id: 'found-' + Date.now().toString(36) + (++foundSeq),
     card: 'building',

@@ -36,7 +36,7 @@ import { osrmKm, dayPoints } from '../inspections/route.js';
 import { periodOf, statsFor, fmtMetric, accountsFor, ACCOUNTS } from '../inspections/statsData.js';
 import { markItem, markOf, addItemPhoto, removeItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
-import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, FOUND_CATS, addFoundCar, setFoundCar, saveFoundCar, foundCarEmpty } from '../inspection/tasks.js';
+import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, addFoundCar, setFoundCar, saveFoundCar, foundCarEmpty } from '../inspection/tasks.js';
 import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay, inventoryOf, titleOf, tsLine } from './data.js';
 import { notesOf, markRead } from './feed.js';
 import { pwaSections, pwaDefaults, OBJ_KIND } from './params.js';
@@ -661,11 +661,11 @@ function oiRow(o, x, photo) {
 // временем правки поля (и разбор, если правят двое: осмотрщик на месте и ЦОД).
 // Выявленное на месте строение — строкой состава (решение 15.10.2026: здание, которого нет в составе, —
 // черновик ОИ «Выявлено на месте» со своей формой осмотра; разбирает ЦОД).
-const foundName = (f) => f.name || (f.card === 'vehicle' ? 'Транспортное средство' : foundCat(f.cat).label);
+const foundName = (f) => f.name || (f.card === 'vehicle' ? 'Транспортное средство' : f.comp && !f.cat ? '' : foundCat(f.cat).label);
 // Литера, добавленная в состав (f.comp), — строкой «Литера Б · Склад», буква — в квадрате, как у литер записи.
 const foundRow = (f) => ({ id: f.id, kind: f.card === 'vehicle' ? 'vehicle' : 'building',
-  label: f.comp ? `Литера ${f.letter} · ${foundName(f)}` : foundName(f),
-  oiType: f.comp ? `добавлена на месте · ${foundCat(f.cat).label}` : 'выявлено на месте', found: true, comp: !!f.comp, car: !!f.car, review: '' });
+  label: f.comp ? [`Литера ${f.letter}`, foundName(f)].filter(Boolean).join(' · ') : foundName(f),
+  oiType: f.comp ? ['добавлена на месте', f.cat ? foundCat(f.cat).label : ''].filter(Boolean).join(' · ') : 'выявлено на месте', found: true, comp: !!f.comp, car: !!f.car, review: '' });
 // Литеры, добавленные осмотрщиком в состав объекта.
 const compOi = (o) => (o.entity === 'real' ? foundOi(o.typeId, o.ocId).filter((f) => f.comp) : []);
 // Буквы литер состава — записи и добавленных; сравниваются без регистра.
@@ -771,7 +771,8 @@ function viewOi(o, q, opened, savedAt) {
 // «Выявлено на месте»: строения, которых нет в составе, — списком и строкой добавления (вид и название).
 // «Состав объекта» — ОИ записи и литеры, добавленные осмотрщиком; внизу — «Добавить литеру» (пользователь 18.11.2026:
 // «в состав объекта внутри карточек зданий добавить кнопку добавить литер»; «выявлено на месте тоже оставь, литера
-// попадает в состав объекта, внутри те же поля что и сейчас у зданий»; при добавлении — буква, вид и название).
+// попадает в состав объекта, внутри те же поля что и сейчас у зданий»; при добавлении — буква и название; вида
+// нет — пользователь 19.11.2026: «при добавлении литеры убрать поле Вид», тип выбирают в карточке литеры).
 // У квартиры литер нет — кнопки нет.
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: добавленная литера лежит в «Результатах осмотра» (found, comp) и в карточку ОЦ не пишется;
 // станет ли она ОИ карточки сама или после проверки ЦОД — решение серверной версии (как и у «выявленного»).
@@ -781,10 +782,8 @@ function compBlock(o, facade, ui = {}) {
   const can = o.entity === 'real' && o.typeId !== 'apartment' && o.state !== 'done' && !o.removed;
   if (!rows.length && !can) return '';
   const form = !can ? '' : ui.literOpen ? `<form class="om-found-add om-liter-add" data-liter>
-      <div class="om-liter-grid">
-        <span><label class="om-flabel" for="om-liter-letter">Буква</label><input class="om-input" id="om-liter-letter" name="letter" maxlength="6" required autocomplete="off" placeholder="Б" value="${esc(ui.literDraft.letter || '')}"></span>
-        <span><label class="om-flabel" for="om-liter-cat">Вид</label><span class="om-select"><select class="om-input" id="om-liter-cat" name="cat">${FOUND_CATS.map((c) => `<option value="${c.key}"${ui.literDraft.cat === c.key ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}</select></span></span>
-      </div>
+      <label class="om-flabel" for="om-liter-letter">Буква</label>
+      <input class="om-input om-liter-letter" id="om-liter-letter" name="letter" maxlength="6" required autocomplete="off" placeholder="Б" value="${esc(ui.literDraft.letter || '')}">
       <label class="om-flabel" for="om-liter-name">Название</label>
       <input class="om-input" id="om-liter-name" name="name" maxlength="80" placeholder="Например, склад" value="${esc(ui.literDraft.name || '')}">
       ${ui.literErr ? `<p class="om-warn" role="alert">${esc(ui.literErr)}</p>` : ''}
@@ -1960,10 +1959,10 @@ export function mountOsmotr(host) {
     e.preventDefault();
     if (!cur) return;
     const letter = form.letter.value.trim().toUpperCase();
-    ui.literDraft = { letter: form.letter.value, cat: form.cat.value, name: form.name.value };
+    ui.literDraft = { letter: form.letter.value, name: form.name.value };
     ui.literErr = !letter ? 'Укажите букву литеры' : lettersOf(cur).includes(letter) ? `Литера ${letter} уже есть в составе` : '';
     if (ui.literErr) { render(); scope.root.querySelector('#om-liter-letter')?.focus(); return; }
-    const f = addFoundOi(cur.typeId, cur.ocId, { cat: form.cat.value, name: form.name.value, letter, comp: true, by: session.state.person });
+    const f = addFoundOi(cur.typeId, cur.ocId, { cat: '', name: form.name.value, letter, comp: true, by: session.state.person });
     ui.literOpen = false;
     ui.literDraft = {};
     startWork(session.state.person, cur.typeId, cur.ocId);
