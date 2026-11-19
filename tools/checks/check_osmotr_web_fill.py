@@ -25,6 +25,10 @@
   * снимок не встаёт в выбранную категорию, не переносится, не удаляется;
   * выявленное на месте строение не добавляется, не открывается своей формой
     осмотра, не убирается;
+  * «Добавить литеру» (18.11.2026): нет кнопки в «Составе объекта» здания или
+    она есть у квартиры; литера без буквы или с буквой, которая уже есть в
+    составе, добавляется; добавленная не встаёт в состав с буквой (а встаёт в
+    «Выявлено на месте»), не открывается формой здания, не убирается;
   * комментарий осмотрщика — отдельным разделом, а не полем на экране ОИ;
   * у законченного осмотра поля правятся;
   * на 360 пикселях экран ОИ или раздела прокручивается вбок.
@@ -257,11 +261,59 @@ def run(t):
     t.ck(t.wait_until("() => /v=obj/.test(location.hash) && !!document.querySelector('.om-found') && !document.querySelector('.om-found a.om-oi-link')"),
          'выявленное строение не убралось')
 
+    # --- «Добавить литеру» в составе объекта ---
+    LETTERS = """(id) => [...document.querySelectorAll('.om-comp:not(.om-found) a.om-oi-link .om-sq')].map((e) => e.textContent.trim()).filter((x) => x.length && x.length < 4)"""
+    go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] [data-liter-open]')
+    had = pg.evaluate(LETTERS)
+    t.ck(had, 'в составе объекта нет литер с буквой — повтор буквы не проверить')
+    found_n = pg.locator('.om-found a.om-oi-link').count()
+    pg.locator('[data-liter-open]').click()
+    t.wait_for('[data-liter] #om-liter-letter')
+    t.ck(pg.evaluate("() => document.activeElement && document.activeElement.id") == 'om-liter-letter', 'форма литеры открылась без фокуса на букве')
+    pg.select_option('#om-liter-cat', 'prod')
+    pg.fill('#om-liter-name', 'Склад у ворот')
+    pg.evaluate("() => document.querySelector('#om-liter-letter').removeAttribute('required')")
+    pg.locator('[data-liter] button[type=submit]').click()
+    t.ck(t.wait_until("() => /Укажите букву/.test(document.querySelector('[data-liter] .om-warn')?.textContent || '')"), 'литера без буквы добавилась или нет подсказки')
+    t.ck(pg.locator('#om-liter-name').input_value() == 'Склад у ворот', 'после ошибки пропало введённое название')
+    if had:
+        pg.fill('#om-liter-letter', had[0].lower())
+        pg.locator('[data-liter] button[type=submit]').click()
+        t.ck(t.wait_until("(l) => (document.querySelector('[data-liter] .om-warn')?.textContent || '').includes('Литера ' + l + ' уже есть')", had[0]),
+             'литера с буквой %s, которая уже есть в составе, добавилась' % had[0])
+    new = next(c for c in 'ЯЮЭЬЫ' if c not in had)
+    pg.fill('#om-liter-letter', new)
+    pg.locator('[data-liter] button[type=submit]').click()
+    t.ck(t.wait_until("() => /v=oi/.test(location.hash) && /oi=found-/.test(location.hash) && !!document.querySelector('.om-secrow')"), 'добавленная литера не открылась осмотром ОИ')
+    t.ck(pg.locator('.om-oihead .om-sq').inner_text().strip() == new and pg.locator('.om-title').inner_text().strip() == 'Склад у ворот',
+         'у добавленной литеры не та буква или название: %s / %s' % (pg.locator('.om-oihead .om-sq').inner_text(), pg.locator('.om-title').inner_text()))
+    lb = pg.locator('.om-secrow b').all_inner_texts()
+    t.ck('Санузел' in lb and 'Инженерные сети' in lb, 'у добавленной литеры не форма здания: %s' % lb)
+    t.ck(pg.evaluate(FACT, 'Тип ОИ') == 'Здание', 'у литеры вида «Производственно-складское» тип ОИ не «Здание»: %s' % pg.evaluate(FACT, 'Тип ОИ'))
+    go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] [data-liter-open]')
+    t.ck(pg.evaluate(LETTERS) == had + [new], 'добавленной литеры нет в «Составе объекта»: %s' % pg.evaluate(LETTERS))
+    t.ck(pg.locator('.om-found a.om-oi-link').count() == found_n, 'добавленная литера попала в «Выявлено на месте»')
+    row = pg.locator('.om-comp:not(.om-found) a.om-oi-link', has_text='Склад у ворот')
+    t.ck(row.count() == 1 and 'добавлена на месте' in row.inner_text(), 'у литеры в составе нет пометки «добавлена на месте»')
+    row.click()
+    t.wait_for('[data-found-del]')
+    t.ck('Убрать литеру' in pg.locator('[data-found-del]').inner_text(), 'у добавленной литеры кнопка не «Убрать литеру»')
+    pg.locator('[data-found-del]').click()
+    t.ck(t.wait_until("([l]) => /v=obj/.test(location.hash) && !!document.querySelector('[data-liter-open]') && ![...document.querySelectorAll('.om-comp a.om-oi-link')].some((a) => a.textContent.includes('Склад у ворот'))", [new]),
+         'добавленная литера не убралась из состава')
+    flat = next((x for x in pg.evaluate(OIS) if x['obj'].startswith('apartment|')), None)
+    t.ck(flat, 'у осмотрщика нет квартиры — кнопку «Добавить литеру» у квартиры не проверить')
+    if flat:
+        go(t, 'v=obj&id=' + quote(flat['obj'], safe=''), '.om-app[data-v="obj"] .om-title')
+        t.ck(pg.locator('[data-liter-open]').count() == 0, 'у квартиры есть «Добавить литеру»')
+
     # --- законченный осмотр — только просмотр ---
     pg.evaluate(FINISH, [obj, True])
     go(t, qs(obj, oi, 'nets'), '.om-app[data-v="sec"] .om-form')
     t.ck(t.wait_until("() => document.querySelector('.om-idrow').textContent.includes('только просмотр') && [...document.querySelectorAll('.om-form [data-f], .om-form [data-ms]')].every((e) => e.disabled)"),
          'у законченного осмотра поля правятся')
+    go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] .om-title')
+    t.ck(pg.locator('[data-liter-open]').count() == 0, 'у законченного осмотра есть «Добавить литеру»')
 
     # --- ширины ---
     pg.set_viewport_size({'width': 360, 'height': 780})

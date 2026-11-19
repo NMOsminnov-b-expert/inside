@@ -459,7 +459,10 @@ const two = (n) => String(n).padStart(2, '0');
 // Местное время осмотра, как его видит осмотрщик: «15.10.2026 14:05».
 const stamp = (d) => `${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYear()} ${two(d.getHours())}:${two(d.getMinutes())}`;
 
-export function addFoundOi(typeId, ocId, { cat = 'other', name = '', landId = '', by = '' } = {}) {
+// letter и comp — литера, добавленная осмотрщиком в состав объекта (страница осмотрщика, 18.11.2026): та же запись
+// «выявлено», с буквой литеры и пометкой «в составе»; на экране объекта она стоит в «Составе объекта», а не в
+// «Выявлено на месте».
+export function addFoundOi(typeId, ocId, { cat = 'other', name = '', landId = '', by = '', letter = '', comp = false } = {}) {
   const c = foundCat(cat);
   const item = {
     id: 'found-' + Date.now().toString(36) + (++foundSeq),
@@ -473,6 +476,8 @@ export function addFoundOi(typeId, ocId, { cat = 'other', name = '', landId = ''
     landId,
     foundBy: by,
     foundAt: stamp(new Date()),
+    ...(letter ? { letter: String(letter).trim() } : {}),
+    ...(comp ? { comp: true } : {}),
   };
   foundOi(typeId, ocId).push(item);
   saveResults();

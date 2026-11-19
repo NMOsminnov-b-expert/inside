@@ -123,6 +123,7 @@ const I = {
   photo: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-9 9"/>',
   trash: '<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>',
   stats: '<path d="M4 4v16h16M8 16v-4M12 16V8M16 16v-6"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
 };
 const ico = (k, size = 20) => `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${I[k] || ''}</svg>`;
 // Значок — по типу ОЦ, как в приложении (EstateUi.kt, typeIcon): участок — слои карты.
@@ -532,7 +533,7 @@ function taskBlock(o, rec, ui = {}) {
       ${contactsBlock(o, ui)}
     </section>
     ${o.docs.length ? `<a class="om-card om-row om-doclink" href="${href({ v: 'obj', id: o.id, tab: 'docs' })}"><span class="om-row-ico om-t-blue">${ico('docs')}</span><span class="om-row-tx"><b>Документы для выезда</b><small>${esc(o.docs.slice(0, 3).map((d) => d.type || d.name).join(', '))}${o.docs.length > 3 ? '…' : ''}</small></span><b class="om-n">${o.docs.length}</b>${ico('chev', 18)}</a>` : ''}
-    ${(o.ois || []).length ? `<section class="om-card om-comp"><h2 class="om-card-h">Состав объекта</h2>${o.ois.map((x) => oiRow(o, x, facade[x.id])).join('')}</section>` : ''}
+    ${compBlock(o, facade, ui)}
     ${foundBlock(o)}
     ${(o.inventories || []).length ? `<section class="om-card om-comp"><h2 class="om-card-h">Описи</h2>${o.inventories.map((x) => invRow(o, x)).join('')}</section>` : ''}
     ${finishBlock(o, ui)}`;
@@ -618,7 +619,16 @@ function oiRow(o, x, photo) {
 // временем правки поля (и разбор, если правят двое: осмотрщик на месте и ЦОД).
 // Выявленное на месте строение — строкой состава (решение 15.10.2026: здание, которого нет в составе, —
 // черновик ОИ «Выявлено на месте» со своей формой осмотра; разбирает ЦОД).
-const foundRow = (f) => ({ id: f.id, kind: f.card === 'vehicle' ? 'vehicle' : 'building', label: f.name || (f.card === 'vehicle' ? 'Транспортное средство' : foundCat(f.cat).label), oiType: 'выявлено на месте', found: true, review: '' });
+const foundName = (f) => f.name || (f.card === 'vehicle' ? 'Транспортное средство' : foundCat(f.cat).label);
+// Литера, добавленная в состав (f.comp), — строкой «Литера Б · Склад», буква — в квадрате, как у литер записи.
+const foundRow = (f) => ({ id: f.id, kind: f.card === 'vehicle' ? 'vehicle' : 'building',
+  label: f.comp ? `Литера ${f.letter} · ${foundName(f)}` : foundName(f),
+  oiType: f.comp ? `добавлена на месте · ${foundCat(f.cat).label}` : 'выявлено на месте', found: true, comp: !!f.comp, review: '' });
+// Литеры, добавленные осмотрщиком в состав объекта.
+const compOi = (o) => (o.entity === 'real' ? foundOi(o.typeId, o.ocId).filter((f) => f.comp) : []);
+// Буквы литер состава — записи и добавленных; сравниваются без регистра.
+const letterOf = (x) => (/^Литера\s+(\S+)/.exec(String(x.label || '')) || [])[1] || '';
+const lettersOf = (o) => [...(o.ois || []).map(letterOf), ...compOi(o).map((f) => f.letter)].filter(Boolean).map((l) => l.toUpperCase());
 function oiCtx(o, oiId) {
   const rec = loadTask(o.typeId, o.ocId);
   const f = rec && foundOi(o.typeId, o.ocId).find((x) => x.id === oiId);
@@ -708,14 +718,38 @@ function viewOi(o, q, opened, savedAt) {
     ${instrHint(instrForPlace(ctx.oi.card === 'land' || ctx.oi.card === 'vehicle' ? ctx.oi.card : 'building', { objKind: getValue(ctx.values, 'objKind'), buildType: getValue(ctx.values, 'buildType') }, (o.ois || []).some((x) => x.id !== ctx.row.id && /жил/i.test(x.oiType || ''))))}
     ${q.tab === 'photo' ? photosBlock(o, ctx, q) : `${form ? `<div class="om-group om-accs">${form}</div>` : '<div class="om-card om-empty">Полей осмотра у этого объекта нет — только снимки</div>'}
       ${note ? `<div class="om-group om-form om-note-card">${note.fields.map((f) => fieldHTML(f, ctx)).join('')}</div>` : ''}`}
-    ${ctx.row.found && !ctx.ro && q.tab !== 'photo' ? `<button type="button" class="om-btn om-btn-danger om-found-del" data-found-del="${esc(ctx.row.id)}">${ico('trash', 18)}Убрать выявленное строение</button>` : ''}
+    ${ctx.row.found && !ctx.ro && q.tab !== 'photo' ? `<button type="button" class="om-btn om-btn-danger om-found-del" data-found-del="${esc(ctx.row.id)}">${ico('trash', 18)}${ctx.row.comp ? 'Убрать литеру' : 'Убрать выявленное строение'}</button>` : ''}
     ${oiTabs(o, ctx, q)}`;
 }
 
 // «Выявлено на месте»: строения, которых нет в составе, — списком и строкой добавления (вид и название).
+// «Состав объекта» — ОИ записи и литеры, добавленные осмотрщиком; внизу — «Добавить литеру» (пользователь 18.11.2026:
+// «в состав объекта внутри карточек зданий добавить кнопку добавить литер»; «выявлено на месте тоже оставь, литера
+// попадает в состав объекта, внутри те же поля что и сейчас у зданий»; при добавлении — буква, вид и название).
+// У квартиры литер нет — кнопки нет.
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: добавленная литера лежит в «Результатах осмотра» (found, comp) и в карточку ОЦ не пишется;
+// станет ли она ОИ карточки сама или после проверки ЦОД — решение серверной версии (как и у «выявленного»).
+function compBlock(o, facade, ui = {}) {
+  const added = compOi(o);
+  const rows = [...(o.ois || []).map((x) => oiRow(o, x, facade[x.id])), ...added.map((f) => oiRow(o, foundRow(f), null))];
+  const can = o.entity === 'real' && o.typeId !== 'apartment' && o.state !== 'done' && !o.removed;
+  if (!rows.length && !can) return '';
+  const form = !can ? '' : ui.literOpen ? `<form class="om-found-add om-liter-add" data-liter>
+      <div class="om-liter-grid">
+        <span><label class="om-flabel" for="om-liter-letter">Буква</label><input class="om-input" id="om-liter-letter" name="letter" maxlength="6" required autocomplete="off" placeholder="Б" value="${esc(ui.literDraft.letter || '')}"></span>
+        <span><label class="om-flabel" for="om-liter-cat">Вид</label><span class="om-select"><select class="om-input" id="om-liter-cat" name="cat">${FOUND_CATS.map((c) => `<option value="${c.key}"${ui.literDraft.cat === c.key ? ' selected' : ''}>${esc(c.label)}</option>`).join('')}</select></span></span>
+      </div>
+      <label class="om-flabel" for="om-liter-name">Название</label>
+      <input class="om-input" id="om-liter-name" name="name" maxlength="80" placeholder="Например, склад" value="${esc(ui.literDraft.name || '')}">
+      ${ui.literErr ? `<p class="om-warn" role="alert">${esc(ui.literErr)}</p>` : ''}
+      <div class="om-shoot-act"><button class="om-btn om-btn-primary" type="submit">Добавить</button><button class="om-btn" type="button" data-liter-cancel>Отмена</button></div></form>`
+    : `<button type="button" class="om-btn om-liter-btn" data-liter-open>${ico('plus', 18)}Добавить литеру</button>`;
+  return `<section class="om-card om-comp"><h2 class="om-card-h">Состав объекта</h2>${rows.join('')}${form}</section>`;
+}
+
 function foundBlock(o) {
   if (o.entity !== 'real') return '';
-  const list = foundOi(o.typeId, o.ocId);
+  const list = foundOi(o.typeId, o.ocId).filter((f) => !f.comp);
   const ro = o.state === 'done';
   return `<section class="om-card om-comp om-found"><h2 class="om-card-h">Выявлено на месте</h2>
     ${list.map((f) => oiRow(o, foundRow(f), null)).join('')}
@@ -1351,7 +1385,7 @@ export function mountOsmotr(host) {
   let mapKey = '';
   let savedAt = '';
   // Состояние экрана объекта: подтверждение «Осмотр закончен» (по объекту).
-  const ui = { tripFilters: false, heads: new Map(), asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false, take: '', takeDay: '', detachAsk: '' };
+  const ui = { tripFilters: false, heads: new Map(), asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false, take: '', takeDay: '', detachAsk: '', literOpen: false, literErr: '', literDraft: {} };
   // Оглавление инструкций — сразу: подсказки «Инструкция: …» у ОИ и позиций описи.
   instrIndex(() => { const v = q.v || 'today'; if (v === 'oi' || v === 'item' || v === 'instr') render(); });
   // Выбранные позиции описи (в одну карточку) — по описи; сменилась опись — выбор снимается.
@@ -1795,6 +1829,22 @@ export function mountOsmotr(host) {
     outcomeOf(cur, reason, note);
   });
 
+  // «Добавить литеру»: буква обязательна и не повторяет букву литеры состава.
+  scope.on('click', '[data-liter-open]', () => { ui.literOpen = true; ui.literErr = ''; ui.literDraft = {}; render(); scope.root.querySelector('#om-liter-letter')?.focus(); });
+  scope.on('click', '[data-liter-cancel]', () => { ui.literOpen = false; ui.literErr = ''; ui.literDraft = {}; render(); });
+  scope.on('submit', '[data-liter]', (e, form) => {
+    e.preventDefault();
+    if (!cur) return;
+    const letter = form.letter.value.trim().toUpperCase();
+    ui.literDraft = { letter: form.letter.value, cat: form.cat.value, name: form.name.value };
+    ui.literErr = !letter ? 'Укажите букву литеры' : lettersOf(cur).includes(letter) ? `Литера ${letter} уже есть в составе` : '';
+    if (ui.literErr) { render(); scope.root.querySelector('#om-liter-letter')?.focus(); return; }
+    const f = addFoundOi(cur.typeId, cur.ocId, { cat: form.cat.value, name: form.name.value, letter, comp: true, by: session.state.person });
+    ui.literOpen = false;
+    ui.literDraft = {};
+    startWork(session.state.person, cur.typeId, cur.ocId);
+    location.hash = href({ v: 'oi', id: cur.id, oi: f.id });
+  });
   scope.on('submit', '[data-found]', (e, form) => {
     e.preventDefault();
     if (!cur) return;
