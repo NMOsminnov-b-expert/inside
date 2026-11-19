@@ -241,6 +241,13 @@ textarea.om-input{resize:vertical;line-height:1.4}
 
 /* Выявлено на месте */
 .om-found{border-left-color:#c07c1e}
+.om-site{border-left-color:var(--t)}
+.om-site .om-card-h{display:flex;align-items:center;gap:8px}
+.om-badge-n{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--t);color:#fff;font-size:12px}
+.om-site-row+.om-site-row{border-top:1px solid #e3eaf2}
+.om-site-row .om-row-tx small{white-space:normal}
+.om-site-btn{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 16px 12px}
+.om-site-n{color:var(--t);font-weight:600}
 .om-found-add{display:flex;flex-direction:column;gap:8px;padding:12px 16px 12px;border-top:1px solid #e3eaf2}
 .om-found-add .om-flabel{margin:0}
 .om-found-none{padding:10px 16px}

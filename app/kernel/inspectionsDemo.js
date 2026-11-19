@@ -274,7 +274,7 @@ export function demoInspections({ isDefaultDoc = () => false, me = '' } = {}) {
   tidyDays(assignments, events, results, recs, today);
   const { reports, profiles } = demoReports(names, assignments, recs, today, rnd);
   const deadlines = demoAssignDetails(names, assignments, recs, profiles, today);
-  return { resultsVer: DEMO_RESULTS_VER, assignments, results, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today, me), plans: demoPlans(names, assignments, recs, today), deadlines };
+  return { resultsVer: DEMO_RESULTS_VER, assignments, results, events, reports, profiles, activities: demoActivities(names, assignments, today), cadastre: demoCadastre(names, recs, today, me, assignments), plans: demoPlans(names, assignments, recs, today), deadlines };
 }
 
 // День осмотрщика правдоподобен (пользователь 17.11.2026: «причеши демо данные для осмотров. Что бы не
@@ -620,7 +620,7 @@ function demoActivities(names, assignments, today) {
 // Запросы документов (ТЗ рабочего дня, раздел 5): у первого осмотрщика —
 // запрос в кадастр, часть строк отвечена; у второго — документы на месте,
 // без ответа. Файлов в демо нет; имя — по правилу «№ + ЕНИ + название».
-function demoCadastre(names, recs, today, me = '') {
+function demoCadastre(names, recs, today, me = '', assignments = []) {
   if (!names.length) return [];
   const iso = (k) => { const d = new Date(today); d.setDate(d.getDate() + k); return isoLocalDate(d); };
   const at = (k, h) => { const d = new Date(today); d.setDate(d.getDate() + k); d.setHours(h, 15, 0, 0); return d.toISOString(); };
@@ -645,6 +645,19 @@ function demoCadastre(names, recs, today, me = '') {
     const c = pool.slice(0, 3).map((r, i) => ({ ...row(r, i), id: `demo-cl-me-${r.ocId}-${i}` }));
     if (c[0]) Object.assign(c[0], { result: 'got', scanDate: iso(-1), answer: '', answeredAt: at(-1, 15), answeredBy: me, file: gotFile(c[0]) });
     out.push({ id: 'demo-cr-3', no: 3, person: me, kind: 'cadastre', due: iso(2), note: 'Техпаспорта — в первую очередь', at: at(-2, 10), by, rows: c, demo: true });
+  }
+  // Связка запросов с выездами (пользователь 19.11.2026): запрос в кадастр другого осмотрщика по двум незаконченным
+  // объектам человека из сессии — у него на экране объекта «Спросить на месте» (одна строка ждёт, по другой — «нет в
+  // кадастре»).
+  const owner = names.find((x) => x !== me);
+  if (me && owner) {
+    const keys = [...new Set(assignments.filter((x) => x.person === me && x.state !== 'done').map((x) => `${x.typeId}|${x.ocId}`))];
+    const mine = keys.map((k) => recs.find((r) => `${r.typeId}|${r.ocId}` === k && r.eni && r.typeId !== 'vehicle' && r.typeId !== 'mechanisms')).filter(Boolean).slice(0, 2);
+    if (mine.length) {
+      const rows = mine.map((r, i) => ({ ...row(r, 2 + i), id: `demo-cl-site-${r.ocId}` }));
+      if (rows[1]) Object.assign(rows[1], { result: 'none', answer: 'по ЕНИ сведений в кадастре нет', answeredAt: at(-1, 12), answeredBy: owner });
+      out.push({ id: 'demo-cr-4', no: 4, person: owner, kind: 'cadastre', due: iso(4), note: '', at: at(-1, 9), by, rows, demo: true });
+    }
   }
   return out;
 }

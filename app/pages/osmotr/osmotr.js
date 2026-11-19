@@ -148,7 +148,9 @@ function kindChips(list, f, v, keep = {}) {
 }
 
 function objRow(o) {
+  const ask = o.state !== 'done' ? askCount(o) : 0;
   const meta = [o.eni ? esc(fmtEni(o.eni) || o.eni) : '', o.docs.length ? `${ico('docs', 14)} Документы · ${o.docs.length}` : '',
+    ask ? `<b class="om-site-n om-t-violet">Спросить на месте · ${ask}</b>` : '',
     o.plannedAt && o.state !== 'done' ? `на ${esc(shortDate(o.plannedAt))}` : '', o.deadline && o.state !== 'done' ? `срок ${esc(shortDate(o.deadline))}` : '']
     .filter(Boolean).map((x) => `<span>${x}</span>`).join('');
   return `<a class="om-card om-obj om-t-${stateOf(o).tone}" href="${href({ v: 'obj', id: o.id })}">
@@ -532,11 +534,49 @@ function taskBlock(o, rec, ui = {}) {
       <div class="om-place-act">${routeBtn(o, true)}</div>
       ${contactsBlock(o, ui)}
     </section>
+    ${askBlock(o)}
     ${o.docs.length ? `<a class="om-card om-row om-doclink" href="${href({ v: 'obj', id: o.id, tab: 'docs' })}"><span class="om-row-ico om-t-blue">${ico('docs')}</span><span class="om-row-tx"><b>Документы для выезда</b><small>${esc(o.docs.slice(0, 3).map((d) => d.type || d.name).join(', '))}${o.docs.length > 3 ? '…' : ''}</small></span><b class="om-n">${o.docs.length}</b>${ico('chev', 18)}</a>` : ''}
     ${compBlock(o, facade, ui)}
     ${foundBlock(o)}
     ${(o.inventories || []).length ? `<section class="om-card om-comp"><h2 class="om-card-h">Описи</h2>${o.inventories.map((x) => invRow(o, x)).join('')}</section>` : ''}
     ${finishBlock(o, ui)}`;
+}
+
+// --- «Спросить на месте»: запросы документов по ЕНИ объекта -----------------------------------------------------
+// Пользователь 19.11.2026: «нужно добавить связку запросов кадастра и организаций в которые едет осмотрщик, например у
+// него в кадастре нужно запросить тех паспорт по коду 7-08-19-1001-5447 и он едет в организацию с этим же кодом, то ему
+// будет высвечиваться что ему нужно спросить этот документ на месте». Ответы: запросы любые (чьи бы ни были), строки —
+// все, кроме полученных («ждёт», «нет в кадастре», «отказ», возвращённые ЦОД), осмотрщик отвечает на месте — скан или
+// снимок документа закрывает строку ответом «Получен» (answerCadRow, onSite). Совпадение — по ЕНИ записи и её ОИ (цифры
+// без дефисов) или по самому объекту строки. Полученные на месте остаются в блоке отметкой «Получен на месте».
+// ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: подбор строк по ЕНИ — запрос к серверу по объектам выезда; владельцу запроса — уведомление,
+// что строку закрыл другой осмотрщик.
+const eniDigits = (s) => String(s || '').replace(/\D/g, '');
+const cadGot = (x) => x.result === 'got' && !(x.review && x.review.state === 'returned');
+function askOnSite(o) {
+  if (!o || o.entity === 'inventory') return [];
+  const rec = loadTask(o.typeId, o.ocId);
+  const enis = new Set([eniDigits(rec && rec.eni), ...(o.ois || []).map((x) => eniDigits(x.eni))].filter(Boolean));
+  return allCadRequests().filter((r) => !r.closedAt).flatMap((r) => r.rows
+    .filter((x) => (!cadGot(x) || x.onSite) && ((x.typeId === o.typeId && x.ocId === o.ocId) || enis.has(eniDigits(x.eni))))
+    .map((x) => ({ r, x })));
+}
+const askCount = (o) => askOnSite(o).filter(({ x }) => !cadGot(x)).length;
+function askBlock(o) {
+  const list = askOnSite(o);
+  if (!list.length) return '';
+  const ro = o.state === 'done' || o.removed;
+  const me = session.state.person;
+  const wait = list.filter(({ x }) => !cadGot(x)).length;
+  return `<section class="om-card om-comp om-site om-t-violet" id="om-site"><h2 class="om-card-h">Спросить на месте${wait ? ` <b class="om-badge-n">${wait}</b>` : ''}</h2>
+    ${list.map(({ r, x }) => {
+    const got = cadGot(x);
+    const state = got ? ['Получен на месте', 'green'] : x.review && x.review.state === 'returned' ? ['Возвращён ЦОД', 'amber'] : x.result ? [cadResultLabel(x.result), 'amber'] : ['Ждёт', 'blue'];
+    return `<div class="om-site-row" data-ask-row="${esc(x.id)}"><div class="om-oi"><span class="om-sq om-t-violet">${ico('docs', 18)}</span>
+      <span class="om-row-tx"><b>${esc(x.doc || 'Документ')}</b><small>${esc([fmtEni(x.eni) || x.eni, `${cadKindLabel(r.kind)} № ${r.no}`, r.person === me ? '' : r.person].filter(Boolean).join(' · '))}</small>${x.answer && !got ? `<small class="om-site-note">${esc(x.answer)}</small>` : ''}</span>
+      <span class="om-chip om-t-${state[1]}">${esc(state[0])}</span></div>
+      ${got || ro ? '' : `<label class="om-btn om-site-btn">${ico('camera', 18)}Получен — скан или фото<input type="file" accept="image/*,application/pdf" capture="environment" hidden data-ask-file="${esc(r.id)}|${esc(x.id)}"></label>`}</div>`;
+  }).join('')}</section>`;
 }
 
 // Контакты на месте: из учреждения и объекта (заранее) и добавленные осмотрщиком на месте (как в приложении
@@ -1724,6 +1764,17 @@ export function mountOsmotr(host) {
     ui.detachAsk = '';
     host.toast('Снимок удалён', 'ok');
     location.hash = href({ v: 'item', id: o.id, inv: inv.id, it: it.id });
+  });
+  // «Спросить на месте»: скан или снимок — ответ «Получен» по строке запроса.
+  scope.on('change', '[data-ask-file]', async (e, input) => {
+    const file = input.files && input.files[0];
+    if (!file || !cur) return;
+    const [reqId, rowId] = input.dataset.askFile.split('|');
+    const row = await answerCadRow(reqId, rowId, { result: 'got', answer: 'Получен на месте при осмотре', file, fileName: file.name, onSite: true });
+    if (!row) { host.toast('Строка запроса не найдена', 'warn'); return; }
+    changed();
+    host.toast(`«${row.doc || 'Документ'}» — получен на месте`, 'ok');
+    render();
   });
   scope.on('submit', '[data-cad]', async (e, form) => {
     e.preventDefault();

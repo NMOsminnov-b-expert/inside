@@ -1036,6 +1036,8 @@ export function cadBranchFor(eni, district = '') {
 }
 
 const cadRequests = demo.cadastre || [];
+// Демо-запросы, которых нет в сохранённом (появились после сохранения), — добавляются при восстановлении.
+const DEMO_CAD = [...cadRequests];
 // Демо-запросам без филиала — филиал области большинства строк (запрос в кадастр — один филиал).
 function seedBranch(r) {
   if (!r || r.branch || r.kind !== 'cadastre' || !r.rows || !r.rows.length) return;
@@ -1051,6 +1053,7 @@ registerPersisted('inspections.cadastre', {
   restore: (saved) => {
     if (!Array.isArray(saved)) return;
     cadRequests.splice(0, cadRequests.length, ...saved.filter((x) => x && x.id));
+    DEMO_CAD.filter((d) => !cadRequests.some((x) => x.id === d.id)).forEach((d) => cadRequests.push(d));
     cadRequests.forEach(seedBranch);
   },
 });
@@ -1140,11 +1143,15 @@ export function nextRecDocId(rec) {
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: файл — в хранилище документов сервера; до проверки он
 // «входящий», а не документ объекта.
-export async function answerCadRow(reqId, rowId, { result, scanDate = '', answer = '', file = null, fileName = '' }) {
+// onSite — документ получен осмотрщиком на месте, при осмотре объекта с тем же ЕНИ (страница осмотрщика, «Спросить на
+// месте»; пользователь 19.11.2026): отвечает любой осмотрщик, чей бы ни был запрос.
+export async function answerCadRow(reqId, rowId, { result, scanDate = '', answer = '', file = null, fileName = '', onSite = false }) {
   const r = cadRequest(reqId);
   const row = r && r.rows.find((x) => x.id === rowId);
   if (!row) return null;
   Object.assign(row, { result, scanDate: result === 'got' ? scanDate : '', answer, answeredAt: now(), answeredBy: session.state.person });
+  if (onSite && result === 'got') row.onSite = true;
+  else delete row.onSite;
   // Новый ответ — новая проверка: прежняя отметка ЦОД (возврат) снимается.
   delete row.review;
   if (result === 'got' && file) {
