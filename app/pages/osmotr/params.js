@@ -93,7 +93,8 @@ const vehicle = () => [
   // Регистрационный номер осмотрщик не редактирует (пользователь 17.11.2026) — он в шапке ТС из записи (data.js tsLine).
   { key: 'readings', title: 'Показания', fields: [
     { key: 'f.mileage', label: 'Пробег', num: true, int: true },
-    { key: 'f.mileage@unit', label: 'Единица', opts: ['км', 'миль'] },
+    // «Единица» → «Единица измерения расстояния» (пользователь 19.11.2026).
+    { key: 'f.mileage@unit', label: 'Единица измерения расстояния', opts: ['км', 'миль'] },
     { key: 'f.engineHours', label: 'Моточасы, ч', num: true, int: true },
     { key: 'f.wheel', label: 'Руль', opts: ['Левый', 'Правый'] },
   ] },
