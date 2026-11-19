@@ -120,7 +120,7 @@ function assignHTML(all, a, canBack) {
     if (!inv || !pr) return '';
     // Ход описи (Б5): счёт общий для всех выездов по описи (Б3).
     const part = (a.invParts || {})[id];
-    return `<p class="ip-line"><b>${esc(inv.title)}</b>${part ? ` <span class="ip-sub">— ${esc(partLabel(part))}</span>` : ''}<br>осмотрено <b>${pr.seen + pr.missing}</b> из ${pr.total}${pr.missing ? ` · не найдено ${pr.missing}` : ''}${pr.broken ? ` · нерабочих ${pr.broken}` : ''}${pr.repair ? ` · в ремонте ${pr.repair}` : ''}${pr.extra ? ` · нет в описи ${pr.extra}` : ''}${pr.conflicts ? ` · <b class="ip-late">разные отметки ${pr.conflicts}</b>` : ''}
+    return `<p class="ip-line"><b>${esc(inv.title)}</b>${part ? ` <span class="ip-sub">— ${esc(partLabel(part))}</span>` : ''}<br>осмотрено <b>${pr.seen + pr.missing}</b> из ${pr.total}${pr.missing ? ` · не найдено ${pr.missing}` : ''}${pr.off ? ` · списано ${pr.off}` : ''}${pr.broken ? ` · нерабочих ${pr.broken}` : ''}${pr.repair ? ` · в ремонте ${pr.repair}` : ''}${pr.extra ? ` · нет в описи ${pr.extra}` : ''}${pr.conflicts ? ` · <b class="ip-late">разные отметки ${pr.conflicts}</b>` : ''}
       <br><button type="button" class="btn btn-ghost btn-sm" data-ip-inv-report="${esc(id)}">Отчёт по описи (xlsx)</button></p>`;
   }).join('')}</section>` : ''}
     ${mechHTML(a, c)}
@@ -143,7 +143,7 @@ function mechHTML(a, c) {
   if (!ois.length) return '';
   return `<section class="ip-sec"><h3>Механизмы по описи</h3>${ois.map((o) => {
     const pr = mechProgress(o, r && r.assets && r.assets[o.id]);
-    return `<p class="ip-line"><b>${esc(taskOiLabel(o))}</b><br>осмотрено <b>${pr.seen + pr.missing}</b> из ${pr.total}${pr.missing ? ` · не найдено ${pr.missing}` : ''}${pr.broken ? ` · нерабочих ${pr.broken}` : ''}${pr.repair ? ` · в ремонте ${pr.repair}` : ''}${pr.done ? ' · <b>осмотрены все</b>' : ''}</p>`;
+    return `<p class="ip-line"><b>${esc(taskOiLabel(o))}</b><br>осмотрено <b>${pr.seen + pr.missing}</b> из ${pr.total}${pr.missing ? ` · не найдено ${pr.missing}` : ''}${pr.off ? ` · списано ${pr.off}` : ''}${pr.broken ? ` · нерабочих ${pr.broken}` : ''}${pr.repair ? ` · в ремонте ${pr.repair}` : ''}${pr.done ? ' · <b>осмотрены все</b>' : ''}</p>`;
   }).join('')}</section>`;
 }
 

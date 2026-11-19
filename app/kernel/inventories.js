@@ -102,7 +102,9 @@ export function findInventories(q) {
 // --- отметки позиций ---------------------------------------------------------
 // Ключ — «опись|позиция». Отметка: state — 'seen' (осмотрено) | 'missing'
 // (не найдено на месте); cond — состояние оборудования (Рабочее …, как в
-// карточке механизмов); photos; comment; by, at, assignId.
+// карточке механизмов); off — списано (в описи есть, на месте нет: уже
+// списано; ставит осмотрщик без снимков, 19.11.2026); photos; comment; by, at,
+// assignId.
 const marks = new Map();
 const extras = new Map();   // опись → позиции «Нет в описи»
 const itemDocs = new Map(); // «опись|позиция» → документы позиции (принятые сканы)
@@ -267,14 +269,16 @@ export function allItemDocs() {
 export function progressOf(invId, today = new Date().toISOString().slice(0, 10)) {
   const inv = inventoryById(invId);
   if (!inv) return null;
-  const p = { total: inv.items.length, seen: 0, missing: 0, broken: 0, repair: 0, today: 0, photos: 0, conflicts: 0, extra: extrasOf(invId).length, byPriority: {} };
+  const p = { total: inv.items.length, seen: 0, off: 0, missing: 0, broken: 0, repair: 0, today: 0, photos: 0, conflicts: 0, extra: extrasOf(invId).length, byPriority: {} };
   inv.items.forEach((it) => {
     const m = markOf(invId, it.id);
     const pr = (p.byPriority[it.priority] = p.byPriority[it.priority] || { total: 0, seen: 0 });
     pr.total++;
     if (!m) return;
     p.photos += (m.photos || []).length;
-    if (m.state === 'seen') { p.seen++; pr.seen++; }
+    // Списанное засчитывается осмотром (как в описи у осмотрщика).
+    if (m.state === 'seen' || (m.off && m.state !== 'missing')) { p.seen++; pr.seen++; }
+    if (m.off) p.off++;
     if (m.state === 'missing') p.missing++;
     if (m.cond === 'Нерабочее') p.broken++;
     if (m.cond === 'В ремонте') p.repair++;
@@ -295,7 +299,7 @@ export function inventoryReportSheets(invId) {
   const lists = [...new Set(inv.items.map((it) => it.list))];
   const sumBy = (pick) => {
     const r = rowsOf.filter(pick);
-    const seen = r.filter((x) => x.m.state === 'seen' || x.m.state === 'missing');
+    const seen = r.filter((x) => x.m.state === 'seen' || x.m.state === 'missing' || x.m.off);
     return [r.length, seen.length, r.length - seen.length, r.length ? Math.round((seen.length / r.length) * 100) : 0,
       seen.reduce((n, x) => n + (x.it.costInitial || 0), 0), r.filter((x) => x.m.cond === 'Нерабочее').length,
       r.filter((x) => x.m.state === 'missing').length];
@@ -313,7 +317,7 @@ export function inventoryReportSheets(invId) {
     name: l,
     head,
     rows: rowsOf.filter((x) => x.it.list === l).map(({ it, m }) => [it.no, it.inv, it.name, it.place, it.dept || '', it.qty, it.costInitial, it.costBalance, `П${it.priority}`,
-      m.state === 'seen' ? 'Да' : m.state === 'missing' ? 'Не найдено' : 'Нет', m.cond || '', (m.photos || []).length, itemDocsOf(invId, it.id).length,
+      m.off ? 'Списано' : m.state === 'seen' ? 'Да' : m.state === 'missing' ? 'Не найдено' : 'Нет', m.cond || '', (m.photos || []).length, itemDocsOf(invId, it.id).length,
       m.comment || '', m.by || '', m.at ? `${ddmm(m.at)} ${m.at.slice(11, 16)}` : '', was(m.conflict)]),
     widths: [6, 14, 36, 16, 20, 8, 14, 14, 9, 11, 18, 8, 10, 30, 18, 16, 28],
   }));

@@ -28,7 +28,12 @@
   * «Такие же в описи», «Добавить из описи», «Убрать из карточки» не меняют
     состав карточки;
   * отметки механизмов-ОИ не доходят до значений единиц в результатах осмотра;
-  * «Нет в описи» не добавляется; на 360 пикселях экраны прокручиваются вбок.
+  * «Нет в описи» не добавляется; на 360 пикселях экраны прокручиваются вбок;
+  * (19.11.2026) «Списано» в карточке: не ставится без снимков, не засчитывается
+    осмотром, не ставится всей группе карточки, не снимается; нет вкладки
+    «Списано» в описи или в ней не те позиции; у списанной остались кнопки
+    «Нерабочее» и «Отметить осмотренным»; у единицы механизмов отметка не доходит
+    до результатов осмотра; ход описи не считает списанные.
 """
 import re
 from urllib.parse import quote
@@ -272,6 +277,35 @@ def run(t):
     t.ck(t.wait_until("async (i) => (await import('./app/kernel/inventories.js')).extrasOf(i).some((x) => x.name === 'Принтер без бирки')", inv),
          '«Нет в описи» не добавилось')
 
+    # --- «Списано»: без снимков, засчитывается осмотром, на всю карточку; вкладка «Списано» (19.11.2026) ---
+    used = {it0['id'], pair[0]['id'], pair[1]['id'], extra['id']} | ({twin['id']} if twin else set())
+    one = next(x for x in own if x['id'] not in used and not pg.evaluate(MARK, [inv, x['id']]).get('group'))
+    go(t, item_q(obj, inv, one['id']), '.om-app[data-v="item"] [data-mk-off]')
+    t.ck(pg.locator('[data-mk-off]').inner_text().strip() == 'Списано' and pg.locator('.om-item .om-thumb').count() == 0, 'у позиции без снимков нет кнопки «Списано»')
+    pg.locator('[data-mk-off]').click()
+    t.ck(t.wait_until("async (a) => !!(await (%s)(a)).off" % MARK, [inv, one['id']]), '«Списано» не дошло до отметки описи')
+    t.ck(t.wait_until("() => document.querySelector('[data-mk-off]').getAttribute('aria-pressed') === 'true' && /снять отметку/.test(document.querySelector('[data-mk-off]').textContent)"),
+         'кнопка «Списано» не показывает, что отметка стоит')
+    t.ck(pg.locator('.om-member .om-chip', has_text='Списано').count() == 1 and pg.locator('[data-mk-broken], [data-mk-earlier]').count() == 0,
+         'у списанной позиции нет отметки «Списано» или остались «Нерабочее» / «Отметить осмотренным»')
+    go(t, item_q(obj, inv, lead), '.om-app[data-v="item"] [data-mk-off]')
+    t.ck(pg.locator('[data-mk-off]').inner_text().strip() == 'Списано — все 2', 'у карточки из двух позиций кнопка не «Списано — все 2»: %r' % pg.locator('[data-mk-off]').inner_text())
+    pg.locator('[data-mk-off]').click()
+    t.ck(t.wait_until("async ([a, b, c]) => { const f = %s; return !!(await f([a, b])).off && !!(await f([a, c])).off; }" % MARK, [inv, pair[0]['id'], pair[1]['id']]),
+         '«Списано» встало не всем позициям карточки')
+    offs = sorted([one['id'], pair[0]['id'], pair[1]['id']])
+    go(t, inv_q(obj, inv, '&f=off'), '.om-app[data-v="inv"] .om-title')
+    t.ck(sorted(pg.evaluate(ROWS)) == offs and pg.locator('.om-invrow .om-chip', has_text='Списано').count() == 3,
+         'вкладка «Списано» показала не те позиции: %s' % pg.evaluate(ROWS))
+    t.ck(pg.locator('.om-seg.on', has_text='Списано').inner_text().replace('Списано', '').strip() == '3', 'у вкладки «Списано» не то число')
+    go(t, inv_q(obj, inv, '&f=none'), '.om-app[data-v="inv"] .om-title')
+    t.ck(not set(pg.evaluate(ROWS)) & set(offs), 'списанные позиции во вкладке «Не осмотрено»')
+    t.ck(pg.evaluate("async (i) => (await import('./app/kernel/inventories.js')).progressOf(i).off", inv) == 3, 'ход описи не считает списанные')
+    go(t, item_q(obj, inv, one['id']), '.om-app[data-v="item"] [data-mk-off]')
+    pg.locator('[data-mk-off]').click()
+    t.ck(t.wait_until("async (a) => !(await (%s)(a)).off" % MARK, [inv, one['id']]), 'отметка «Списано» не снялась')
+    t.ck(t.wait_until("() => !!document.querySelector('[data-mk-earlier]')"), 'после снятия «Списано» не вернулось «Отметить осмотренным»')
+
     # --- механизмы-ОИ: значения единиц ---
     if mech:
         pg.evaluate(FINISH, [mech['obj'], False])
@@ -285,6 +319,13 @@ def run(t):
         t.wait_until("() => !document.querySelector('[data-mk-broken]').disabled")
         pg.locator('[data-mk-broken]').first.click()
         t.ck(t.wait_until("async (a) => (await (%s)(a)).state === 'Нерабочее'" % UNIT, [mech['obj'], md['oiId'], u['id']]), '«Нерабочее» единицы не дошло до результатов осмотра')
+        u2 = next((x for x in md['items'] if x['id'] != u['id']), None)
+        if t.ck(u2, 'у механизмов одна единица — «Списано» единицы не проверить'):
+            go(t, item_q(mech['obj'], mech['inv'], u2['id']), '.om-app[data-v="item"] [data-mk-off]')
+            pg.locator('[data-mk-off]').click()
+            t.ck(t.wait_until("async (a) => (await (%s)(a)).off === true" % UNIT, [mech['obj'], md['oiId'], u2['id']]), '«Списано» единицы механизмов не дошло до результатов осмотра')
+            go(t, inv_q(mech['obj'], mech['inv'], '&f=off'), '.om-app[data-v="inv"] .om-title')
+            t.ck(pg.evaluate(ROWS) == [u2['id']], 'вкладка «Списано» у механизмов показала не ту единицу: %s' % pg.evaluate(ROWS))
 
     # --- ширины ---
     pg.set_viewport_size({'width': 360, 'height': 780})

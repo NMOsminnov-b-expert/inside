@@ -889,10 +889,10 @@ const OUT_OF_SCOPE = /^вне\s*тз$/i;
 function rawMark(o, inv, it) {
   if (inv.kind === 'mech') {
     const u = ((((resultsOf(o.typeId, o.ocId).assets || {})[inv.oiId] || {}).u) || {})[it.id] || {};
-    return { state: u.found === 'Найдено' ? 'seen' : '', cond: u.state === BROKEN ? BROKEN : '', group: u.group || '', earlier: !!u.earlier, comment: u.comment || '' };
+    return { state: u.found === 'Найдено' ? 'seen' : '', cond: u.state === BROKEN ? BROKEN : '', group: u.group || '', earlier: !!u.earlier, off: !!u.off, comment: u.comment || '' };
   }
   const m = markOf(inv.id, it.id) || {};
-  return { state: m.state || '', cond: m.cond || '', group: m.group || '', earlier: !!m.earlier, comment: m.comment || '', photos: m.photos || [] };
+  return { state: m.state || '', cond: m.cond || '', group: m.group || '', earlier: !!m.earlier, off: !!m.off, comment: m.comment || '', photos: m.photos || [] };
 }
 // Позиции карточки: общая группа или одна позиция.
 function cardOf(o, inv, it) {
@@ -909,11 +909,14 @@ function photosOfCard(o, inv, members) {
   return members.flatMap((x) => ((markOf(inv.id, x.id) || {}).photos || []).map((p) => ({ ...p, itemId: x.id }))).filter((p) => p.dataUrl && !p.deleted);
 }
 // Состояние позиции, как в приложении: снято / осмотрено ранее / не осмотрено; нерабочее — отдельно.
+// Списано — позиция в описи есть, но уже списана, на месте её нет: ставится без снимков и засчитывается осмотром
+// (пользователь 19.11.2026: «внутри карточки отдельного механизма должна быть кнопка списано… и можно было
+// отфильтровать по ним»; ответы — «уже списано, на месте нет», отдельная вкладка).
 function statusOf(o, inv, it) {
   const m = rawMark(o, inv, it);
   const members = m.group ? cardOf(o, inv, it) : [it];
   const shot = photosOfCard(o, inv, members).length > 0;
-  return { shot, earlier: !shot && (m.earlier || m.state === 'seen'), inspected: shot || m.earlier || m.state === 'seen', broken: shot && m.cond === BROKEN, group: m.group, size: members.length, comment: m.comment };
+  return { shot, off: m.off, earlier: !shot && (m.earlier || m.state === 'seen'), inspected: shot || m.off || m.earlier || m.state === 'seen', broken: shot && m.cond === BROKEN, group: m.group, size: members.length, comment: m.comment };
 }
 function markSet(o, inv, it, patch) {
   const person = session.state.person;
@@ -922,7 +925,7 @@ function markSet(o, inv, it, patch) {
     const v = valuesOf(o.typeId, o.ocId, inv.oiId);
     if ('state' in patch) setValue(v, `u.${it.id}.found`, patch.state === 'seen' ? 'Найдено' : '');
     if ('cond' in patch) setValue(v, `u.${it.id}.state`, patch.cond);
-    ['group', 'earlier', 'comment'].forEach((k) => { if (k in patch) setValue(v, `u.${it.id}.${k}`, patch[k]); });
+    ['group', 'earlier', 'off', 'comment'].forEach((k) => { if (k in patch) setValue(v, `u.${it.id}.${k}`, patch[k]); });
     saveResults();
     return;
   }
@@ -942,7 +945,7 @@ function addToCard(o, inv, lead, items) {
   const g = rawMark(o, inv, lead).group || 'g-' + lead.id;
   [lead, ...items].forEach((x) => markSet(o, inv, x, { group: g }));
 }
-const statusChip = (s) => (s.broken ? `<span class="om-chip om-t-rose">${BROKEN}</span>` : s.shot ? '<span class="om-chip om-t-green">Снято</span>'
+const statusChip = (s) => (s.off ? '<span class="om-chip om-t-slate">Списано</span>' : s.broken ? `<span class="om-chip om-t-rose">${BROKEN}</span>` : s.shot ? '<span class="om-chip om-t-green">Снято</span>'
   : s.earlier ? '<span class="om-chip om-t-teal">Осмотрено ранее</span>' : '');
 
 function invRow(o, x) {
@@ -953,7 +956,7 @@ function invRow(o, x) {
     <span class="om-row-tx"><b>${esc(x.title)}</b><small>${inv && inv.part ? esc(inv.part) + ' · ' : ''}позиций: ${x.count}</small><small class="om-prog">осмотрено ${done} из ${own.length}</small></span>${ico('chev', 18)}</a>`;
 }
 
-const INV_FILTERS = [['', 'Все'], ['none', 'Не осмотрено'], ['done', 'Осмотрено'], ['broken', 'Нерабочие']];
+const INV_FILTERS = [['', 'Все'], ['none', 'Не осмотрено'], ['done', 'Осмотрено'], ['broken', 'Нерабочие'], ['off', 'Списано']];
 // Опись: поиск, отбор, выбор нескольких позиций «в одну карточку» (sel — выбранные; to — добавление в карточку).
 function viewInv(o, q, sel, filtersOpen) {
   const inv = o && inventoryOf(session.state.person, o.id, q.inv);
@@ -963,7 +966,7 @@ function viewInv(o, q, sel, filtersOpen) {
   const rows = inv.items.filter((it) => !OUT_OF_SCOPE.test(it.list || '')).map((it) => ({ it, s: statusOf(o, inv, it) }));
   const own = rows.filter((x) => x.it.own !== false);
   const lists = [...new Set(rows.map((x) => x.it.list).filter(Boolean))];
-  const cnt = { '': rows.length, none: own.filter((x) => !x.s.inspected).length, done: own.filter((x) => x.s.inspected).length, broken: own.filter((x) => x.s.broken).length };
+  const cnt = { '': rows.length, none: own.filter((x) => !x.s.inspected).length, done: own.filter((x) => x.s.inspected).length, broken: own.filter((x) => x.s.broken).length, off: own.filter((x) => x.s.off).length };
   const needle = foldSearch(q.q || '');
   // Приоритет и цена — обязательные отборы (пользователь 16.11.2026: «Нам нужна фильтрация по приоритетам.
   // Обязательно. Как и по цене»); порядок — как в приложении: по №, по приоритету, по стоимости.
@@ -976,7 +979,7 @@ function viewInv(o, q, sel, filtersOpen) {
   const distinct = (k) => [...new Set(rows.map((x) => x.it[k]).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), 'ru'));
   const mols = distinct('mol');
   const accs = distinct('acc');
-  const list = rows.filter((x) => (!q.f || (q.f === 'none' ? x.it.own !== false && !x.s.inspected : q.f === 'done' ? x.s.inspected : x.s.broken))
+  const list = rows.filter((x) => (!q.f || (q.f === 'none' ? x.it.own !== false && !x.s.inspected : q.f === 'done' ? x.s.inspected : q.f === 'off' ? x.s.off : x.s.broken))
     && (!q.p || String(x.it.priority) === q.p) && (!q.l || x.it.list === q.l)
     && (!q.mol || x.it.mol === q.mol) && (!q.acc || x.it.acc === q.acc)
     && (!min || cost(x.it) >= min) && (!max || cost(x.it) <= max)
@@ -1066,6 +1069,7 @@ function viewItem(o, q) {
   const lead = members[0];
   const comment = rawMark(o, inv, lead).comment;
   const similar = ro ? [] : similarOf(o, inv, members);
+  const allOff = members.every((x) => rawMark(o, inv, x).off);
   const facts = (x) => [['Инв. номер', x.inv], ['Модель', x.model], ['Тип имущества', x.kind], ['МОЛ', x.mol], ['Подразделение', x.dept], ['Список', x.list], ['Кол-во', x.qty > 1 ? x.qty : ''],
     ['Балансовая стоимость, сом', Number(x.balance) ? Number(x.balance).toLocaleString('ru-RU') : '']].filter(([, v]) => v);
   const memberHTML = (x) => {
@@ -1073,7 +1077,7 @@ function viewItem(o, q) {
     const m = rawMark(o, inv, x);
     return `<div class="om-member"><div class="om-member-head"><b>${esc(x.name)}</b>${members.length > 1 && !ro ? `<button type="button" class="om-x" data-card-remove="${esc(x.id)}" aria-label="Убрать из карточки" title="Убрать из карточки">×</button>` : ''}</div>
       <dl class="om-dl">${facts(x).map(([l, v]) => `<dt>${esc(l)}</dt><dd>${esc(String(v))}</dd>`).join('')}</dl>
-      ${ro ? statusChip(s) : `<div class="om-ms">
+      ${ro || s.off ? (statusChip(s) ? `<div class="om-ms">${statusChip(s)}</div>` : '') : `<div class="om-ms">
         <button type="button" class="om-opt om-opt-broken" data-mk-broken="${esc(x.id)}" aria-pressed="${s.broken}"${photos.length ? '' : ' disabled'}>${s.broken ? 'Нерабочее, на списание' : photos.length ? 'Отметить: нерабочее' : 'Нерабочее — сначала снимки'}</button>
         ${photos.length ? '' : `<button type="button" class="om-opt" data-mk-earlier="${esc(x.id)}" aria-pressed="${m.earlier || m.state === 'seen'}">${m.earlier || m.state === 'seen' ? 'Осмотрено — снять отметку' : 'Отметить осмотренным'}</button>`}</div>`}</div>`;
   };
@@ -1083,6 +1087,7 @@ function viewItem(o, q) {
     <div class="om-idrow"><span class="om-saved" role="status" aria-live="polite"></span>${it.own === false ? `<span class="om-muted">Осматривает ${esc(it.who)} — только просмотр</span>` : o.state === 'done' ? '<span class="om-muted">Осмотр закончен — только просмотр</span>' : ''}</div>
     ${instrHint([instrForItem(lead.name), instrForItem(lead.kind || '')].filter(Boolean).slice(0, 1))}
     <div class="om-group om-members">${members.map(memberHTML).join('')}</div>
+    ${ro ? '' : `<button type="button" class="om-btn om-btn-wide om-off-btn" data-mk-off aria-pressed="${allOff}">${allOff ? 'Списано — снять отметку' : members.length > 1 ? `Списано — все ${members.length}` : 'Списано'}</button>`}
     ${similar.length ? `<button type="button" class="om-btn om-btn-wide om-similar" data-card-similar>+ Такие же в описи: ${similar.length} — добавить сюда</button>` : ''}
     ${ro ? '' : `<a class="om-btn om-btn-wide" href="${href({ v: 'inv', id: o.id, inv: inv.id, to: lead.id })}">Добавить из описи</a>`}
     <div class="om-group om-form om-item">
@@ -1688,6 +1693,14 @@ export function mountOsmotr(host) {
     const it = x.inv.items.find((y) => y.id === b.dataset.mkBroken);
     if (!it || !photosOfCard(cur, x.inv, cardOf(cur, x.inv, it)).length) return;
     markSet(cur, x.inv, it, { cond: rawMark(cur, x.inv, it).cond === BROKEN ? '' : BROKEN, state: 'seen' });
+    render(); marked();
+  });
+  // «Списано» — на всю карточку: одна позиция или группа, собранная «в одну карточку».
+  scope.on('click', '[data-mk-off]', () => {
+    const x = curItem(); if (!x) return;
+    const members = cardOf(cur, x.inv, x.it);
+    const on = !members.every((y) => rawMark(cur, x.inv, y).off);
+    members.forEach((y) => markSet(cur, x.inv, y, { off: on }));
     render(); marked();
   });
   scope.on('click', '[data-mk-earlier]', (e, b) => {

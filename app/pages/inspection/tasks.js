@@ -394,11 +394,14 @@ export function mechProgress(oi, values) {
   const units = (oi && oi.mechanisms) || [];
   const v = values || {};
   const get = (id, k) => String(((v.u || {})[id] || {})[k] || v[`u.${id}.${k}`] || '');
-  const p = { total: units.length, seen: 0, missing: 0, broken: 0, repair: 0 };
+  const p = { total: units.length, seen: 0, missing: 0, broken: 0, repair: 0, off: 0 };
   units.forEach((u) => {
     const f = get(u.id, 'found');
     const st = get(u.id, 'state');
-    if (f === 'Найдено') p.seen++;
+    // «Списано» (u.<единица>.off, отметка осмотрщика 19.11.2026) засчитывается осмотром единицы.
+    const off = get(u.id, 'off') === 'true';
+    if (off) p.off++;
+    if (f === 'Найдено' || (off && f !== 'Не найдено')) p.seen++;
     if (f === 'Не найдено') p.missing++;
     if (st === 'Нерабочее') p.broken++;
     if (st === 'В ремонте') p.repair++;
