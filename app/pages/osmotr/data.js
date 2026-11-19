@@ -15,6 +15,7 @@ import { geoByEni, centerOf, featuresInBox, dashed } from '../../kernel/cadastre
 import { PARCEL_FIELDS, BUILD_FIELDS, buildsOfParcel, parcelRows } from '../../kernel/cadastreTip.js';
 import { scheduleSave } from '../../kernel/persist.js';
 import { institutionChain } from '../../kernel/contacts.js';
+import { staffProfile } from '../../kernel/staffProfiles.js';
 import { loadTask, ownOis, oiLabel } from '../inspection/tasks.js';
 import { gpsOfObject } from '../inspections/route.js';
 
@@ -235,6 +236,8 @@ export function myObjects(person) {
       // Сведения участка по Кадастру — строками, как подпись участка на карте макета (kernel/cadastreTip.js).
       parcel: rec.geo && rec.geo.extent ? parcelRows({ NAZNACHENI: rec.geo.purpose, PROPFOR_NAME: rec.geo.use, PROPFORM_NAME: rec.geo.ownForm, DOMCODE: rec.geo.house, ...(rec.geo.props || {}) },
         rec.geo.contour ? { type: 'MultiPolygon', coordinates: rec.geo.contour } : null, rec.geo.builds || []) : [],
+      // Оператор ЦОД карточки — ФИО и контакты из профиля сотрудника (пользователь 19.11.2026).
+      cod: staffProfile((rec.resp || {}).cod),
       ois, docs, contacts, returned, facts: factsOf(rec), ts: rec.vehicle ? tsLine(rec.vehicle.f) : '',
       // Снято регионалом сегодня; запрос переноса и ответ на него (решения 06.11.2026).
       removed: list.every((a) => a.state === 'removed'), removedAt: list.every((a) => a.state === 'removed') ? (list[0].removedAt || '') : '',

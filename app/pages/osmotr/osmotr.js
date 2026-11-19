@@ -581,14 +581,16 @@ function askBlock(o) {
   }).join('')}</section>`;
 }
 
+// Первым — оператор ЦОД карточки ОЦ: ФИО, телефон, почта из профиля сотрудника (пользователь 19.11.2026: «В карточках
+// ОЦ должны быть ФИО и контактная информация оператора ЦОД»; ответы — у осмотрщика, из профиля сотрудника).
 // Контакты на месте: из учреждения и объекта (заранее) и добавленные осмотрщиком на месте (как в приложении
 // «Осмотр», ContactsScreen.kt: ФИО, должность, телефон, почта, заметка; человек — из телефонной книги, если
 // браузер это умеет). Касание телефона — звонок.
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: добавленные лежат в «Результатах осмотра» объекта (resultsOf().contacts) с автором и
 // временем; в контакты учреждения или объекта их переносит тот, кто разбирает осмотр.
 const telOf = (ph) => String(ph || '').replace(/[^\d+]/g, '');
-function contactLine(c, del = '') {
-  return `<div class="om-contact"><span class="om-row-tx"><b>${esc(c.name || 'Контакт')}</b>${c.role || c.from ? `<small>${esc([c.role, c.from].filter(Boolean).join(' · '))}</small>` : ''}${c.note ? `<small>${esc(c.note)}</small>` : ''}</span>
+function contactLine(c, del = '', cls = '') {
+  return `<div class="om-contact${cls ? ' ' + cls : ''}"><span class="om-row-tx"><b>${esc(c.name || 'Контакт')}</b>${c.role || c.from ? `<small>${esc([c.role, c.from].filter(Boolean).join(' · '))}</small>` : ''}${[].concat(c.note || []).filter(Boolean).map((n) => `<small>${esc(n)}</small>`).join('')}</span>
     ${c.email ? `<a class="om-icon om-icon-sm" href="mailto:${esc(c.email)}" aria-label="Письмо: ${esc(c.email)}" title="${esc(c.email)}">${ico('mail', 18)}</a>` : ''}
     ${c.phone ? `<a class="om-icon om-icon-sm" href="tel:${esc(telOf(c.phone))}" aria-label="Позвонить: ${esc(c.phone)}" title="${esc(c.phone)}">${ico('phone', 18)}</a>` : ''}
     ${del ? `<button type="button" class="om-icon om-icon-sm" data-ct-del="${esc(del)}" aria-label="Убрать контакт ${esc(c.name || c.phone)}" title="Убрать">${ico('trash', 18)}</button>` : ''}</div>`;
@@ -599,11 +601,13 @@ function contactsBlock(o, ui = {}) {
   const mine = myContacts(o);
   const ro = o.state === 'done' && !(o.returned || []).length;
   const pick = typeof navigator !== 'undefined' && navigator.contacts && navigator.contacts.select;
+  const cod = o.cod ? contactLine({ ...o.cod, role: 'Оператор ЦОД', note: [o.cod.phone, o.cod.email] }, '', 'om-ct-cod') : '';
   return `<div class="om-contacts"><span class="om-cap">Контакты</span>
+    ${cod}
     ${pre.slice(0, 4).map((c) => contactLine(c)).join('')}
     ${pre.length > 4 ? `<details class="om-ct-more"><summary>Ещё ${pre.length - 4}</summary>${pre.slice(4).map((c) => contactLine(c)).join('')}</details>` : ''}
     ${mine.length ? `<span class="om-cap om-cap-sub">Добавлены на месте</span>${mine.map((c) => contactLine(c, ro ? '' : c.id)).join('')}` : ''}
-    ${!pre.length && !mine.length ? '<p class="om-muted">Контактов нет</p>' : ''}
+    ${!cod && !pre.length && !mine.length ? '<p class="om-muted">Контактов нет</p>' : ''}
     ${ro ? '' : `<details class="om-ct-add"${ui.contactOpen ? ' open' : ''}><summary>Добавить контакт</summary>
       <form class="om-ct-form" data-ct-add novalidate>
         ${pick ? '<button type="button" class="om-btn" data-ct-pick>Из телефонной книги</button>' : ''}
