@@ -540,6 +540,33 @@ export function addFoundTs(typeId, ocId, d) {
   saveResults();
   return d;
 }
+
+// Автомобиль, выявленный на месте (веб-страница осмотрщика, пользователь 19.11.2026: «добавить в недвижимое и движимое
+// кнопку автомобили выявленные на месте… будет создаваться карточка во вкладке выезды, некоторые поля типа адреса,
+// организации, даты осмотра копируются, в этой карточке будут поля марка модель и номер, при выходе… выбор сохранить
+// или удалить»). Ответы: кнопка — у недвижимости и ТС; черновик при объекте, где нашли (разбирает ЦОД, как выявленное
+// ТС); поля — только марка, модель, госномер. Адрес, учреждение и дата выезда — копией (copy) на момент создания.
+// unsaved — заведён, но ещё не сохранён осмотрщиком: ЦОД его не видит; уйти с карточки — только «Сохранить» или «Удалить».
+export function addFoundCar(typeId, ocId, { by = '', address = '', institution = '', date = '' } = {}) {
+  const d = { ...newFoundTs(by), car: true, unsaved: true, where: address, copy: { address, institution, date } };
+  d.vehicle.f = { make: '', model: '', plate: '' };
+  foundOi(typeId, ocId).push(d);
+  saveResults();
+  return d;
+}
+export function setFoundCar(d, key, value) {
+  if (!['make', 'model', 'plate'].includes(key)) return;
+  d.vehicle.f[key] = String(value || '');
+  const f = d.vehicle.f;
+  d.name = [[f.make, f.model].map((x) => String(x || '').trim()).filter(Boolean).join(' '), String(f.plate || '').trim()].filter(Boolean).join(' · ');
+  saveResults();
+}
+// Сохранить можно, когда указана марка, модель или госномер.
+export const foundCarEmpty = (d) => !['make', 'model', 'plate'].some((k) => String((d.vehicle.f || {})[k] || '').trim());
+export function saveFoundCar(d) {
+  delete d.unsaved;
+  saveResults();
+}
 // Отменённый черновик: снимки и документы остаются в осмотре без привязки —
 // «Любые фото с осмотров — важная информация».
 export function dropFoundTsDraft(typeId, ocId, id) {

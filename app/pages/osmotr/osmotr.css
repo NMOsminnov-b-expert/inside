@@ -241,6 +241,12 @@ textarea.om-input{resize:vertical;line-height:1.4}
 
 /* Выявлено на месте */
 .om-found{border-left-color:#c07c1e}
+.om-cars{border-left-color:var(--t)}
+.om-leave{border-left-color:var(--t)}
+.om-leave .om-shoot-act{padding:12px 16px 8px}
+.om-leave .om-warn{margin:12px 16px 0}
+.om-car-act{margin-top:14px}
+.om-leave .om-btn-danger,.om-car-act .om-btn-danger{margin-top:0}
 .om-site{border-left-color:var(--t)}
 .om-site .om-card-h{display:flex;align-items:center;gap:8px}
 .om-badge-n{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--t);color:#fff;font-size:12px}
