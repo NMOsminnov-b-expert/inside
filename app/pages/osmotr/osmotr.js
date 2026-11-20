@@ -14,7 +14,7 @@
 // «как доехать» и «где опознать» нет — сведения встроены в экраны.
 //
 // Экраны — адресом #/osmotr?v=…: today (главная «Мои объекты»), trips («Выезды»,
-// &f — отбор по типам: real, vehicle, inv; &s — open, done, all, back, late; &i — подведомственные «учреждение · подведомственная» через «|»), search, menu, notes, obj (&id —
+// &f — отбор по типам: real, vehicle, inv; &s — open, done, all, back, late; &i — подведомственные «учреждение · подведомственная» через «|»; &q — поиск, прежний v=search ведёт сюда же), menu, notes, obj (&id —
 // «typeId|ocId», &tab — task, docs), doc (&id, &doc — документ), oi (&id, &oi — объект имущества: разделы
 // осмотра раскрываемыми блоками), sec (&id, &oi, &s — тот же экран ОИ с раскрытым разделом), app —
 // приложение «Осмотр» в рамке (пока перенос не закончен), car (&id, &car — автомобиль, выявленный на месте), stats (&u — week, month, quarter; &o — шагов назад) — своя
@@ -425,7 +425,7 @@ function orgFilters(all, q, ui, shownN) {
   const btn = `<button type="button" class="om-icon om-filter-btn${open ? ' on' : ''}" data-trip-filters aria-expanded="${open}" aria-controls="om-trip-filters" aria-label="Фильтры${nOn ? ': выбрано ' + nOn : ''}" title="Фильтры">${ico('filter', 20)}${nOn ? `<b class="om-badge">${nOn}</b>` : ''}</button>`;
   // Число у типа — под выбранными подведомственными, у подведомственной — под выбранными типами.
   const kindBox = (k) => `<label class="om-fopt"><input type="checkbox" data-kind value="${k.key}"${kinds.includes(k.key) ? ' checked' : ''}><span>${esc(k.label)}</span><b class="om-n">${byKind(pool, k.key).length}</b></label>`;
-  const reset = href({ v: 'trips', s: q.s });
+  const reset = href({ v: 'trips', s: q.s, q: q.q || undefined });
   const panel = open ? `<div class="om-card om-fpanel" id="om-trip-filters">
       <h2 class="om-cap">Тип имущества</h2>
       <div class="om-fgrps">${KINDS.map(kindBox).join('')}</div>
@@ -443,32 +443,40 @@ function orgFilters(all, q, ui, shownN) {
   return { btn, panel, applied, sel };
 }
 
+// Поиск — строкой в шапке «Выездов», а не отдельной вкладкой (пользователь 20.11.2026: «вкладку поиск нужно перенести в
+// выезд и переработать»): ищет по всем словам сразу — адрес, ЕНИ (с дефисами и без), учреждение и подведомственная,
+// тип, марка, модель, госномер, VIN, состав объекта; работает вместе с типом, подведомственными и вкладками состояния —
+// числа во вкладках считаются по найденному, а если в открытой вкладке ничего нет, видно, в какой есть.
+const tripHay = (o) => foldSearch([o.title, o.address, o.eni, fmtEni(o.eni), o.institution, o.head, o.podved, o.typeLabel, o.ts,
+  ...(o.facts || []).map((f) => f.value), ...(o.ois || []).flatMap((x) => [x.label, x.eni, fmtEni(x.eni)])].join(' '));
+const tripWords = (q) => foldSearch(q.q || '').split(/\s+/).filter(Boolean);
+const byWords = (list, words) => (words.length ? list.filter((o) => { const h = tripHay(o); return words.every((w) => h.includes(w)); }) : list);
+
 function viewTrips(all, q, unread, ui) {
-  const pool = byOrg(all, orgSel(q));
+  const words = tripWords(q);
+  const pool = byOrg(byWords(all, words), orgSel(q));
   const list = byKind(pool, q.f);
   const s = q.s || 'open';
   const extra = EXTRA[s];
   const shown = list.filter(extra ? extra.test : (TRIP_TABS.find((t) => t.key === s) || TRIP_TABS[0]).test);
   const hf = orgFilters(all, q, ui, shown.length);
+  const keep = { q: q.q || undefined };
+  // В открытой вкладке ничего не найдено, а в другой есть — ссылкой на неё.
+  const elsewhere = words.length && !shown.length ? TRIP_TABS.filter((t) => t.key !== s && list.some(t.test)) : [];
+  const empty = words.length
+    ? `<div class="om-card om-empty">Ничего не найдено${elsewhere.length ? ` в этой вкладке · есть: ${elsewhere.map((t) => `<a href="${href({ v: 'trips', f: q.f, s: t.key, i: q.i, ...keep })}">${esc(t.label)} ${list.filter(t.test).length}</a>`).join(', ')}` : ''}</div>`
+    : '<div class="om-card om-empty">Здесь пусто</div>';
   return `${top(kindTitle(q.f), hf.btn + bell(unread))}
-    ${kindChips(pool, q.f, 'trips', { s: q.s, i: q.i })}
+    <form class="om-search om-trip-search" data-search role="search">
+      ${ico('search', 18)}<input type="search" name="q" value="${esc(q.q || '')}" placeholder="Адрес, ЕНИ, учреждение, госномер" aria-label="Поиск по выездам: адрес, ЕНИ, учреждение, марка, госномер, VIN" autocomplete="off">
+    </form>
+    ${kindChips(pool, q.f, 'trips', { s: q.s, i: q.i, ...keep })}
     ${hf.panel}
     ${hf.applied}
-    <nav class="om-tabs3" aria-label="Состояние">${TRIP_TABS.map((t) => `<a class="om-tab3${s === t.key ? ' on' : ''}" href="${href({ v: 'trips', f: q.f, s: t.key, i: q.i })}" aria-current="${s === t.key}">${esc(t.label)} <b>${list.filter(t.test).length}</b></a>`).join('')}</nav>
-    ${extra ? `<p class="om-filter">${esc(extra.label)} · ${shown.length} <a href="${href({ v: 'trips', f: q.f, i: q.i })}">Показать все к осмотру</a></p>` : ''}
-    <div class="om-list">${shown.length ? shown.map(objRow).join('') : '<div class="om-card om-empty">Здесь пусто</div>'}</div>`;
-}
-
-function viewSearch(all, q) {
-  const words = foldSearch(q.q || '').split(/\s+/).filter(Boolean);
-  const hay = (o) => foldSearch([o.title, o.address, o.eni, fmtEni(o.eni), o.institution, o.typeLabel, ...(o.ois || []).map((x) => x.label)].join(' '));
-  const hits = words.length ? all.filter((o) => words.every((w) => hay(o).includes(w))) : [];
-  return `${top('Поиск')}
-    <form class="om-search" data-search role="search">
-      ${ico('search', 18)}<input type="search" name="q" value="${esc(q.q || '')}" placeholder="Адрес, ЕНИ или учреждение" aria-label="Поиск по своим выездам" autocomplete="off">
-    </form>
-    <p class="om-filter">${words.length ? `Найдено: ${hits.length}` : 'Поиск по своим выездам'}</p>
-    <div class="om-list">${hits.map(objRow).join('')}</div>`;
+    <nav class="om-tabs3" aria-label="Состояние">${TRIP_TABS.map((t) => `<a class="om-tab3${s === t.key ? ' on' : ''}" href="${href({ v: 'trips', f: q.f, s: t.key, i: q.i, ...keep })}" aria-current="${s === t.key}">${esc(t.label)} <b>${list.filter(t.test).length}</b></a>`).join('')}</nav>
+    ${extra ? `<p class="om-filter">${esc(extra.label)} · ${shown.length} <a href="${href({ v: 'trips', f: q.f, i: q.i, ...keep })}">Показать все к осмотру</a></p>` : ''}
+    ${words.length && shown.length ? `<p class="om-filter om-found-q">Найдено: ${shown.length} · <a href="${href({ ...q, v: 'trips', q: '' })}">Очистить поиск</a></p>` : ''}
+    <div class="om-list">${shown.length ? shown.map(objRow).join('') : empty}</div>`;
 }
 
 function viewMenu(all, unread) {
@@ -1498,8 +1506,8 @@ function viewDoc(o, q) {
 
 // Нижняя панель главных разделов (как у стенда; «Сегодня» стал «Мои объекты» 18.11.2026).
 function bottomNav(v, todayN) {
-  const at = { today: 'today', trips: 'trips', search: 'search', menu: 'menu', notes: 'menu' }[v] || 'today';
-  const items = [['today', 'today', 'Мои объекты', todayN], ['trips', 'trips', 'Выезды'], ['search', 'search', 'Поиск'], ['menu', 'menu', 'Меню']];
+  const at = { today: 'today', trips: 'trips', menu: 'menu', notes: 'menu' }[v] || 'today';
+  const items = [['today', 'today', 'Мои объекты', todayN], ['trips', 'trips', 'Выезды'], ['menu', 'menu', 'Меню']];
   return `<nav class="om-bnav" aria-label="Разделы">${items.map(([k, icon, label, n]) => `<a class="om-btab${at === k ? ' on' : ''}" href="${href({ v: k })}" aria-current="${at === k}">${ico(icon, 22)}${n ? `<b class="om-badge">${n}</b>` : ''}<span>${label}</span></a>`).join('')}</nav>`;
 }
 
@@ -1526,6 +1534,8 @@ export function mountOsmotr(host) {
   const dropMap = () => { if (map) { try { map.remove(); } catch { /* уже снята */ } } map = null; mapKey = ''; };
 
   function render() {
+    // Прежний адрес поиска (v=search) — «Выезды» с тем же запросом.
+    if (q.v === 'search') q = { ...q, v: 'trips' };
     const v = q.v || 'today';
     dirty = false;
     if (q.oi && q.s) opened.add(q.oi + '|' + q.s);
@@ -1540,7 +1550,7 @@ export function mountOsmotr(host) {
     if (ui.askFor !== q.id) ui.asking = false;
     if (ui.carFor !== (v === 'car' ? q.id + '|' + q.car : '')) { ui.carFor = v === 'car' ? q.id + '|' + q.car : ''; ui.carLeave = ''; ui.carErr = ''; }
     if (selFor !== q.id + '|' + q.inv + '|' + (q.to || '')) { sel.clear(); selFor = q.id + '|' + q.inv + '|' + (q.to || ''); }
-    const screen = v === 'trips' ? viewTrips(withCars(all), q, unread, ui) : v === 'search' ? viewSearch(withCars(all), q) : v === 'menu' ? viewMenu(all, unread)
+    const screen = v === 'trips' ? viewTrips(withCars(all), q, unread, ui) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
         : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
           : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow, ui.detachAsk) : v === 'file' ? viewFile(all, q, ui) : v === 'plans' ? viewPlans(all, ui) : v === 'stats' ? viewStats(q) : v === 'instr' ? viewInstr(q, () => { if ((q.v || '') === 'instr') render(); })
@@ -1588,11 +1598,15 @@ export function mountOsmotr(host) {
 
   scope.on('submit', '[data-search]', (e, form) => {
     e.preventDefault();
-    location.hash = href({ v: 'search', q: form.q.value.trim() });
+    location.hash = href({ ...q, v: 'trips', q: form.q.value.trim() });
   });
   scope.on('input', '[data-search] input', (e, input) => {
     clearTimeout(input._t);
-    input._t = setTimeout(() => { history.replaceState(null, '', href({ v: 'search', q: input.value.trim() })); q = { v: 'search', q: input.value.trim() }; renderKeepFocus(); }, 250);
+    // Пока ждали паузу в наборе, экран могли сменить (вкладка, ссылка) — тогда старый запрос не пишется поверх нового адреса.
+    input._t = setTimeout(() => {
+      if (!input.isConnected || (q.v || '') !== 'trips') return;
+      q = { ...q, v: 'trips', q: input.value.trim() }; history.replaceState(null, '', href(q)); renderKeepFocus();
+    }, 250);
   });
   scope.on('click', '[data-copy]', (e, b) => {
     navigator.clipboard && navigator.clipboard.writeText(b.dataset.copy).then(() => { b.classList.add('done'); setTimeout(() => b.classList.remove('done'), 1200); }, () => {});

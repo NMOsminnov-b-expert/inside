@@ -48,6 +48,8 @@
   * прежний адрес #/insp не открывает страницу; на 360 и 400 пикселях страница
     прокручивается вбок; на широком экране колонка шире 480.
 """
+from urllib.parse import quote
+
 from harness import use_cadastre_fixture
 
 NAME = 'страница осмотрщика (веб)'
@@ -340,16 +342,33 @@ def run(t):
         t.ck('Госномер' not in pg.locator('.om-facts').inner_text(), 'госномер задвоен в сведениях')
         t.ck(ts['plate'] in pg.locator('.om-comp .om-oi').first.inner_text(), 'в составе у ТС нет госномера')
 
-    # --- поиск по своим выездам ---
-    t.open('#/osmotr?v=search', wait='.om-app[data-v="search"]')
+    # --- поиск — строкой в «Выездах», отдельной вкладки нет (пользователь 20.11.2026) ---
+    t.open('#/osmotr?v=trips', wait='.om-app[data-v="trips"] [data-search] input')
+    t.ck(pg.locator('.om-bnav .om-btab', has_text='Поиск').count() == 0 and pg.locator('.om-bnav .om-btab').count() == 3,
+         'в нижней панели осталась вкладка «Поиск»')
     eni_obj = next((o for o in objs if o['eni']), None)
     if eni_obj:
         pg.fill('[data-search] input', eni_obj['eni'][:9])
+        t.ck(t.wait_until("() => /v=trips/.test(location.hash) && /q=/.test(location.hash)"), 'запрос поиска не попал в адрес «Выездов»')
+        pg.locator('.om-tab3', has_text='Все').click()
+        t.wait_until("() => /s=all/.test(location.hash) && /q=/.test(location.hash)")
         t.ck(t.wait_until("(id) => [...document.querySelectorAll('.om-obj')].some((a) => decodeURIComponent(a.getAttribute('href')).includes(id))", eni_obj['id']),
-             'поиск по ЕНИ не нашёл свой объект')
-        t.ck(pg.evaluate("() => document.activeElement && document.activeElement.matches('[data-search] input')"), 'поле поиска теряет фокус при вводе')
+             'поиск по ЕНИ не нашёл свой объект (вкладка «Все»)')
+        t.ck(pg.locator('[data-search] input').input_value() == eni_obj['eni'][:9], 'при смене вкладки состояния поиск сбросился')
+        pg.locator('[data-search] input').click()
+        pg.keyboard.type('0')
+        t.ck(t.wait_until("() => /q=/.test(location.hash) && document.activeElement && document.activeElement.matches('[data-search] input')"), 'поле поиска теряет фокус при вводе')
+    # Несколько слов — все сразу; госномер ТС ищется.
+    if ts:
+        t.open('#/osmotr?v=trips&s=all&q=' + quote(ts['plate'], safe=''), wait='.om-app[data-v="trips"] .om-list')
+        t.ck(t.wait_until("(id) => [...document.querySelectorAll('.om-obj')].some((a) => decodeURIComponent(a.getAttribute('href')).includes(id))", ts['id']),
+             'поиск по госномеру не нашёл ТС')
     pg.fill('[data-search] input', 'нетакогоадреса')
-    t.ck(t.wait_until("() => document.querySelectorAll('.om-obj').length === 0"), 'поиск нашёл несуществующее')
+    t.ck(t.wait_until("() => document.querySelectorAll('.om-obj').length === 0 && /Ничего не найдено/.test(document.querySelector('.om-list').textContent)"),
+         'поиск нашёл несуществующее или нет «Ничего не найдено»')
+    # Прежний адрес поиска ведёт в «Выезды» с тем же запросом.
+    t.open('#/osmotr?v=search&q=' + quote('нетакогоадреса', safe=''), wait='.om-app[data-v="trips"] [data-search] input')
+    t.ck(pg.locator('[data-search] input').input_value() == 'нетакогоадреса', 'прежний адрес поиска не открыл «Выезды» с запросом')
 
     # --- меню: списки назначенного к осмотру по типам ---
     t.open('#/osmotr?v=menu', wait='.om-app[data-v="menu"]')
