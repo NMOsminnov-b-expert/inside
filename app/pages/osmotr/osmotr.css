@@ -131,6 +131,7 @@ a.om-row:hover{background:#f7f9fb}
 .om-facts{display:flex;flex-direction:column;gap:10px;border-left:4px solid #0f9080;margin-bottom:12px}
 .om-facts small{display:block;font-size:13px;color:var(--om-muted)}
 .om-facts b{font-weight:600}
+.om-cod-ct{display:flex;align-items:center;gap:6px;width:fit-content;max-width:100%;margin-top:4px;color:var(--om-blue-700);font-size:14px;text-decoration:none;overflow-wrap:anywhere}
 .om-pre{white-space:pre-line}
 .om-place{margin-bottom:12px;display:flex;flex-direction:column;gap:10px}
 .om-place-addr{margin:0;font-weight:600}
