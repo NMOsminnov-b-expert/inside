@@ -519,6 +519,8 @@ const codFact = (c) => (c ? `<div class="om-cod"><small>Оператор ЦОД<
   ${c.phone ? `<a class="om-cod-ct" href="tel:${esc(telOf(c.phone))}">${ico('phone', 16)}${esc(c.phone)}</a>` : ''}
   ${c.email ? `<a class="om-cod-ct" href="mailto:${esc(c.email)}">${ico('mail', 16)}${esc(c.email)}</a>` : ''}</div>` : '');
 
+// Карточки «Документы для выезда» на вкладке «Задача» нет — документы открываются вкладкой «Документы» внизу экрана
+// (пользователь 20.11.2026: «вот это зачем тут если оно ниже дублируется»).
 function taskBlock(o, rec, ui = {}) {
   const facts = [
     o.address && o.institution ? ['Учреждение', o.institution] : null,
@@ -544,7 +546,6 @@ function taskBlock(o, rec, ui = {}) {
       ${contactsBlock(o, ui)}
     </section>
     ${askBlock(o)}
-    ${o.docs.length ? `<a class="om-card om-row om-doclink" href="${href({ v: 'obj', id: o.id, tab: 'docs' })}"><span class="om-row-ico om-t-blue">${ico('docs')}</span><span class="om-row-tx"><b>Документы для выезда</b><small>${esc(o.docs.slice(0, 3).map((d) => d.type || d.name).join(', '))}${o.docs.length > 3 ? '…' : ''}</small></span><b class="om-n">${o.docs.length}</b>${ico('chev', 18)}</a>` : ''}
     ${compBlock(o, facade, ui)}
     ${foundBlock(o)}
     ${carsBlock(o)}

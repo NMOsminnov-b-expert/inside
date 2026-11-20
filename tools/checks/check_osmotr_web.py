@@ -299,6 +299,9 @@ def run(t):
         for word in ('Класс', 'По техпаспорту', 'По ПУД', 'Конструктив', 'Износ'):
             t.ck(word not in body, 'осмотрщику видно «%s» — данные карточки ЦОД (решение 16.11.2026)' % word)
         t.ck(pg.locator('.om-objtabs .om-btab').count() == 2, 'у объекта нет вкладок «Задача» и «Документы»')
+        # Документы — только вкладкой внизу, без карточки-дубля на «Задаче» (пользователь 20.11.2026).
+        t.ck(pg.locator('.om-doclink').count() == 0 and 'Документы для выезда' not in pg.locator('.om-scr').inner_text(),
+             'на вкладке «Задача» осталась карточка «Документы для выезда» — дубль вкладки «Документы»')
         pg.locator('.om-objtabs .om-btab', has_text='Документы').click()
         t.wait_until("() => document.querySelector('.om-objtabs .om-btab.on')?.textContent.includes('Документы')")
         t.ck(pg.locator('.om-scr .om-group .om-row').count() == with_docs['docs'], 'документов в списке не %d' % with_docs['docs'])
