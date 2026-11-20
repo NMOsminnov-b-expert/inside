@@ -44,7 +44,7 @@
   * поиск ищет не по своим выездам;
   * пункты меню «Недвижимое / Транспорт / Оборудование» ведут не к спискам
     назначенного к осмотру;
-  * «Входящие» не снимают значок новых;
+  * «Входящие» не снимают значок новых; во входящих нет «Назад» или он ведёт не туда, откуда пришли (20.11.2026);
   * прежний адрес #/insp не открывает страницу; на 360 и 400 пикселях страница
     прокручивается вбок; на широком экране колонка шире 480.
 """
@@ -419,6 +419,18 @@ def run(t):
     t.open('#/osmotr', wait='.om-app[data-v="today"]')
     if had:
         t.ck(pg.locator('.om-top .om-badge').count() == 0, 'после «Входящих» значок новых не снят')
+
+    # --- «Назад» из входящих — туда, откуда пришли, с тем же отбором (пользователь 20.11.2026) ---
+    pg.evaluate("() => { location.hash = '#/osmotr?v=trips&s=all&q=' + encodeURIComponent('бишкек'); }")
+    t.wait_for('.om-app[data-v="trips"] .om-top a.om-icon[href*="v=notes"]')
+    pg.locator('.om-top a.om-icon[href*="v=notes"]').click()
+    t.wait_for('.om-app[data-v="notes"] .om-back')
+    t.ck('Выезды' in pg.locator('.om-back').inner_text(), 'во входящих из «Выездов» «Назад» не к «Выездам»: %r' % pg.locator('.om-back').inner_text())
+    pg.locator('.om-back').click()
+    t.ck(t.wait_until("() => /v=trips/.test(location.hash) && /s=all/.test(location.hash) && document.querySelector('[data-search] input')?.value === 'бишкек'"),
+         '«Назад» из входящих потерял отбор «Выездов»')
+    t.open('#/osmotr?v=notes', wait='.om-app[data-v="notes"]')
+    t.ck(pg.locator('.om-back').count() == 1, 'во входящих нет «Назад»')
 
     # --- прежний адрес и ширины ---
     pg.evaluate("() => { location.hash = '#/insp'; }")

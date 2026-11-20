@@ -527,8 +527,13 @@ function viewMenu(all, unread) {
     <div class="om-group">${row(href({ v: 'instr' }), 'book', 'Инструкции')}</div>`;
 }
 
-function viewNotes(items) {
-  return `${top('Входящие')}
+// «Назад» из входящих — на экран, откуда пришли (главная, «Выезды» с их отбором, меню; пользователь 20.11.2026: «во
+// входящих нет кнопки вернуться»).
+const NOTES_FROM = { today: 'Мои объекты', trips: 'Выезды', menu: 'Меню' };
+function viewNotes(items, from) {
+  const to = from && NOTES_FROM[from.v || 'today'] ? from : { v: 'today' };
+  return `${back(href(to), NOTES_FROM[to.v || 'today'])}
+    ${top('Входящие')}
     <div class="om-list">${items.length ? items.map((n) => `<a class="om-card om-note${n.unread ? ' new' : ''}" href="${n.objectId ? href({ v: 'obj', id: n.objectId }) : href({ v: 'notes' })}">
       <span class="om-note-head"><b>${esc(n.label)}</b><time>${esc(shortDate(String(n.at).slice(0, 10)))}</time></span>
       <span>${esc(n.text)}</span></a>`).join('') : '<div class="om-card om-empty">Уведомлений за две недели нет</div>'}</div>`;
@@ -1567,6 +1572,8 @@ export function mountOsmotr(host) {
     // Прежний адрес поиска (v=search) — «Выезды» с тем же запросом.
     if (q.v === 'search') q = { ...q, v: 'trips' };
     const v = q.v || 'today';
+    // Последний список (главная, «Выезды», меню) — куда вести «Назад» из входящих.
+    if (NOTES_FROM[v]) ui.listFrom = { ...q, v };
     dirty = false;
     if (q.oi && q.s) opened.add(q.oi + '|' + q.s);
     const person = session.state.person;
@@ -1581,7 +1588,7 @@ export function mountOsmotr(host) {
     if (ui.carFor !== (v === 'car' ? q.id + '|' + q.car : '')) { ui.carFor = v === 'car' ? q.id + '|' + q.car : ''; ui.carLeave = ''; ui.carErr = ''; }
     if (selFor !== q.id + '|' + q.inv + '|' + (q.to || '')) { sel.clear(); selFor = q.id + '|' + q.inv + '|' + (q.to || ''); }
     const screen = v === 'trips' ? viewTrips(withCars(all), q, unread, ui) : v === 'menu' ? viewMenu(all, unread)
-      : v === 'notes' ? viewNotes(notes) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
+      : v === 'notes' ? viewNotes(notes, ui.listFrom) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
         : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
           : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow, ui.detachAsk) : v === 'file' ? viewFile(all, q, ui) : v === 'plans' ? viewPlans(all, ui) : v === 'stats' ? viewStats(q) : v === 'instr' ? viewInstr(q, () => { if ((q.v || '') === 'instr') render(); })
           : v === 'inv' ? viewInv(o, q, sel, ui.filters) : v === 'item' ? viewItem(o, q) : v === 'car' ? viewCar(o, q, ui) : viewToday(all, q, unread);
