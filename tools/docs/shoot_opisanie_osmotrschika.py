@@ -34,10 +34,13 @@ def q(**kw):
 
 # Низ содержимого экрана — снимок обрезается по нему. Нижняя панель вкладок прижата к низу окна: у главной (nav)
 # окно сужается до содержимого, и панель попадает в снимок под ним; у остальных экранов — обрезка без панели.
-BOTTOM = "() => Math.ceil(Math.max(...[...document.querySelectorAll('.om-scr > *')].map((e) => e.getBoundingClientRect().bottom)) + 16)"
+# Панели, прижатые к низу окна (вкладки объекта и ОИ), в расчёт не идут — иначе снимок тянется на всю высоту окна.
+BOTTOM = """() => Math.ceil(Math.max(...[...document.querySelectorAll('.om-scr > *')]
+  .filter((e) => !['fixed', 'absolute', 'sticky'].includes(getComputedStyle(e).position) && !e.matches('nav'))
+  .map((e) => e.getBoundingClientRect().bottom)) + 16)"""
 
 
-def shot(pg, name, url, wait, before=None, nav=False, cap=3200):
+def shot(pg, name, url, wait, before=None, nav=False, cap=3200, start=None):
     pg.set_viewport_size({'width': W, 'height': 3200})
     pg.goto(url)
     pg.wait_for_selector(wait)
@@ -45,13 +48,15 @@ def shot(pg, name, url, wait, before=None, nav=False, cap=3200):
         before(pg)
         pg.mouse.move(0, 0)  # без всплывающей подсказки у нажатой кнопки
     pg.wait_for_timeout(400)  # карта и шрифты дорисовываются
-    h = min(cap, pg.evaluate(BOTTOM))
+    # start — снимок с этого блока (длинный экран — двумя снимками).
+    y0 = max(0, int(pg.evaluate("(s) => document.querySelector(s).getBoundingClientRect().top", start)) - 12) if start else 0
+    h = min(cap, pg.evaluate(BOTTOM) - y0)
     if nav:
         pg.set_viewport_size({'width': W, 'height': h + 90})
         pg.wait_for_timeout(200)
         pg.screenshot(path=os.path.join(OUT, name + '.png'))
     else:
-        pg.screenshot(path=os.path.join(OUT, name + '.png'), clip={'x': 0, 'y': 0, 'width': W, 'height': h})
+        pg.screenshot(path=os.path.join(OUT, name + '.png'), clip={'x': 0, 'y': y0, 'width': W, 'height': h})
     print('  ', name)
 
 
@@ -68,24 +73,25 @@ def main():
         shot(pg, '01-moi-obekty', BASE, '.om-app[data-v="today"]', nav=True)
         shot(pg, '02-vyezdy', q(v='trips'), '.om-app[data-v="trips"] .om-obj', cap=1250)
         shot(pg, '03-vyezdy-filtry', q(v='trips'), '[data-trip-filters]', before=lambda g: g.click('[data-trip-filters]'), cap=1000)
-        shot(pg, '04-vyezdy-poisk-po-date', q(v='trips', q='20.11'), '.om-app[data-v="trips"] .om-list')
-        shot(pg, '05-obekt-zadacha', q(v='obj', id=x['real']), '.om-app[data-v="obj"] .om-facts')
+        shot(pg, '04-vyezdy-poisk-po-date', q(v='trips', q='20.11'), '.om-app[data-v="trips"] .om-list', cap=1100)
+        shot(pg, '05-obekt-zadacha', q(v='obj', id=x['real']), '.om-app[data-v="obj"] .om-facts', cap=1150)
+        shot(pg, '05b-obekt-sostav', q(v='obj', id=x['real']), '.om-app[data-v="obj"] .om-facts', start='#om-site, .om-comp')
         shot(pg, '06-obekt-dokumenty', q(v='obj', id=x['real'], tab='docs'), '.om-app[data-v="obj"] .om-title')
         if x['oi']:
             shot(pg, '07-oi', q(v='oi', id=x['real'], oi=x['oi']), '.om-app[data-v="oi"] .om-oihead')
             shot(pg, '08-oi-foto', q(v='oi', id=x['real'], oi=x['oi'], tab='photo'), '.om-app[data-v="oi"] .om-oihead')
         if x['ts']:
-            shot(pg, '09-ts', q(v='obj', id=x['ts']), '.om-app[data-v="obj"] .om-facts')
+            shot(pg, '09-ts', q(v='obj', id=x['ts']), '.om-app[data-v="obj"] .om-facts', cap=1150)
         if x['inv']:
             shot(pg, '10-opis', q(v='inv', id=x['inv'], inv=x['invId']), '.om-invrow', cap=1250)
             shot(pg, '11-opis-filtry', q(v='inv', id=x['inv'], inv=x['invId']), '.om-invrow', before=lambda g: g.click('[data-filters]'), cap=1250)
             shot(pg, '12-poziciya-opisi', q(v='item', id=x['inv'], inv=x['invId'], it=x['item']), '[data-mk-off]')
         shot(pg, '13-otchet-dnya', q(v='report'), '.om-app[data-v="report"] .om-title')
-        shot(pg, '14-plany', q(v='plans'), '.om-app[data-v="plans"] .om-title')
+        shot(pg, '14-plany', q(v='plans'), '.om-app[data-v="plans"] .om-title', cap=1200)
         shot(pg, '15-zaprosy-dokumentov', q(v='cad'), '.om-app[data-v="cad"] .om-title')
-        shot(pg, '16-statistika', q(v='stats'), '.om-app[data-v="stats"] .om-title')
+        shot(pg, '16-statistika', q(v='stats'), '.om-app[data-v="stats"] .om-title', cap=1200)
         shot(pg, '17-menyu', q(v='menu'), '.om-app[data-v="menu"]')
-        shot(pg, '18-vhodyaschie', q(v='notes'), '.om-app[data-v="notes"]')
+        shot(pg, '18-vhodyaschie', q(v='notes'), '.om-app[data-v="notes"]', cap=900)
         b.close()
     if errs:
         print('Ошибки страницы:', errs)
