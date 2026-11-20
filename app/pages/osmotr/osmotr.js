@@ -134,6 +134,12 @@ const kindIco = (o) => ico(o.entity === 'vehicle' ? 'vehicle' : o.entity === 'in
 const chip = (o) => { const s = stateOf(o); return `<span class="om-chip om-t-${s.tone}">${esc(s.word)}</span>`; };
 const top = (title, right = '') => `<header class="om-top"><h1 class="om-h1">${esc(title)}</h1><div class="om-top-r">${right}</div></header>`;
 const back = (to, label) => `<a class="om-back" href="${esc(to)}">${ico('back', 18)}<span>${esc(label)}</span></a>`;
+// «Назад» с разделов, которые открываются и с главной, и из «Выездов», и из меню (входящие, отчёт дня, планы, запросы
+// документов, статистика), — на тот список, с которого пришли, с его отбором (пользователь 20.11.2026: «во входящих нет
+// кнопки вернуться»; «почему если зайти в запросы документов и выйти, вернусь во вкладку меню хотя я заходил через мои
+// объекты»). Открыт по прямой ссылке — на свой список по умолчанию.
+const LIST_LABELS = { today: 'Мои объекты', trips: 'Выезды', menu: 'Меню' };
+const listBack = (from, dflt) => { const to = from && LIST_LABELS[from.v] ? from : { v: dflt }; return back(href(to), LIST_LABELS[to.v]); };
 const bell = (n) => `<a class="om-icon" href="${href({ v: 'notes' })}" aria-label="Входящие${n ? ': новых ' + n : ''}" title="Входящие">${ico('bell')}${n ? `<b class="om-badge">${n > 99 ? '99+' : n}</b>` : ''}</a>`;
 
 // Типы — переключатели: касание добавляет тип к выбранным или снимает его; «Все» снимает выбор.
@@ -205,7 +211,7 @@ function viewPlans(all, ui) {
     return { d, items: live.filter((o) => o.plannedAt === d), region: plan ? [plan.region, plan.district, plan.institutions].filter(Boolean).join(' · ') : '',
       absence: ab ? [absenceLabel(ab.kind), ab.note].filter(Boolean).join(' — ') : '', off: wd === 0 || wd === 6 };
   });
-  return `${back(href({ v: 'menu' }), 'Меню')}
+  return `${listBack(ui.listFrom, 'menu')}
     <h1 class="om-title om-title-sm">Планы</h1>
     ${overdue.length ? `<h2 class="om-cap om-sec">Не сделано раньше · ${overdue.length}</h2><div class="om-group">${overdue.map((o) => planRow(o, 'с ' + shortDate(o.plannedAt))).join('')}</div>` : ''}
     <div class="om-days">${days.map((x) => `<section class="om-card om-day${x.off && !x.items.length ? ' off' : ''}" data-day="${x.d}">
@@ -318,12 +324,12 @@ function statPeriod(q) {
   const d = addDays(today, -offset);
   return { unit, offset, from: d, to: d, upto: d, label: dayHead(d, today), current: offset === 0 };
 }
-function viewStats(q) {
+function viewStats(q, from) {
   const p = statPeriod(q);
   const me = myStats(session.state.person, p);
   const step = (o, label, aria) => (o < 0 ? `<span class="om-btn om-btn-sm om-off" aria-hidden="true">${label}</span>`
     : `<a class="om-btn om-btn-sm" href="${href({ v: 'stats', u: p.unit, o: o || '' })}" aria-label="${aria}">${label}</a>`);
-  return `${back(href({ v: 'today' }), 'Мои объекты')}
+  return `${listBack(from, 'today')}
     <h1 class="om-title om-title-sm">Статистика</h1>
     <nav class="om-segs" aria-label="Период">${STAT_UNITS.map(([k, l]) => `<a class="om-seg${p.unit === k ? ' on' : ''}" href="${href({ v: 'stats', u: k })}" aria-current="${p.unit === k}">${l}</a>`).join('')}</nav>
     <div class="om-daynav">${step(p.offset + 1, '‹', 'Предыдущий период')}<b>${esc(p.label)}</b>${step(p.offset - 1, '›', 'Следующий период')}</div>
@@ -527,12 +533,8 @@ function viewMenu(all, unread) {
     <div class="om-group">${row(href({ v: 'instr' }), 'book', 'Инструкции')}</div>`;
 }
 
-// «Назад» из входящих — на экран, откуда пришли (главная, «Выезды» с их отбором, меню; пользователь 20.11.2026: «во
-// входящих нет кнопки вернуться»).
-const NOTES_FROM = { today: 'Мои объекты', trips: 'Выезды', menu: 'Меню' };
 function viewNotes(items, from) {
-  const to = from && NOTES_FROM[from.v || 'today'] ? from : { v: 'today' };
-  return `${back(href(to), NOTES_FROM[to.v || 'today'])}
+  return `${listBack(from, 'today')}
     ${top('Входящие')}
     <div class="om-list">${items.length ? items.map((n) => `<a class="om-card om-note${n.unread ? ' new' : ''}" href="${n.objectId ? href({ v: 'obj', id: n.objectId }) : href({ v: 'notes' })}">
       <span class="om-note-head"><b>${esc(n.label)}</b><time>${esc(shortDate(String(n.at).slice(0, 10)))}</time></span>
@@ -1209,7 +1211,7 @@ function dayTripsOf(person, date) {
   return assignmentsOfPerson(person, { live: false }).filter((a) => a.plannedAt === date && a.state !== 'removed')
     .map((a) => ({ assignId: a.id, objectId: `${a.typeId}|${a.ocId}`, typeId: a.typeId, ocId: a.ocId, title: titleOf(loadTask(a.typeId, a.ocId) || {}, a.ocId), state: a.state }));
 }
-function viewReport(q, rerender) {
+function viewReport(q, rerender, from) {
   const person = session.state.person;
   const date = /^\d{4}-\d{2}-\d{2}$/.test(q.date || '') ? q.date : isoDay();
   const morning = reportOf(person, date, 'morning');
@@ -1236,7 +1238,7 @@ function viewReport(q, rerender) {
   const prev = new Date(d); prev.setDate(d.getDate() - 1);
   const next = new Date(d); next.setDate(d.getDate() + 1);
   const dayLink = (x, label) => `<a class="om-btn om-btn-sm" href="${href({ v: 'report', date: isoDay(x) })}">${label}</a>`;
-  return `${back(href({ v: 'today' }), 'Мои объекты')}
+  return `${listBack(from, 'today')}
     <h1 class="om-title om-title-sm">Отчёт дня</h1>
     <div class="om-daynav">${dayLink(prev, '‹')}<b>${d.getDate()} ${MONTHS[d.getMonth()]}, ${WEEKDAYS[d.getDay()].toLowerCase()}</b>${date < isoDay() ? dayLink(next, '›') : '<span class="om-btn om-btn-sm om-off" aria-hidden="true">›</span>'}</div>
     ${open ? '' : '<p class="om-warn">Срок сдачи отчёта за этот день прошёл</p>'}
@@ -1376,12 +1378,12 @@ function cadChip(x) {
   const [rw, tone] = CAD_REVIEW[x.review] || ['', 'blue'];
   return `<span class="om-chip om-t-${tone}">${esc(x.review === 'wait' ? x.resultLabel : rw)}</span>`;
 }
-function viewCad(q, openRow, detachAsk = '') {
+function viewCad(q, openRow, detachAsk = '', from = null) {
   const list = cadRows(session.state.person);
   const r = q.r && list.find((x) => x.id === q.r);
   if (r) return viewCadOne(r, q, openRow, detachAsk);
   const shown = list.filter((x) => (q.s === 'closed' ? x.closed : !x.closed));
-  return `${back(href({ v: 'menu' }), 'Меню')}
+  return `${listBack(from, 'menu')}
     <h1 class="om-title om-title-sm">Запросы документов</h1>
     <div class="om-tabs3 om-tabs2">${[['', 'Открытые', list.filter((x) => !x.closed).length], ['closed', 'Закрытые', list.filter((x) => x.closed).length]].map(([k, l, n]) => `<a class="om-tab3${(q.s || '') === k ? ' on' : ''}" href="${href({ v: 'cad', s: k })}">${l} <b>${n}</b></a>`).join('')}</div>
     ${shown.length ? `<div class="om-group">${shown.map((x) => {
@@ -1573,7 +1575,7 @@ export function mountOsmotr(host) {
     if (q.v === 'search') q = { ...q, v: 'trips' };
     const v = q.v || 'today';
     // Последний список (главная, «Выезды», меню) — куда вести «Назад» из входящих.
-    if (NOTES_FROM[v]) ui.listFrom = { ...q, v };
+    if (LIST_LABELS[v]) ui.listFrom = { ...q, v };
     dirty = false;
     if (q.oi && q.s) opened.add(q.oi + '|' + q.s);
     const person = session.state.person;
@@ -1590,7 +1592,7 @@ export function mountOsmotr(host) {
     const screen = v === 'trips' ? viewTrips(withCars(all), q, unread, ui) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes, ui.listFrom) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
         : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
-          : v === 'report' ? viewReport(q, routeCame) : v === 'cad' ? viewCad(q, ui.cadRow, ui.detachAsk) : v === 'file' ? viewFile(all, q, ui) : v === 'plans' ? viewPlans(all, ui) : v === 'stats' ? viewStats(q) : v === 'instr' ? viewInstr(q, () => { if ((q.v || '') === 'instr') render(); })
+          : v === 'report' ? viewReport(q, routeCame, ui.listFrom) : v === 'cad' ? viewCad(q, ui.cadRow, ui.detachAsk, ui.listFrom) : v === 'file' ? viewFile(all, q, ui) : v === 'plans' ? viewPlans(all, ui) : v === 'stats' ? viewStats(q, ui.listFrom) : v === 'instr' ? viewInstr(q, () => { if ((q.v || '') === 'instr') render(); })
           : v === 'inv' ? viewInv(o, q, sel, ui.filters) : v === 'item' ? viewItem(o, q) : v === 'car' ? viewCar(o, q, ui) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'

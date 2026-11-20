@@ -44,7 +44,7 @@
   * поиск ищет не по своим выездам;
   * пункты меню «Недвижимое / Транспорт / Оборудование» ведут не к спискам
     назначенного к осмотру;
-  * «Входящие» не снимают значок новых; во входящих нет «Назад» или он ведёт не туда, откуда пришли (20.11.2026);
+  * «Входящие» не снимают значок новых; во входящих, запросах документов, отчёте дня нет «Назад» на тот экран, откуда пришли (20.11.2026);
   * прежний адрес #/insp не открывает страницу; на 360 и 400 пикселях страница
     прокручивается вбок; на широком экране колонка шире 480.
 """
@@ -431,6 +431,20 @@ def run(t):
          '«Назад» из входящих потерял отбор «Выездов»')
     t.open('#/osmotr?v=notes', wait='.om-app[data-v="notes"]')
     t.ck(pg.locator('.om-back').count() == 1, 'во входящих нет «Назад»')
+
+    # --- разделы, открытые с главной или из меню, возвращают туда же (пользователь 20.11.2026) ---
+    for start, label in (('today', 'Мои объекты'), ('menu', 'Меню')):
+        for sect, text in (('cad', 'Запросы документов'), ('report', 'Отчёт дня')):
+            t.open('#/osmotr?v=' + start, wait='.om-app[data-v="%s"]' % start)
+            link = pg.locator('a.om-row[href$="v=%s"]' % sect)
+            if not link.count():
+                t.ck(sect == 'cad' and start == 'today', 'на «%s» нет строки «%s»' % (label, text))
+                continue
+            link.first.click()
+            t.wait_for('.om-app[data-v="%s"] .om-back' % sect)
+            t.ck(label in pg.locator('.om-back').inner_text(), '«%s», открытые с «%s», возвращают не туда: %r' % (text, label, pg.locator('.om-back').inner_text()))
+            pg.locator('.om-back').click()
+            t.ck(t.wait_until("(v) => !!document.querySelector('.om-app[data-v=\"' + v + '\"]')", start), '«Назад» из «%s» не на «%s»' % (text, label))
 
     # --- прежний адрес и ширины ---
     pg.evaluate("() => { location.hash = '#/insp'; }")
