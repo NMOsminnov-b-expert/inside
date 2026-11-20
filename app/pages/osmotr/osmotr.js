@@ -342,7 +342,8 @@ function statsRow() {
 // Главная осмотрщика — «Мои объекты» (пользователь 18.11.2026: вкладку «Сегодня» переименовать в «Мои объекты»,
 // заголовок — «Объекты к осмотру», дата под ним остаётся; вместо плитки «осмотреть сегодня» и «Следующий» —
 // список объектов в работе). В работе — только начатые: «В работе» и «На доосмотр» (пользователь 18.11.2026),
-// назначенные, но не начатые, — в «Выездах».
+// назначенные, но не начатые, — в «Выездах». Строки «Все мои объекты» в «Моих задачах» нет — это вкладка «Выезды» → «Все»
+// (пользователь 20.11.2026: «зачем оно тут если ниже есть вкладка выезд»).
 const inWork = (o) => !o.removed && o.state !== 'done' && (o.state === 'progress' || (o.returned || []).length > 0);
 function viewToday(all, q, unread) {
   // Отбор по типам — только там, где видны сами объекты (16.11.2026), на главной его нет.
@@ -371,7 +372,6 @@ function viewToday(all, q, unread) {
       ${statsRow()}
       ${waitingCad(session.state.person) ? `<a class="om-row" href="${href({ v: 'cad' })}"><span class="om-row-ico om-t-violet">${ico('docs')}</span><span class="om-row-tx">Запросы документов</span><b class="om-n om-t-violet">${waitingCad(session.state.person)}</b>${ico('chev', 18)}</a>` : ''}
       ${noDateN ? `<a class="om-row" href="${href({ v: 'plans', at: 'nodate' })}"><span class="om-row-ico">${ico('today')}</span><span class="om-row-tx"><span>Без даты</span><small>взять на день</small></span><b class="om-n">${noDateN}</b>${ico('chev', 18)}</a>` : ''}
-      <a class="om-row" href="${href({ v: 'trips', s: 'all' })}"><span class="om-row-ico">${ico('layers')}</span><span class="om-row-tx">Все мои объекты</span><b class="om-n">${list.length}</b>${ico('chev', 18)}</a>
     </div>`;
 }
 

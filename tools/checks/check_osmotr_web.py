@@ -108,7 +108,8 @@ def run(t):
     idle = [o['id'] for o in objs if o['state'] == 'assigned' and not o['returned'] and not o['removed']]
     t.ck(not any(i in h for i in idle for h in shown), 'в «В работе» попал не начатый объект')
     t.ck(pg.locator('.om-row', has_text='Просрочено').count() == 1, 'на главной нет «Просрочено» при просроченном выезде')
-    t.ck(pg.locator('.om-row', has_text='Все мои объекты').locator('.om-n').inner_text().strip() == str(len(objs)), '«Все мои объекты» — не все назначенные')
+    # «Все мои объекты» на главной нет — это вкладка «Выезды» → «Все» (пользователь 20.11.2026).
+    t.ck(pg.locator('.om-row', has_text='Все мои объекты').count() == 0, 'на главной осталась строка «Все мои объекты» — дубль «Выездов»')
 
     # --- статистика: строка в «Моих задачах» → экран; те же числа, что у регионального менеджера ---
     STATS = """async ([u, o]) => { const d = await import('./app/pages/inspections/statsData.js');
