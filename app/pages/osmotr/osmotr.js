@@ -452,14 +452,41 @@ function orgFilters(all, q, ui, shownN) {
 // числа во вкладках считаются по найденному, а если в открытой вкладке ничего нет, видно, в какой есть.
 const tripHay = (o) => foldSearch([o.title, o.address, o.eni, fmtEni(o.eni), o.institution, o.head, o.podved, o.typeLabel, o.ts,
   ...(o.facts || []).map((f) => f.value), ...(o.ois || []).flatMap((x) => [x.label, x.eni, fmtEni(x.eni)])].join(' '));
-const tripWords = (q) => foldSearch(q.q || '').split(/\s+/).filter(Boolean);
-const byWords = (list, words) => (words.length ? list.filter((o) => { const h = tripHay(o); return words.every((w) => h.includes(w)); }) : list);
+// Дата в запросе — объекты с выездом на этот день (пользователь 20.11.2026: «сделай так чтобы можно было ввести в поиск
+// дату, и мне отображались все объекты которые есть на эту дату»): «20.11», «20.11.2026», «20/11/26», «2026-11-20»,
+// «сегодня», «завтра», «вчера». Без года — этот день любого года. Дата и слова вместе: «20.11 бишкек».
+const DAY_WORDS = { 'сегодня': 0, 'завтра': 1, 'вчера': -1 };
+function tripDay(tok) {
+  const w = foldSearch(tok);
+  if (w in DAY_WORDS) { const d = new Date(); d.setDate(d.getDate() + DAY_WORDS[w]); return { iso: isoDay(d) }; }
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(tok);
+  const [y, mo, d] = m ? [m[1], m[2], m[3]] : (m = /^(\d{1,2})[./](\d{1,2})(?:[./](\d{2}|\d{4}))?\.?$/.exec(tok)) ? [m[3], m[2], m[1]] : [];
+  if (!mo || +mo < 1 || +mo > 12 || +d < 1 || +d > 31) return null;
+  const md = `${String(mo).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  if (!y) return { md };
+  return { iso: `${y.length === 2 ? '20' + y : y}-${md}` };
+}
+function tripQuery(q) {
+  const toks = String(q.q || '').trim().split(/\s+/).filter(Boolean);
+  const days = toks.map(tripDay);
+  return { day: days.find(Boolean) || null, words: toks.filter((t, i) => !days[i]).map(foldSearch).filter(Boolean) };
+}
+const onDay = (o, day) => !!o.plannedAt && (day.iso ? o.plannedAt === day.iso : o.plannedAt.slice(5) === day.md);
+const dayLabel = (day) => (day.iso ? day.iso.split('-').reverse().join('.') : day.md.split('-').reverse().join('.'));
+const byWords = (list, { words, day }) => list.filter((o) => {
+  if (day && !onDay(o, day)) return false;
+  if (!words.length) return true;
+  const h = tripHay(o);
+  return words.every((w) => h.includes(w));
+});
 
 function viewTrips(all, q, unread, ui) {
-  const words = tripWords(q);
-  const pool = byOrg(byWords(all, words), orgSel(q));
+  const tq = tripQuery(q);
+  const words = [...tq.words, ...(tq.day ? ['day'] : [])];
+  const pool = byOrg(byWords(all, tq), orgSel(q));
   const list = byKind(pool, q.f);
-  const s = q.s || 'open';
+  // По дате — сразу все объекты дня, и к осмотру, и осмотренные (вкладку можно сменить).
+  const s = q.s || (tq.day ? 'all' : 'open');
   const extra = EXTRA[s];
   const shown = list.filter(extra ? extra.test : (TRIP_TABS.find((t) => t.key === s) || TRIP_TABS[0]).test);
   const hf = orgFilters(all, q, ui, shown.length);
@@ -471,14 +498,14 @@ function viewTrips(all, q, unread, ui) {
     : '<div class="om-card om-empty">Здесь пусто</div>';
   return `${top(kindTitle(q.f), hf.btn + bell(unread))}
     <form class="om-search om-trip-search" data-search role="search">
-      ${ico('search', 18)}<input type="search" name="q" value="${esc(q.q || '')}" placeholder="Адрес, ЕНИ, учреждение, госномер" aria-label="Поиск по выездам: адрес, ЕНИ, учреждение, марка, госномер, VIN" autocomplete="off">
+      ${ico('search', 18)}<input type="search" name="q" value="${esc(q.q || '')}" placeholder="Адрес, ЕНИ, госномер, дата" aria-label="Поиск по выездам: адрес, ЕНИ, учреждение, марка, госномер, VIN или дата выезда" autocomplete="off">
     </form>
     ${kindChips(pool, q.f, 'trips', { s: q.s, i: q.i, ...keep })}
     ${hf.panel}
     ${hf.applied}
     <nav class="om-tabs3" aria-label="Состояние">${TRIP_TABS.map((t) => `<a class="om-tab3${s === t.key ? ' on' : ''}" href="${href({ v: 'trips', f: q.f, s: t.key, i: q.i, ...keep })}" aria-current="${s === t.key}">${esc(t.label)} <b>${list.filter(t.test).length}</b></a>`).join('')}</nav>
     ${extra ? `<p class="om-filter">${esc(extra.label)} · ${shown.length} <a href="${href({ v: 'trips', f: q.f, i: q.i, ...keep })}">Показать все к осмотру</a></p>` : ''}
-    ${words.length && shown.length ? `<p class="om-filter om-found-q">Найдено: ${shown.length} · <a href="${href({ ...q, v: 'trips', q: '' })}">Очистить поиск</a></p>` : ''}
+    ${words.length && shown.length ? `<p class="om-filter om-found-q">${tq.day ? `Выезд на ${esc(dayLabel(tq.day))} · ` : ''}Найдено: ${shown.length} · <a href="${href({ ...q, v: 'trips', q: '' })}">Очистить поиск</a></p>` : ''}
     <div class="om-list">${shown.length ? shown.map(objRow).join('') : empty}</div>`;
 }
 

@@ -374,6 +374,33 @@ def run(t):
     pg.fill('[data-search] input', 'нетакогоадреса')
     t.ck(t.wait_until("() => document.querySelectorAll('.om-obj').length === 0 && /Ничего не найдено/.test(document.querySelector('.om-list').textContent)"),
          'поиск нашёл несуществующее или нет «Ничего не найдено»')
+    # Дата в поиске — все объекты с выездом на этот день, и к осмотру, и осмотренные (пользователь 20.11.2026).
+    days = pg.evaluate("""async () => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
+      const by = {}; d.myObjects(s.person).forEach((o) => { if (o.plannedAt) (by[o.plannedAt] = by[o.plannedAt] || []).push(o.id); });
+      return { today: d.isoDay(), by }; }""")
+    IDS = "() => [...new Set([...document.querySelectorAll('a.om-obj')].map((a) => decodeURIComponent(a.getAttribute('href')).match(/id=([^&]+)/)[1]))].sort()"
+    day = max(days['by'], key=lambda k: len(days['by'][k]))
+    want = sorted(days['by'][day])
+    y, m, d = day.split('-')
+    for qtext in ('%s.%s.%s' % (d, m, y), '%s.%s' % (d, m), day):
+        t.open('#/osmotr?v=trips&q=' + quote(qtext, safe=''), wait='.om-app[data-v="trips"] .om-list')
+        got = pg.evaluate(IDS)
+        if len(qtext) == 5:  # без года — этот день любого года
+            want_any = sorted({i for k, v in days['by'].items() if k[5:] == day[5:] for i in v})
+            t.ck(got == want_any, 'поиск по дате «%s» (без года): %d объектов, ожидалось %d' % (qtext, len(got), len(want_any)))
+        else:
+            t.ck(got == want, 'поиск по дате «%s»: %d объектов, ожидалось %d' % (qtext, len(got), len(want)))
+        t.ck(pg.locator('.om-tab3.on', has_text='Все').count() == 1, 'по дате открыта не вкладка «Все»')
+    t.ck('Выезд на %s.%s.%s' % (d, m, y) in pg.locator('.om-found-q').inner_text(), 'не видно, на какую дату найдено')
+    if days['today'] in days['by']:
+        t.open('#/osmotr?v=trips&q=' + quote('сегодня', safe=''), wait='.om-app[data-v="trips"] .om-list')
+        t.ck(pg.evaluate(IDS) == sorted(days['by'][days['today']]), '«сегодня» нашло не выезды сегодняшнего дня')
+    # Дата и слово вместе; невозможная дата — обычное слово.
+    t.open('#/osmotr?v=trips&q=' + quote('%s.%s нетакогоадреса' % (d, m), safe=''), wait='.om-app[data-v="trips"] .om-list')
+    t.ck(pg.evaluate(IDS) == [], 'дата со словом не сузила поиск')
+    t.open('#/osmotr?v=trips&q=' + quote('32.13', safe=''), wait='.om-app[data-v="trips"] .om-list')
+    t.ck(pg.evaluate(IDS) == [] and pg.locator('.om-found-q').count() == 0, '«32.13» принято за дату')
+
     # Прежний адрес поиска ведёт в «Выезды» с тем же запросом.
     t.open('#/osmotr?v=search&q=' + quote('нетакогоадреса', safe=''), wait='.om-app[data-v="trips"] [data-search] input')
     t.ck(pg.locator('[data-search] input').input_value() == 'нетакогоадреса', 'прежний адрес поиска не открыл «Выезды» с запросом')
