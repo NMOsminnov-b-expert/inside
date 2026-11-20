@@ -572,18 +572,19 @@ function askOnSite(o) {
     .map((x) => ({ r, x })));
 }
 const askCount = (o) => askOnSite(o).filter(({ x }) => !cadGot(x)).length;
+// В строке — документ и ЕНИ; вид и номер запроса и чей он не показываются (пользователь 20.11.2026: «здесь убери
+// запрос кадастра, и имя, оставь только ЕНИ код»).
 function askBlock(o) {
   const list = askOnSite(o);
   if (!list.length) return '';
   const ro = o.state === 'done' || o.removed;
-  const me = session.state.person;
   const wait = list.filter(({ x }) => !cadGot(x)).length;
   return `<section class="om-card om-comp om-site om-t-violet" id="om-site"><h2 class="om-card-h">Спросить на месте${wait ? ` <b class="om-badge-n">${wait}</b>` : ''}</h2>
     ${list.map(({ r, x }) => {
     const got = cadGot(x);
     const state = got ? ['Получен на месте', 'green'] : x.review && x.review.state === 'returned' ? ['Возвращён ЦОД', 'amber'] : x.result ? [cadResultLabel(x.result), 'amber'] : ['Ждёт', 'blue'];
     return `<div class="om-site-row" data-ask-row="${esc(x.id)}"><div class="om-oi"><span class="om-sq om-t-violet">${ico('docs', 18)}</span>
-      <span class="om-row-tx"><b>${esc(x.doc || 'Документ')}</b><small>${esc([fmtEni(x.eni) || x.eni, `${cadKindLabel(r.kind)} № ${r.no}`, r.person === me ? '' : r.person].filter(Boolean).join(' · '))}</small>${x.answer && !got ? `<small class="om-site-note">${esc(x.answer)}</small>` : ''}</span>
+      <span class="om-row-tx"><b>${esc(x.doc || 'Документ')}</b>${x.eni ? `<small>${esc(fmtEni(x.eni) || x.eni)}</small>` : ''}${x.answer && !got ? `<small class="om-site-note">${esc(x.answer)}</small>` : ''}</span>
       <span class="om-chip om-t-${state[1]}">${esc(state[0])}</span></div>
       ${got || ro ? '' : `<label class="om-btn om-site-btn">${ico('camera', 18)}Получен — скан или фото<input type="file" accept="image/*,application/pdf" capture="environment" hidden data-ask-file="${esc(r.id)}|${esc(x.id)}"></label>`}</div>`;
   }).join('')}</section>`;

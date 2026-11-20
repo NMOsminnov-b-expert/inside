@@ -9,6 +9,7 @@
 Что ловит сценарий:
   * у объекта выезда нет блока «Спросить на месте» при строке чужого запроса по нему (ждёт, «нет в кадастре»);
   * в «Выездах» у объекта не видно «Спросить на месте · N»;
+  * (20.11.2026) под документом не только ЕНИ: остались вид и номер запроса или имя того, чей он;
   * строка подбирается не по ЕНИ: строка запроса только с ЕНИ ОИ объекта (без самого объекта) не видна;
   * видны полученные строки или строки закрытого запроса;
   * у объекта без строк есть блок;
@@ -79,7 +80,12 @@ def run(t):
     go(t, obj_q(o1), '.om-app[data-v="obj"] #om-site')
     rows = site_docs(pg)
     t.ck(rows == [{'doc': wait_row['doc'], 'chip': 'Ждёт', 'btn': True}], 'строка «ждёт» чужого запроса: %s' % rows)
-    t.ck(req['person'] in pg.locator('#om-site').inner_text(), 'не видно, чей запрос')
+    # В строке — только документ и ЕНИ, без вида и номера запроса и без имени (пользователь 20.11.2026).
+    sub = pg.locator('#om-site .om-site-row .om-row-tx small').first.inner_text().strip()
+    t.ck(sub and sub.replace('-', '').isdigit() and sub.replace('-', '') == ''.join(ch for ch in wait_row['eni'] if ch.isdigit()),
+         'под документом не только ЕНИ строки: %r (ЕНИ %s)' % (sub, wait_row['eni']))
+    site = pg.locator('#om-site').inner_text()
+    t.ck(req['person'] not in site and 'Запрос в кадастр' not in site and '№' not in site, 'в «Спросить на месте» остались запрос или имя: %r' % site)
     go(t, obj_q(o2), '.om-app[data-v="obj"] #om-site')
     rows = site_docs(pg)
     t.ck(rows and rows[0]['doc'] == none_row['doc'] and rows[0]['chip'] == 'Нет в кадастре', 'строка «нет в кадастре»: %s' % rows)
