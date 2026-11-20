@@ -342,6 +342,14 @@ def run(t):
         t.ck('Госномер' not in pg.locator('.om-facts').inner_text(), 'госномер задвоен в сведениях')
         t.ck(ts['plate'] in pg.locator('.om-comp .om-oi').first.inner_text(), 'в составе у ТС нет госномера')
 
+    # --- строка выезда без адреса: «Адрес не указан» и учреждение (пользователь 20.11.2026) ---
+    noaddr = pg.evaluate("""async () => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
+      const o = d.myObjects(s.person).find((x) => !x.address && x.institution); return o ? { id: o.id, inst: o.institution } : null; }""")
+    if t.ck(noaddr, 'нет выезда без адреса с учреждением — строку не проверить'):
+        t.open('#/osmotr?v=trips&s=all', wait='.om-app[data-v="trips"] .om-obj')
+        txt = pg.evaluate("(id) => ([...document.querySelectorAll('a.om-obj')].find((a) => decodeURIComponent(a.getAttribute('href')).endsWith('id=' + id)) || {}).innerText || ''", noaddr['id'])
+        t.ck('Адрес не указан' in txt and noaddr['inst'] in txt, 'в строке выезда без адреса нет «Адрес не указан» или учреждения: %r' % txt)
+
     # --- поиск — строкой в «Выездах», отдельной вкладки нет (пользователь 20.11.2026) ---
     t.open('#/osmotr?v=trips', wait='.om-app[data-v="trips"] [data-search] input')
     t.ck(pg.locator('.om-bnav .om-btab', has_text='Поиск').count() == 0 and pg.locator('.om-bnav .om-btab').count() == 3,

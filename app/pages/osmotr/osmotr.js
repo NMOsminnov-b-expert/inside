@@ -148,6 +148,8 @@ function kindChips(list, f, v, keep = {}) {
   }).join('')}</nav>`;
 }
 
+// Строка выезда: учреждение — всегда, если есть; адреса нет (ТС, место стоянки которого неизвестно) — так и написано
+// (пользователь 20.11.2026: «почему здесь нет адреса и учреждения» — у ТС без адреса учреждение пряталось).
 function objRow(o) {
   const ask = o.state !== 'done' && !o.car ? askCount(o) : 0;
   const meta = [o.eni ? esc(fmtEni(o.eni) || o.eni) : '', o.docs.length ? `${ico('docs', 14)} Документы · ${o.docs.length}` : '',
@@ -158,7 +160,8 @@ function objRow(o) {
     <span class="om-obj-head"><span class="om-obj-kind">${kindIco(o)}${esc(o.typeLabel)}</span>${chip(o)}</span>
     <b class="om-obj-title">${esc(o.title)}</b>
     ${o.ts && o.ts !== o.title ? `<span class="om-obj-ts">${esc(o.ts)}</span>` : ''}
-    ${o.institution && o.address ? `<span class="om-obj-inst">${esc(o.institution)}</span>` : ''}
+    ${o.address ? '' : '<span class="om-obj-inst om-obj-noaddr">Адрес не указан</span>'}
+    ${o.institution ? `<span class="om-obj-inst">${esc(o.institution)}</span>` : ''}
     ${meta ? `<span class="om-obj-meta">${meta}</span>` : ''}
   </a>`;
 }
