@@ -108,7 +108,7 @@ function preview(box, x) {
   const d = x && x.doc;
   const f = d && d.file;
   box.innerHTML = !d ? '<p class="pd-pv-none">Выберите документ</p>'
-    : f && f.kind === 'pdf' && f.dataUrl ? `<canvas class="pd-pv-canvas" data-pdf-src="1" data-pdf-url="${esc(f.dataUrl)}" data-pdf-thumb="420"></canvas>`
+    : f && f.kind === 'pdf' && f.dataUrl ? `<canvas class="pd-pv-canvas" data-pdf-src="1" data-pdf-url="${esc(f.dataUrl)}" data-pdf-thumb="900"></canvas>`
       : f && f.kind === 'image' && f.dataUrl ? `<img class="pd-pv-img" src="${esc(f.dataUrl)}" alt="${esc(d.name || '')}">`
         : '<p class="pd-pv-none">Файл не загружен</p>';
   if (d) box.insertAdjacentHTML('beforeend', `<p class="pd-pv-cap">${esc([d.name, d.date ? 'от ' + dateRu(d.date) : '', f && f.name].filter(Boolean).join(' · '))}</p>`);
@@ -117,7 +117,8 @@ function preview(box, x) {
 
 function place(el, anchor) {
   const r = anchor.getBoundingClientRect();
-  const w = Math.min(760, window.innerWidth - 16);
+  // Предпросмотр — крупно (замечание пользователя 23.11.2026 «предпросмотр к слову мелкий»): окно до 1100 px.
+  const w = Math.min(1100, window.innerWidth - 16);
   el.style.width = `${w}px`;
   const h = el.offsetHeight;
   const left = Math.max(8, Math.min(r.left, window.innerWidth - w - 8));

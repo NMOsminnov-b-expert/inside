@@ -161,7 +161,14 @@ function morphTree(root, html) {
     callbacks: {
       beforeNodeMorphed(oldNode, newNode) {
         if (oldNode.nodeType === 1 && keeps(oldNode)) {
-          if (newNode.nodeType === 1) syncAttributes(oldNode, newNode);
+          if (newNode.nodeType === 1) {
+            // Классы библиотеки карт (maplibregl-…) ставит сама карта, в разметке экрана их нет: снять их —
+            // значит лишить слой карты опоры, и он рисовался поверх блока 01 карточки от его верха
+            // (замечание пользователя 23.11.2026 «поломалося»).
+            const own = [...oldNode.classList].filter((c) => c.startsWith('maplibregl'));
+            syncAttributes(oldNode, newNode);
+            own.forEach((c) => oldNode.classList.add(c));
+          }
           return false;
         }
         if (oldNode.nodeType === 1 && sameCanvas(oldNode, newNode)) return false;

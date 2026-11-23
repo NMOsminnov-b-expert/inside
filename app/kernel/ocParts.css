@@ -520,7 +520,7 @@ body[data-module] .pd-act:hover{text-decoration:underline}
 
 /* Окно «Документы-основания» — у кнопки, поверх карточки, без затемнения экрана (правило bez-modalok):
    перечень документов карточки слева, предпросмотр выбранного справа. */
-.pd-pop{position:fixed;z-index:1000;display:flex;flex-direction:column;max-height:min(560px,calc(100vh - 16px));background:var(--panel,#fff);
+.pd-pop{position:fixed;z-index:1000;display:flex;flex-direction:column;height:min(820px,calc(100vh - 16px));background:var(--panel,#fff);
   border:1px solid var(--line);border-radius:var(--radius-lg,14px);box-shadow:var(--lift-sh);overflow:hidden}
 .pd-pop-h{padding:10px 14px;background:var(--blue-50);border-bottom:1px solid var(--line);font-weight:700;color:var(--blue-700);font-size:13px}
 .pd-pop-bar{display:flex;gap:8px;align-items:center;padding:8px 12px;flex-wrap:wrap}
@@ -528,7 +528,7 @@ body[data-module] .pd-act:hover{text-decoration:underline}
 .pd-tabs button{border:0;background:none;padding:3px 10px;border-radius:999px;font:inherit;font-size:12px;cursor:pointer;color:var(--slate-700)}
 .pd-tabs button[aria-pressed="true"]{background:var(--blue-50);color:var(--blue-700);font-weight:600}
 .pd-q{flex:1;min-width:160px}
-.pd-pop-body{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:10px;padding:0 12px 10px;min-height:0;flex:1}
+.pd-pop-body{display:grid;grid-template-columns:minmax(300px,.9fr) minmax(0,1.1fr);gap:10px;padding:0 12px 10px;min-height:0;flex:1}
 .pd-list{list-style:none;margin:0;padding:0;overflow:auto;display:flex;flex-direction:column;gap:6px;min-height:0}
 .pd-li{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer;
   transition:background-color var(--dur-fast,.14s) ease,border-color var(--dur-fast,.14s) ease}
@@ -544,11 +544,11 @@ body[data-module] .pd-act:hover{text-decoration:underline}
 .pd-li .pd-ico.is-img{background:var(--blue-600)}
 .pd-pv{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:flex-start;padding:8px;border:1px solid var(--line);border-radius:10px;
   background:var(--slate-50);overflow:auto;min-height:0}
-.pd-pv-canvas,.pd-pv-img{width:100%;height:auto;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.pd-pv-canvas,.pd-pv-img{width:100%;height:auto;max-width:760px;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.15)}
 .pd-pv-none{margin:auto;color:var(--slate-500);font-size:13px;text-align:center}
 .pd-pv-cap{margin:0;font-size:11.5px;color:var(--slate-500);text-align:center}
 .pd-pop-f{display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--line)}
 .pd-pop-n{flex:1;font-size:12px;color:var(--slate-500)}
 @media (max-width:640px){
-  .pd-pop-body{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) 180px}
+  .pd-pop-body{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) minmax(0,1.3fr)}
 }

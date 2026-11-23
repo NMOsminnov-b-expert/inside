@@ -20,7 +20,7 @@ podtverzhdaet-osm. Механизм — kernel/partyDocs.js, общий для �
 
 NAME = 'документы-основания у сторон ОЦ'
 
-TOUCHES = ('app/kernel/partyDocs.js', 'app/kernel/ocParts.css', 'app/modules/*/card/parties.*.js',
+TOUCHES = ('app/kernel/partyDocs.js', 'app/kernel/ocParts.css', 'app/kernel/morph.js', 'app/modules/*/card/parties.*.js',
            'app/modules/vehicle/parties.*.js', 'app/modules/mechanisms/parties.*.js')
 
 REC = "(await import('./app/kernel/registry.js')).getType('civil').records.loadRecord('oc-cv-1')"
@@ -102,3 +102,13 @@ def run(t):
     if pg.locator('[data-parties-sum]').count():
         pg.click('[data-parties-toggle]')
     t.ck(t.wait_until("() => !!document.querySelector('[data-pd=\"owner|0\"] [data-pd-pick]')"), 'у ТС под собственником нет документов-оснований')
+
+    # Перерисовка не сдвигает карту участка (замечание пользователя 23.11.2026 «поломалося»: сверка снимала с
+    # узла карты класс maplibregl-map, и карта рисовалась поверх блока собственников).
+    t.open('#/oc/civil/oc-cv-b91', wait='[data-oc-head]')
+    if t.ck(t.wait_until("() => { const m = document.querySelector('#ocMapBox'); return !!m && !!m._map; }"), 'у oc-cv-b91 нет карты участка — сдвиг не проверен'):
+        pg.locator('[data-pd-none]').first.click()
+        t.wait_until("() => !!document.querySelector('[data-pd-u]')")
+        t.ck(pg.evaluate("() => document.querySelector('#ocMapBox').classList.contains('maplibregl-map')"), 'перерисовка сняла с карты класс maplibregl-map')
+        t.ck(pg.evaluate("() => { const m = document.querySelector('#ocMapBox canvas'); const h = document.querySelector('[data-oc-map] .oc-map-tg'); return !!m && !!h && m.getBoundingClientRect().top > h.getBoundingClientRect().top; }"),
+             'карта участка нарисована выше своего раздела')
