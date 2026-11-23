@@ -1,3 +1,4 @@
+import { docRequestSlotHTML } from '../../../kernel/partyDocs.js';
 import { ocHeadHTML, ocTabs } from '../../../kernel/ocHead.js';
 import { hasInspection, inspectionTabHTML, inspectionViewerCtx } from '../../../kernel/inspectionTab.js';
 import { recFlags } from '../records.js';
@@ -61,6 +62,7 @@ function partiesOC(ctx) {
       <!-- Стороны — тем же блоком, что в форме ОЦ: раньше шапка держала свою
            копию разметки, и правки доходили только до одной из них. -->
       ${ownersUsersHTML(rec, partyNames())}
+      ${docRequestSlotHTML('residential-house', rec)}
 
       <div class="sec-h">Ответственные (без юриста)</div>
       ${responsiblesHTML(rec)}

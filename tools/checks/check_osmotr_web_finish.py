@@ -21,7 +21,7 @@ from harness import use_cadastre_fixture
 
 NAME = 'исход выезда (веб)'
 
-TOUCHES = ('app/pages/osmotr/*', 'app/kernel/inspections.js', 'app/kernel/inspectionResults.js')
+TOUCHES = ('app/pages/osmotr/*', 'app/kernel/inspections.js', 'app/kernel/inspectionResults.js', 'app/kernel/docRequests.js')
 
 STATE = """async (id) => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
   const o = d.myObjects(s.person).find((x) => x.id === id) || {}; return { state: o.state, moveReq: o.moveReq }; }"""
@@ -30,6 +30,16 @@ ASSIGNS = """async (id) => { const [t, c] = id.split('|'); const k = await impor
 OUTCOME = """async (id) => { const [t, c] = id.split('|'); const k = await import('./app/kernel/inspections.js');
   return { r: (await import('./app/kernel/inspectionResults.js')).resultsOf(t, c).outcome || null,
     ev: k.eventsOf({ typeId: t, ocId: c }).filter((e) => e.kind === 'outcome').map((e) => e.text) }; }"""
+
+
+def finish_ask(pg, t):
+    """«Осмотр закончен»; если по объекту ждут документы запроса — сначала «Найдены ли документы по запросу?»
+    (23.11.2026): отвечаем «Документов нет», и окончание идёт дальше."""
+    pg.locator('[data-finish-ask]').click()
+    t.wait_until("() => !!document.querySelector('[data-docs-ask], .om-ask')")
+    if pg.locator('[data-docs-none]').count():
+        pg.locator('[data-docs-none]').click()
+        t.wait_until("() => !document.querySelector('[data-docs-ask]') && !!document.querySelector('.om-ask')")
 
 
 def run(t):
@@ -50,7 +60,7 @@ def run(t):
 
     # --- осмотрено частично: остаток — на следующий рабочий день ---
     go()
-    pg.locator('[data-finish-ask]').click()
+    finish_ask(pg, t)
     t.ck(t.wait_until("() => !!document.querySelector('.om-ask')"), '«Осмотр закончен» без подтверждения на месте')
     t.ck(pg.locator('dialog[open], [role=dialog]').count() == 0, 'подтверждение — окном поверх экрана')
     if t.ck(pg.locator('.om-ask li').count() > 0 and pg.locator('[data-finish="partial"]').count() == 1, 'у нового объекта нет незаполненного обязательного или кнопки «Остаток на …»'):
@@ -71,7 +81,7 @@ def run(t):
     if t.ck(ts, 'нет открытого ТС — полное окончание не проверено'):
         pg.evaluate("(id) => { location.hash = '#/osmotr?v=obj&id=' + encodeURIComponent(id); }", ts)
         t.wait_for('.om-app[data-v="obj"] .om-finish')
-        pg.locator('[data-finish-ask]').click()
+        finish_ask(pg, t)
         t.wait_for('[data-finish="full"]')
         pg.locator('[data-finish="full"]').click()
         t.ck(t.wait_until("async (id) => (await (%s)(id)).state === 'done'" % STATE, ts), 'объект без незаполненного не закончен')

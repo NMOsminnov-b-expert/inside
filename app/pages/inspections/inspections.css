@@ -1748,3 +1748,9 @@ body[data-page="inspections"] .ip-jump-b.on{background:var(--blue-600);color:#ff
 body[data-page="inspections"] .ip-pblock{padding:6px 0 18px;scroll-margin-top:8px}
 body[data-page="inspections"] .ip-pblock + .ip-pblock{border-top:1px solid var(--line-soft);padding-top:16px}
 body[data-page="inspections"] .ip-pblock-h{margin:0 0 10px;font-size:15px;font-weight:650;color:var(--ink)}
+/* «Запросы ЦОД на проверке» на «Сегодня» (kernel/docRequests.js, 23.11.2026): строки запроса правятся на месте. */
+body[data-page="inspections"] .ip-today-dq{display:grid;grid-template-columns:minmax(0,1fr);gap:4px;padding:6px 8px;border-radius:8px}
+body[data-page="inspections"] .ip-dq-rows{display:flex;flex-direction:column;gap:4px;margin-top:2px}
+body[data-page="inspections"] .ip-dq-row{display:grid;grid-template-columns:minmax(0,1.4fr) 80px minmax(0,1fr) 22px;gap:6px;align-items:center}
+body[data-page="inspections"] .ip-dq-row .input{height:30px;font-size:12.5px}
+body[data-page="inspections"] .ip-dq-who{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}

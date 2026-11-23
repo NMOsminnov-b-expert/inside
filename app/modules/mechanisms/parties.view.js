@@ -3,7 +3,7 @@ import { pickSearchHTML } from '../../kernel/pickSearch.js';
 import { institutionOptions, podvedOptionsOf } from '../../kernel/institutions.js';
 import { PEOPLE } from './data/dictionaries.js';
 import { inspectorsFieldHTML } from '../../kernel/inspectionTab.js';
-import { partyDocsHTML, partyDocTypesHTML } from '../../kernel/partyDocs.js';
+import { partyDocsHTML, partyDocTypesHTML, docRequestSlotHTML } from '../../kernel/partyDocs.js';
 import { DOC_TYPES } from '../../kernel/documentsRegistry.js';
 
 // Блок «Учреждение, собственники и ответственные» ОЦ «Механизмы и
@@ -159,6 +159,7 @@ export function partiesHTML(rec, idx, names) {
       </div>
 
       ${ownersHTML(rec, names)}
+      ${docRequestSlotHTML('mechanisms', rec)}
 
       <div class="sec-h">Ответственные (без юриста)</div>
       ${responsiblesHTML(rec)}

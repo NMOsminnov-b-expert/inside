@@ -1081,6 +1081,9 @@ export const CAD_RESULTS = [
   { key: 'got', label: 'Получен' },
   { key: 'none', label: 'Нет в кадастре' },
   { key: 'refused', label: 'Отказ' },
+  // Документа нет на месте — ответ осмотрщика при окончании осмотра (пользователь 23.11.2026: «Если документа нет на
+  // месте оставляет неприкрепленным. Просто спрашиваем при окончании осмотра, найдены ли эти документы»).
+  { key: 'missing', label: 'Нет на месте' },
 ];
 export const cadResultLabel = (k) => (CAD_RESULTS.find((x) => x.key === k) || { label: 'Ждёт' }).label;
 
@@ -1146,12 +1149,17 @@ registerPersisted('inspections.cadastre', {
 export const allCadRequests = () => cadRequests;
 export const cadRequest = (id) => cadRequests.find((r) => r.id === id) || null;
 
-export function createCadRequest({ person, kind = 'cadastre', due = '', note = '', branch = '', rows = [] }) {
-  if (!person || !rows.length) return null;
+// Запрос «Документы на месте» из запроса ЦОД (kernel/docRequests.js) бывает без осмотрщика: объект ещё не назначен —
+// строки видит любой, кто приедет на объект («Запросить документы» на странице осмотрщика, подбор по объекту и ЕНИ).
+// У таких строк — участник карточки (party: собственник или пользователь и его строка «Не подтверждён документом»)
+// и реквизиты (spec: вид, №, дата, кем выдан): принятый ЦОД скан привязывается к участнику сам (kernel/scanQueue.js).
+export function createCadRequest({ person, kind = 'cadastre', due = '', note = '', branch = '', rows = [], from = '' }) {
+  if ((!person && kind !== 'site') || !rows.length) return null;
   const r = {
     id: nextId('cr'), no: cadRequests.reduce((m, x) => Math.max(m, x.no || 0), 0) + 1,
-    person, kind, due, note, branch, at: now(), by: session.state.person,
-    rows: rows.map((x) => ({ id: nextId('cl'), typeId: x.typeId || '', ocId: x.ocId || '', inst: x.inst || '', eni: x.eni || '', doc: x.doc || '', note: x.note || '', result: '' })),
+    person: person || '', kind, due, note, branch, at: now(), by: session.state.person, ...(from ? { from } : {}),
+    rows: rows.map((x) => ({ id: nextId('cl'), typeId: x.typeId || '', ocId: x.ocId || '', inst: x.inst || '', eni: x.eni || '', doc: x.doc || '', note: x.note || '', result: '',
+      ...(x.party ? { party: { ...x.party } } : {}), ...(x.spec ? { spec: { ...x.spec } } : {}) })),
   };
   cadRequests.unshift(r);
   changed();
@@ -1206,7 +1214,7 @@ export function cadDuplicateOf(ocId, doc, exceptId = '') {
 
 // Итог запроса: строк, получено, нет, отказ, ждёт.
 export function cadSummary(r) {
-  const t = { total: r.rows.length, got: 0, none: 0, refused: 0, wait: 0 };
+  const t = { total: r.rows.length, got: 0, none: 0, refused: 0, missing: 0, wait: 0 };
   r.rows.forEach((x) => { t[x.result || 'wait']++; });
   return t;
 }

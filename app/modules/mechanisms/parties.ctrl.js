@@ -1,7 +1,7 @@
 import { bindPickSearch } from '../../kernel/pickSearch.js';
 import { podvedNamesOf } from '../../kernel/institutions.js';
 import { partiesOf, isFracShare } from './parties.view.js';
-import { bindPartyDocs } from '../../kernel/partyDocs.js';
+import { bindPartyDocs, bindDocRequestSlot } from '../../kernel/partyDocs.js';
 
 // Обработчики блока «Учреждение, собственники и ответственные» — копия
 // vehicle/parties.ctrl.js (см. parties.view.js).
@@ -97,6 +97,7 @@ export function bindParties(ctx) {
   // Документы-основания под собственником — общий механизм ядра (kernel/partyDocs.js, как на проде,
   // 23.11.2026); прежнее поле ПУД заменено им.
   bindPartyDocs(ctx, rec, () => ownersOf(rec));
+  bindDocRequestSlot(ctx, 'mechanisms', rec);
 
   s.$$('[data-pt-share]').forEach((input) => {
     const box = input.closest('[data-pt-share-box]');

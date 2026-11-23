@@ -49,6 +49,7 @@ import { dayRoute, dayLoad, factNorms, homeOf, NORM_KINDS, normOf, setNorm, meas
 import { loadMapLibre, createMap, hoverTip, emptyFC, ownParcelsGL } from '../../kernel/mapgl.js';
 import { attachCadastreGL } from '../../kernel/cadastreLayersGL.js';
 import { notifications, NOTE_KINDS, noteKind } from './notify.js';
+import { docRequestsToReview, updateDocRequest, approveDocRequest, rejectDocRequest, docReqRowLabel } from '../../kernel/docRequests.js';
 import { inventoryById, inventoryReportSheets } from '../../kernel/inventories.js';
 
 // Строки таблиц — порциями: очередь на 20 000 записей — больше тысячи строк.
@@ -2367,6 +2368,7 @@ export function mountInspections(host) {
   let notes = [];
   const readSet = () => new Set(view.notesRead);
   let moveRefusing = '';   // запрос переноса, по которому вводят причину отказа
+  let dqRefusing = '';     // запрос ЦОД «Запросить документы», по которому вводят причину отказа
   // «Сегодня» регионала (решение пользователя 05.11.2026 по разбору 12.10: «Сегодня» — один экран
   // утреннего обхода: горящие, просроченные, отсутствия, уведомления). Каждая строка ведёт туда,
   // где с ней работают; пустой блок говорит, что всё в порядке.
@@ -2399,6 +2401,24 @@ export function mountInspections(host) {
         <span class="ip-err" data-ip-move-err role="alert"></span>
         <span class="ip-today-acts"><button type="button" class="btn btn-danger btn-sm" data-ip-move-refuse="${esc(a.id)}">Отклонить перенос</button>
         <button type="button" class="btn btn-ghost btn-sm" data-ip-move-cancel>Отмена</button></span></span>` : ''}</li>`;
+    // Запросы ЦОД «Запросить документы» — проверка регионалом (пользователь 23.11.2026: «Регионал может и править и
+    // менять и отклонять список»): строки правятся на месте, «Подтвердить» отправляет запрос на осмотр.
+    const dqs = docRequestsToReview().filter((r) => objInSlice(objOf(r.typeId, r.ocId)) || !objOf(r.typeId, r.ocId));
+    const dqLi = (r) => `<li class="ip-today-dq" data-ip-dq="${esc(r.id)}"><span class="ip-today-a">Запрос № ${esc(String(r.no))} · ${esc((objOf(r.typeId, r.ocId) || {}).title || r.title || '—')}</span>
+      <span class="ip-today-s">ЦОД: ${esc(r.by || '—')} · ${esc(fmtDate(String(r.at).slice(0, 10)))}${r.note ? ` · ${esc(r.note)}` : ''}</span>
+      <span class="ip-dq-rows">${r.rows.map((x, i) => `<span class="ip-dq-row" data-ip-dq-row="${i}">
+        <input class="input" data-ip-dq-k="type" value="${esc(x.type)}" aria-label="Вид документа" placeholder="Вид документа">
+        <input class="input" data-ip-dq-k="no" value="${esc(x.no)}" aria-label="Номер" placeholder="№">
+        <span class="ip-dq-who" title="${esc(docReqRowLabel(x))}">${esc(x.party ? x.party.name : x.note || '')}</span>
+        <button type="button" class="isearch-clear" data-ip-dq-del="${i}" aria-label="Убрать строку ${esc(x.type)}" title="Убрать">×</button></span>`).join('')}</span>
+      <span class="ip-today-acts"><button type="button" class="btn btn-ghost btn-sm" data-ip-dq-add>+ документ</button>
+        <button type="button" class="btn btn-primary btn-sm" data-ip-dq-ok>Подтвердить</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-ip-dq-no aria-expanded="${dqRefusing === r.id}">Отклонить</button></span>
+      ${dqRefusing === r.id ? `<span class="ip-today-why"><label for="ip-dq-why-${esc(r.id)}">Причина отказа</label>
+        <input class="input" id="ip-dq-why-${esc(r.id)}" data-ip-dq-why autocomplete="off" placeholder="Например: документ уже есть в учреждении">
+        <span class="ip-err" data-ip-dq-err role="alert"></span>
+        <span class="ip-today-acts"><button type="button" class="btn btn-danger btn-sm" data-ip-dq-refuse>Отклонить запрос</button>
+        <button type="button" class="btn btn-ghost btn-sm" data-ip-dq-cancel>Отмена</button></span></span>` : ''}</li>`;
     const block = (title, n, body, empty, more = '') => `<section class="ip-today-b" aria-label="${esc(title)}">
       <h3>${esc(title)} <b class="ip-today-n">${n}</b>${more}</h3>${n ? body : `<p class="ip-hint">${esc(empty)}</p>`}</section>`;
     const li = (attr, a, b, c = '') => `<li><button type="button" class="ip-today-row" ${attr}><span class="ip-today-a">${esc(a)}</span><span class="ip-today-s">${esc(b)}</span>${c ? `<span class="ip-today-c">${c}</span>` : ''}</button></li>`;
@@ -2408,6 +2428,7 @@ export function mountInspections(host) {
         <div class="ip-card-title"><h1>Сегодня</h1><p class="ip-card-contacts">${esc(wd)}, ${esc(fmtDate(todayD))}${[view.peopleMode === 'mine' ? 'мои осмотрщики' : '', view.region, view.inst ? `учреждение «${view.inst}»` : ''].filter(Boolean).map((x) => ' · ' + esc(x)).join('')}</p></div>
       </header>
       <div class="ip-card-body ip-today-grid">
+        ${dqs.length ? block('Запросы ЦОД на проверке', dqs.length, `<ul class="ip-today-list">${dqs.map(dqLi).join('')}</ul>`, '') : ''}
         ${moves.length ? block('Запрошен перенос', moves.length, `<ul class="ip-today-list">${moves.map(moveLi).join('')}</ul>`, '') : ''}
         ${block('Горит срок', hot.length, `<ul class="ip-today-list">${hot.map((s) => li(`data-ip-today-q="${esc(s.typeId + '|' + s.id)}"`, s.title, `${s.deadline < todayD ? 'срок прошёл' : 'срок'} ${fmtDate(s.deadline)}`, s.cov && s.cov.state === 'part' ? 'частично назначен' : 'не назначен')).join('')}</ul>`, 'Объектов со сроком в ближайшие три дня без назначения нет.')}
         ${block('Пропущено и просрочено', late.length, `<ul class="ip-today-list">${late.map((n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`, n.date === todayD ? 'сегодня' : fmtDate(n.date))).join('')}</ul>`, 'Пропусков отчётов и выездов нет.')}
@@ -3123,6 +3144,45 @@ export function mountInspections(host) {
   scope.on('click', '[data-ip-today-day]', (e, b) => { nav({ section: 'assign', center: 'grid' }); openPday(b.dataset.ipTodayDay, todayD); });
   scope.on('click', '[data-ip-move-ok]', (e, b) => { decideMove(b.dataset.ipMoveOk, true); toast('Перенос разрешён', 'ok'); redraw(); });
   // Отказ — с обязательной причиной (пользователь 09.11.2026: «Да, обязательна»): поле прямо в строке, без окна.
+  // Запросы ЦОД на проверке: строки — из полей на месте; правка сохраняется при смене поля.
+  const dqOf = (el) => el.closest('[data-ip-dq]');
+  const dqRows = (li) => {
+    const r = docRequestsToReview().find((x) => x.id === li.dataset.ipDq);
+    if (!r) return null;
+    return [...li.querySelectorAll('[data-ip-dq-row]')].map((row) => ({ ...r.rows[+row.dataset.ipDqRow],
+      type: row.querySelector('[data-ip-dq-k="type"]').value, no: row.querySelector('[data-ip-dq-k="no"]').value }));
+  };
+  // change приходит и при уходе фокуса: перерисовка внутри него ломает уход фокуса (NotFoundError) — сохраняем после.
+  scope.on('change', '[data-ip-dq-k]', (e, el) => { const li = dqOf(el); const rows = dqRows(li); if (rows) setTimeout(() => updateDocRequest(li.dataset.ipDq, { rows }), 0); });
+  scope.on('click', '[data-ip-dq-del]', (e, b) => {
+    const li = dqOf(b); const rows = dqRows(li); if (!rows) return;
+    const [gone] = rows.splice(+b.dataset.ipDqDel, 1);
+    updateDocRequest(li.dataset.ipDq, { rows });
+    host.toast(`Строка убрана: ${gone.type}`, 'ok');
+  });
+  scope.on('click', '[data-ip-dq-add]', (e, b) => {
+    const li = dqOf(b); const rows = dqRows(li); if (!rows) return;
+    rows.push({ type: 'Документ', no: '' });
+    updateDocRequest(li.dataset.ipDq, { rows });
+    const f = scope.$(`[data-ip-dq="${CSS.escape(li.dataset.ipDq)}"] [data-ip-dq-row]:last-child [data-ip-dq-k="type"]`);
+    if (f) { f.focus(); f.select(); }
+  });
+  scope.on('click', '[data-ip-dq-ok]', (e, b) => {
+    const li = dqOf(b); const rows = dqRows(li); if (!rows) return;
+    updateDocRequest(li.dataset.ipDq, { rows });
+    const r = approveDocRequest(li.dataset.ipDq);
+    host.toast(r ? `Запрос № ${r.no} подтверждён — ушёл на осмотр` : 'В запросе нет строк', r ? 'ok' : 'warn');
+  });
+  scope.on('click', '[data-ip-dq-no]', (e, b) => { dqRefusing = dqOf(b).dataset.ipDq; redraw(); const f = scope.$('[data-ip-dq-why]'); if (f) f.focus(); });
+  scope.on('click', '[data-ip-dq-cancel]', () => { dqRefusing = ''; redraw(); });
+  scope.on('click', '[data-ip-dq-refuse]', (e, b) => {
+    const li = dqOf(b);
+    const why = (li.querySelector('[data-ip-dq-why]') || {}).value || '';
+    if (!why.trim()) { li.querySelector('[data-ip-dq-err]').textContent = 'Укажите причину'; return; }
+    const r = rejectDocRequest(li.dataset.ipDq, why);
+    dqRefusing = '';
+    host.toast(r ? `Запрос № ${r.no} отклонён` : 'Запрос уже решён', r ? 'ok' : 'warn');
+  });
   scope.on('click', '[data-ip-move-no]', (e, b) => { moveRefusing = b.dataset.ipMoveNo; redraw(); const f = scope.$(`[data-ip-move-why="${CSS.escape(moveRefusing)}"]`); if (f) f.focus(); });
   scope.on('click', '[data-ip-move-cancel]', () => { moveRefusing = ''; redraw(); });
   scope.on('click', '[data-ip-move-refuse]', (e, b) => {

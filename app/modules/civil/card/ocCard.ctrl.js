@@ -1,3 +1,4 @@
+import { bindDocRequestSlot } from '../../../kernel/partyDocs.js';
 import { bindOcMap } from '../../../kernel/cadastreForm.ctrl.js';
 import { bindDocsColumns } from '../../../kernel/docsTable.js';
 import { bindOcContacts } from '../../../kernel/contacts.js';
@@ -183,6 +184,7 @@ export function bindOcCard(ctx) {
   // не было вовсе, а обработчики лежали тремя копиями — здесь, в форме ОЦ и в
   // форме создания.
   bindParties(ctx, rec);
+  bindDocRequestSlot(ctx, 'civil', rec);
 
   // --- Документы ОЦ -------------------------------------------------------
   s.$$('[data-open-doc]').forEach((tr) => tr.onclick = (e) => {

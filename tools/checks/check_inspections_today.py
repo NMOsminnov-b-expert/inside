@@ -32,7 +32,10 @@ def run(t):
       K.addAbsence('Айдай', { kind: K.absenceKinds()[0].key, from: iso, to: iso });
       return { key: 'civil|' + s.id, title: s.title }; }""" % K)
     t.open('#/inspections?s=today', wait='.ip-today')
-    t.ck(pg.locator('.ip-today-b').count() == 5, 'в «Сегодня» не пять блоков: %d' % pg.locator('.ip-today-b').count())
+    # Пять постоянных блоков; остальные (перенос, запросы ЦОД, исходы недели) — только когда есть что показать.
+    base = ['Горит срок', 'Пропущено и просрочено', 'Отсутствуют сегодня', 'Выезды сегодня', 'Новые уведомления']
+    got = pg.eval_on_selector_all('.ip-today-b', 'els => els.map((e) => e.getAttribute("aria-label"))')
+    t.ck(all(b in got for b in base), 'в «Сегодня» нет постоянных блоков: %s' % [b for b in base if b not in got])
     pg.click('.ip-slice [data-ip-mode="all"]')
     t.wait_for('.ip-today')
     hot = pg.locator('[data-ip-today-q="%s"]' % st['key'])

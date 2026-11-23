@@ -28,6 +28,7 @@ import { scheduleSave } from './persist.js';
 import { allResults, resultsOf } from './inspectionResults.js';
 import { allCadRequests, cadRequest, cadKindLabel, nextRecDocId, changed as cadChanged, profileOf } from './inspections.js';
 import { inventoryById, addItemDoc } from './inventories.js';
+import { confirmPartyDoc, docKey } from './partyDocs.js';
 import { resetCardDocuments } from './allDocs.js';
 import { allNodes, staffOf } from './institutions.js';
 
@@ -258,8 +259,18 @@ export function acceptScan(key, { docType = '', oiId = '', title = '' } = {}) {
     scheduleSave();
     return doc;
   }
+  // Строка запроса ЦОД «Запросить документы» (kernel/docRequests.js): реквизиты — в документ, документ — участнику
+  // вместо его строки «Не подтверждён документом» (пользователь 23.11.2026: «Привязать само»).
+  const spec = loc.kind === 'cad' ? loc.row.spec : null;
+  if (spec) {
+    if (spec.type && !docType) doc.type = spec.type;
+    if (spec.no) doc.no = spec.no;
+    if (spec.issuer) doc.issuer = spec.issuer;
+    if (spec.date) doc.date = spec.date;
+  }
   target.docs = target.docs || [];
   target.docs.push(doc);
+  if (loc.kind === 'cad' && loc.row.party) confirmPartyDoc(rec, loc.row.party, docKey(oiId || 'oc', doc.id));
   setReview(loc, { state: 'accepted', reason: '', by: me(), at: now(), docId: doc.id, oiId: oiId || '' });
   if (loc.kind === 'cad') loc.row.file.docId = doc.id;
   scheduleSave();

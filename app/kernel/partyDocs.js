@@ -250,3 +250,30 @@ export function bindPartyDocs(ctx, rec, listOf) {
     };
   });
 }
+
+// --- «Запросить документы» в карточке ---------------------------------------------------------------------------
+// Блок рисует kernel/docRequests.js и регистрируется здесь при загрузке (его грузит pages/inspection/results.js,
+// как вкладку «Результаты осмотра»): модули карточек обращаются только сюда — прямой импорт docRequests.js
+// (→ назначения → реестр → модули) дал бы кольцо.
+let reqImpl = null;
+export function setDocRequestCard(fns) { reqImpl = fns; }
+export const docRequestSlotHTML = (typeId, rec) => (reqImpl ? reqImpl.html(typeId, rec) : '');
+export function bindDocRequestSlot(ctx, typeId, rec) { if (reqImpl) reqImpl.bind(ctx, typeId, rec); }
+
+// Принятый ЦОД скан по строке запроса «Запросить документы» — привязать к участнику вместо его строки «Не подтверждён
+// документом» (пользователь 23.11.2026 на вопрос «ЦОД принял скан — что дальше?»: «Привязать само»). party — из
+// строки запроса: kind, uid строки, name участника (по имени — если участника передвинули в перечне).
+export function confirmPartyDoc(rec, party, key) {
+  if (!rec || !party || !key) return false;
+  const list = party.kind === 'user' ? rec.users : rec.owners;
+  if (!Array.isArray(list)) return false;
+  const objs = list.map((x) => (x && typeof x === 'object' ? x : { name: String(x || ''), share: '' }));
+  if (party.kind === 'user') rec.users = objs; else rec.owners = objs;
+  const hasRow = (p) => partyDocsOf(rec, p).unconfirmed.some((u) => u.id === party.uid);
+  const p = objs.find(hasRow) || objs.find((x) => x.name === party.name) || objs[party.i] || null;
+  if (!p) return false;
+  materialize(rec, p);
+  p.unconfirmed = p.unconfirmed.filter((u) => u.id !== party.uid);
+  if (!p.docs.includes(key)) p.docs.push(key);
+  return true;
+}

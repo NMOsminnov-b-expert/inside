@@ -159,7 +159,7 @@ function kindChips(list, f, v, keep = {}) {
 function objRow(o) {
   const ask = o.state !== 'done' && !o.car ? askCount(o) : 0;
   const meta = [o.eni ? esc(fmtEni(o.eni) || o.eni) : '', o.docs.length ? `${ico('docs', 14)} Документы · ${o.docs.length}` : '',
-    ask ? `<b class="om-site-n om-t-violet">Спросить на месте · ${ask}</b>` : '',
+    ask ? `<b class="om-site-n om-t-violet">Запросить документы · ${ask}</b>` : '',
     o.plannedAt && o.state !== 'done' ? `на ${esc(shortDate(o.plannedAt))}` : '', o.deadline && o.state !== 'done' ? `срок ${esc(shortDate(o.deadline))}` : '']
     .filter(Boolean).map((x) => `<span>${x}</span>`).join('');
   return `<a class="om-card om-obj om-t-${stateOf(o).tone}" href="${o.car ? href({ v: 'car', id: o.id, car: o.car.id }) : href({ v: 'obj', id: o.id })}">
@@ -600,7 +600,8 @@ function taskBlock(o, rec, ui = {}) {
     ${finishBlock(o, ui)}`;
 }
 
-// --- «Спросить на месте»: запросы документов по ЕНИ объекта -----------------------------------------------------
+// --- «Запросить документы» (до 23.11.2026 — «Спросить на месте»; название из заметок 18.11.2026): запросы документов
+// по ЕНИ объекта и запросы ЦОД «Документы на месте» (kernel/docRequests.js) -----------------------------------------------------
 // Пользователь 19.11.2026: «нужно добавить связку запросов кадастра и организаций в которые едет осмотрщик, например у
 // него в кадастре нужно запросить тех паспорт по коду 7-08-19-1001-5447 и он едет в организацию с этим же кодом, то ему
 // будет высвечиваться что ему нужно спросить этот документ на месте». Ответы: запросы любые (чьи бы ни были), строки —
@@ -619,15 +620,16 @@ function askOnSite(o) {
     .filter((x) => (!cadGot(x) || x.onSite) && ((x.typeId === o.typeId && x.ocId === o.ocId) || enis.has(eniDigits(x.eni))))
     .map((x) => ({ r, x })));
 }
-const askCount = (o) => askOnSite(o).filter(({ x }) => !cadGot(x)).length;
+// «Нет на месте» — осмотрщик уже ответил: в счёт не идёт (23.11.2026).
+const askCount = (o) => askOnSite(o).filter(({ x }) => !cadGot(x) && x.result !== 'missing').length;
 // В строке — документ и ЕНИ; вид и номер запроса и чей он не показываются (пользователь 20.11.2026: «здесь убери
 // запрос кадастра, и имя, оставь только ЕНИ код»).
 function askBlock(o) {
   const list = askOnSite(o);
   if (!list.length) return '';
   const ro = o.state === 'done' || o.removed;
-  const wait = list.filter(({ x }) => !cadGot(x)).length;
-  return `<section class="om-card om-comp om-site om-t-violet" id="om-site"><h2 class="om-card-h">Спросить на месте${wait ? ` <b class="om-badge-n">${wait}</b>` : ''}</h2>
+  const wait = list.filter(({ x }) => !cadGot(x) && x.result !== 'missing').length;
+  return `<section class="om-card om-comp om-site om-t-violet" id="om-site"><h2 class="om-card-h">Запросить документы${wait ? ` <b class="om-badge-n">${wait}</b>` : ''}</h2>
     ${list.map(({ r, x }) => {
     const got = cadGot(x);
     const state = got ? ['Получен на месте', 'green'] : x.review && x.review.state === 'returned' ? ['Возвращён ЦОД', 'amber'] : x.result ? [cadResultLabel(x.result), 'amber'] : ['Ждёт', 'blue'];
@@ -1182,6 +1184,17 @@ function finishBlock(o, ui) {
   if (o.state === 'done') return `<section class="om-finish">${last}<p class="om-muted">Осмотр закончен — объект на проверке ЦОД.</p><button type="button" class="om-btn" data-reopen>Вернуть в работу</button></section>`;
   const miss = ui.asking ? missingOf(o) : [];
   const next = nextWorkday(session.state.person, isoDay());
+  // Документы по запросу без ответа — сначала вопрос «Найдены ли?» (пользователь 23.11.2026: «Просто спрашиваем при
+  // окончании осмотра, найдены ли эти документы. И он может как вернуться и прикрепить их, так и согласиться, что
+  // их нет»): «Прикрепить» — к блоку «Запросить документы», «Документов нет» — строки получают «Нет на месте».
+  const docsWait = ui.asking ? askOnSite(o).filter(({ x }) => !x.result) : [];
+  if (docsWait.length) {
+    return `<section class="om-finish">${last}<div class="om-card om-ask" role="alert" data-docs-ask><b>Найдены ли документы по запросу?</b>
+      <ul>${docsWait.map(({ x }) => `<li>${esc(x.doc || 'Документ')}</li>`).join('')}</ul>
+      <p class="om-muted">Не найденные останутся неприкреплёнными — ЦОД увидит отметку «Нет на месте».</p>
+      <div class="om-shoot-act"><button type="button" class="om-btn om-btn-primary" data-docs-attach>Прикрепить</button>
+      <button type="button" class="om-btn" data-docs-none>Документов нет</button></div></div></section>`;
+  }
   const ask = ui.asking ? `<div class="om-card om-ask" role="alert"><b>${miss.length ? 'Заполнено не всё обязательное' : 'Закончить осмотр?'}</b>
       ${miss.length ? `<ul>${miss.map((m) => `<li>${esc(m)}</li>`).join('')}</ul><p class="om-muted">Осмотрено частично: выезд целиком перейдёт на ${esc(shortDate(next))} — заполненное сохранится, регионал получит уведомление.</p>` : '<p class="om-muted">Снятое уйдёт в E•state, объект — на проверку ЦОД.</p>'}
       <div class="om-shoot-act"><button type="button" class="om-btn om-btn-primary" data-finish="${miss.length ? 'partial' : 'full'}">${miss.length ? `Остаток на ${esc(shortDate(next))}` : 'Закончить'}</button>
@@ -2119,7 +2132,7 @@ export function mountOsmotr(host) {
     host.toast('Снимок удалён', 'ok');
     location.hash = href({ v: 'item', id: o.id, inv: inv.id, it: it.id });
   });
-  // «Спросить на месте»: скан или снимок — ответ «Получен» по строке запроса.
+  // «Запросить документы»: скан или снимок — ответ «Получен» по строке запроса.
   scope.on('change', '[data-ask-file]', async (e, input) => {
     const file = input.files && input.files[0];
     if (!file || !cur) return;
@@ -2154,6 +2167,21 @@ export function mountOsmotr(host) {
   const mine = () => myAssignsOn(session.state.person, cur.typeId, cur.ocId);
   scope.on('click', '[data-finish-ask]', () => { ui.asking = true; ui.askFor = q.id; render(); });
   scope.on('click', '[data-finish-cancel]', () => { ui.asking = false; render(); });
+  scope.on('click', '[data-docs-attach]', () => {
+    ui.asking = false;
+    render();
+    const b = scope.$('#om-site');
+    if (b) b.scrollIntoView({ block: 'start', behavior: 'smooth' });
+  });
+  scope.on('click', '[data-docs-none]', async () => {
+    const o = myObjects(session.state.person).find((x) => x.id === q.id);
+    if (!o) return;
+    for (const { r, x } of askOnSite(o).filter(({ x: y }) => !y.result)) {
+      await answerCadRow(r.id, x.id, { result: 'missing', answer: 'не найден при осмотре' });
+    }
+    host.toast('Документы отмечены: нет на месте', 'ok');
+    render();
+  });
   scope.on('click', '[data-finish]', (e, b) => {
     if (!cur) return;
     ui.asking = false;

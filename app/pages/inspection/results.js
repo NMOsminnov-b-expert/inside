@@ -27,6 +27,8 @@ import { allAssignments, ASSIGN_STATES, coversOi, logEvent, changed, returnOis, 
 import { peekResults, reviewOf, setReview } from '../../kernel/inspectionResults.js';
 import { getValue } from '../../kernel/fieldSchema.js';
 import { setInspectionTab } from '../../kernel/inspectionTab.js';
+// «Запросить документы» в карточке ОЦ регистрируется при загрузке (kernel/partyDocs.js, setDocRequestCard).
+import '../../kernel/docRequests.js';
 import { scanKey, scanStateLabel } from '../../kernel/scanQueue.js';
 import { getType } from '../../kernel/registry.js';
 import { scheduleSave } from '../../kernel/persist.js';

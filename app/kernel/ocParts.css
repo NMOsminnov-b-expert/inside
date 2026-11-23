@@ -504,7 +504,7 @@ body[data-module] .pd-ico.is-img{background:var(--blue-600)}
 body[data-module] .pd-x{width:20px;height:20px;padding:0;border:0;border-radius:50%;background:none;color:var(--slate-400);font-size:14px;line-height:1;cursor:pointer}
 body[data-module] .pd-x:hover,body[data-module] .pd-x:focus-visible{background:var(--red-50);color:var(--red-600)}
 body[data-module] .pd-unc{display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--amber-100);border-radius:9px;background:var(--amber-50)}
-body[data-module] .pd-badge{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border:1px solid var(--amber-300);
+body[data-module] .pd-badge{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border:1px solid var(--amber-600);
   border-radius:999px;background:var(--amber-100);color:var(--amber-700);font-size:12px;font-weight:600}
 body[data-module] .pd-badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
 body[data-module] .pd-urow{display:grid;grid-template-columns:minmax(110px,1fr) minmax(60px,.6fr) 140px minmax(120px,1.4fr) 20px;gap:6px;align-items:center}
@@ -552,3 +552,27 @@ body[data-module] .pd-act:hover{text-decoration:underline}
 @media (max-width:640px){
   .pd-pop-body{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) minmax(0,1.3fr)}
 }
+
+/* «Запросить документы» под собственниками и пользователями (kernel/docRequests.js, 23.11.2026): составление
+   запроса ЦОД и его ход — на проверке у регионала, подтверждён, отклонён; у подтверждённого — состояние строк. */
+body[data-module] .dq{display:flex;flex-direction:column;gap:8px;margin-top:12px;padding-top:10px;border-top:1px solid var(--line)}
+body[data-module] .dq-h{display:flex;align-items:center;justify-content:space-between;gap:10px}
+body[data-module] .dq-form{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px solid var(--blue-200);border-radius:10px;background:var(--blue-50)}
+body[data-module] .dq-hint{margin:0;font-size:12px;color:var(--slate-500)}
+body[data-module] .dq-frow{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) 20px;gap:6px;align-items:center}
+body[data-module] .dq-note{resize:vertical}
+body[data-module] .dq-err{margin:0;color:var(--red-600);font-size:12px}
+body[data-module] .dq-acts{display:flex;justify-content:flex-end;gap:8px}
+body[data-module] .dq-req{border:1px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--panel,#fff)}
+body[data-module] .dq-req-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px}
+body[data-module] .dq-req-h small{color:var(--slate-500)}
+body[data-module] .dq-st{padding:1px 9px;border-radius:999px;font-size:11.5px;font-weight:600;border:1px solid}
+body[data-module] .dq-amber{color:var(--amber-700);background:var(--amber-50);border-color:var(--amber-100)}
+body[data-module] .dq-green{color:var(--teal-700);background:var(--teal-50);border-color:var(--teal-100)}
+body[data-module] .dq-red{color:var(--red-600);background:var(--red-50);border-color:var(--red-600)}
+body[data-module] .dq-why{margin:6px 0 0;font-size:12px;color:var(--red-600)}
+body[data-module] .dq-rows{list-style:none;margin:6px 0 0;padding:0;display:flex;flex-direction:column;gap:4px;font-size:12.5px}
+body[data-module] .dq-rows li{display:flex;gap:8px;align-items:baseline;justify-content:space-between}
+body[data-module] .dq-rows small{color:var(--slate-500)}
+body[data-module] .dq-row-st{flex:none;color:var(--slate-700);font-size:12px}
+body[data-module] .dq-link{flex:none;font-size:12px;font-weight:600;color:var(--blue-700)}

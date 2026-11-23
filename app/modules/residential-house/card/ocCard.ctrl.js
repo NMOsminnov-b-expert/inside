@@ -1,3 +1,4 @@
+import { bindDocRequestSlot } from '../../../kernel/partyDocs.js';
 import { bindOcMap } from '../../../kernel/cadastreForm.ctrl.js';
 import { bindStatusFlow } from '../../../kernel/status/flow.ctrl.js';
 import { bindOcContacts } from '../../../kernel/contacts.js';
@@ -234,6 +235,7 @@ export function bindOcCard(ctx) {
   // месте (parties.ctrl.js). До 09.09.2026 сторону заводили через диалог, доли
   // не было вовсе, а обработчики лежали тремя копиями.
   bindParties(ctx, rec);
+  bindDocRequestSlot(ctx, 'residential-house', rec);
 
   // --- Документы ОЦ -------------------------------------------------------
   s.$$('[data-open-doc]').forEach((tr) => tr.onclick = (e) => {
