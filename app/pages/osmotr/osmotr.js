@@ -36,6 +36,8 @@ import { osrmKm, dayPoints } from '../inspections/route.js';
 import { periodOf, statsFor, fmtMetric, accountsFor, ACCOUNTS } from '../inspections/statsData.js';
 import { markItem, markOf, addItemPhoto, removeItemPhoto, extrasOf, addExtra } from '../../kernel/inventories.js';
 import { getValue, setValue, isFilled } from '../../kernel/fieldSchema.js';
+import { addScan, removeScan, replaceScan } from '../inspection/tasks.js';
+import { isDocHolderOi } from '../../kernel/scanQueue.js';
 import { loadTask, ownOis, photoCatsOf, addPhoto, removePhoto, movePhoto, foundOi, addFoundOi, removeFoundOi, foundCat, addFoundCar, setFoundCar, saveFoundCar, foundCarEmpty } from '../inspection/tasks.js';
 import { myObjects, docsOf, findObject, fillGeo, onGeoDone, isoDay, inventoryOf, titleOf, tsLine } from './data.js';
 import { notesOf, markRead } from './feed.js';
@@ -593,6 +595,7 @@ function taskBlock(o, rec, ui = {}) {
       ${contactsBlock(o, ui)}
     </section>
     ${askBlock(o)}
+    ${scanBlock(o, '', ui)}
     ${compBlock(o, facade, ui)}
     ${foundBlock(o)}
     ${carsBlock(o)}
@@ -638,6 +641,49 @@ function askBlock(o) {
       <span class="om-chip om-t-${state[1]}">${esc(state[0])}</span></div>
       ${got || ro ? '' : `<label class="om-btn om-site-btn">${ico('camera', 18)}Получен — скан или фото<input type="file" accept="image/*,application/pdf" capture="environment" hidden data-ask-file="${esc(r.id)}|${esc(x.id)}"></label>`}</div>`;
   }).join('')}</section>`;
+}
+
+// --- «Документы на месте»: скан, который осмотрщик сделал сам, без запроса ------------------------------------------
+// Пользователь 23.11.2026: «осмотрщик вне зависимости от наличия запроса может сам отсканировать документ  отправить
+// его»; «скан может быть как самостоятельный, так и по запросу» (по запросу — блок «Запросить документы» выше).
+// К чему крепится (запись графа naydennye-na-meste-dokumenty-nedvizhimost-k-oc-ts-i-mehanizmy-k-samomu): недвижимость —
+// к ОЦ, ТС и механизм, заведённые как ОИ, — к своему ОИ (блок на экране ОИ), заведённые как ОЦ — к ОЦ. Кто и когда
+// отсканировал — в скане (by, at), кто и когда принял — в документе карточки (kernel/scanQueue.js, acceptScan).
+const pad2 = (n) => String(n).padStart(2, '0');
+function whenOf(iso) {
+  const d = iso ? new Date(iso) : null;
+  return d && !isNaN(d) ? `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)} ${pad2(d.getHours())}:${pad2(d.getMinutes())}` : '';
+}
+function scanState(sc) {
+  const r = sc.review || {};
+  if (sc.retake) return ['Переснять', 'amber', sc.retake.reason || ''];
+  if (r.state === 'accepted') return ['Принят ЦОД', 'green', [r.by, whenOf(r.at)].filter(Boolean).join(', ')];
+  if (r.state === 'rejected') return ['Отклонён ЦОД', 'red', r.reason || ''];
+  return ['Ждёт ЦОД', 'blue', ''];
+}
+function scanBlock(o, oiId = '', ui = {}) {
+  if (!o || o.entity === 'inventory') return '';
+  const ro = o.state === 'done' || !!o.removed;
+  const label = (id) => { const x = id ? (o.ois || []).find((y) => y.id === id) : null; return x ? oiName(x) : ''; };
+  const list = (resultsOf(o.typeId, o.ocId).scans || []).filter((sc) => !sc.inv && !sc.deletedByInspector && (!oiId || sc.oiId === oiId));
+  if (ro && !list.length) return '';
+  const me = session.state.person;
+  return `<section class="om-card om-comp om-site om-scans om-t-blue" id="om-scans" aria-label="Документы на месте"><h2 class="om-card-h">Документы на месте${list.length ? ` <b class="om-badge-n">${list.length}</b>` : ''}</h2>
+    ${list.map((sc) => {
+    const [st, tone, why] = scanState(sc);
+    const wait = st === 'Ждёт ЦОД';
+    const mine = (sc.by || '') === me && wait && !ro;
+    const sub = [`${sc.pages.length} стр.`, [sc.by, whenOf(sc.at)].filter(Boolean).join(', '), !oiId ? label(sc.oiId) : ''].filter(Boolean).join(' · ');
+    const del = ui.scanDel === sc.id;
+    return `<div class="om-site-row" data-scan-row="${esc(sc.id)}"><div class="om-oi"><span class="om-sq om-t-blue">${ico('docs', 18)}</span>
+      <span class="om-row-tx">${mine ? `<input class="om-input om-scan-t" data-scan-title="${esc(sc.id)}" value="${esc(sc.title === 'Документ с осмотра' ? '' : sc.title || '')}" placeholder="Документ с осмотра" maxlength="120" aria-label="Название документа">`
+    : `<b>${esc(sc.title || 'Документ с осмотра')}</b>`}<small>${esc(sub)}</small>${why ? `<small class="om-site-note">${esc(why)}</small>` : ''}</span>
+      <span class="om-chip om-t-${tone}">${esc(st)}</span></div>
+      ${sc.retake && !ro ? `<label class="om-btn om-site-btn">${ico('camera', 18)}Переснять<input type="file" accept="image/*,application/pdf" capture="environment" multiple hidden data-scan-retake="${esc(sc.id)}"></label>` : ''}
+      ${mine ? (del ? `<div class="om-shoot-act om-scan-del"><button type="button" class="om-btn om-btn-danger" data-scan-del-yes="${esc(sc.id)}">Убрать скан</button><button type="button" class="om-btn" data-scan-del-no>Оставить</button></div>`
+    : `<button type="button" class="om-btn om-site-btn om-scan-delbtn" data-scan-del="${esc(sc.id)}">${ico('trash', 18)}Убрать</button>`) : ''}</div>`;
+  }).join('')}
+    ${ro ? '' : `<label class="om-btn om-site-btn om-scan-add">${ico('camera', 18)}Отсканировать документ<input type="file" accept="image/*,application/pdf" capture="environment" multiple hidden data-scan-add="${esc(oiId)}"></label>`}</section>`;
 }
 
 // Контакты на месте: из учреждения и объекта (заранее) и добавленные осмотрщиком на месте (как в приложении
@@ -786,7 +832,7 @@ const shown = (v) => (Array.isArray(v) ? v.filter(Boolean).join(', ') : String(v
 // разделами («В комментарии не обязательно проваливаться»). Все разделы — одинаковыми нумерованными строками,
 // и из одного поля тоже (пользователь 16.11.2026 о полях вперемешку со строками: «В литерах каша. Надо бы это
 // причесать»); значение раздела — подписью строки. Подпись поля — над полем: длинные значения не обрезаются.
-function viewOi(o, q, opened, savedAt) {
+function viewOi(o, q, opened, savedAt, ui = {}) {
   const ctx = o && oiCtx(o, q.oi);
   if (!ctx) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Объект имущества не назначен</div>`;
   const h = oiHead(ctx.row, 'om-sq-lg');
@@ -822,7 +868,8 @@ function viewOi(o, q, opened, savedAt) {
     ${returned}
     ${instrHint(instrForPlace(ctx.oi.card === 'land' || ctx.oi.card === 'vehicle' ? ctx.oi.card : 'building', { objKind: getValue(ctx.values, 'objKind'), buildType: getValue(ctx.values, 'buildType') }, (o.ois || []).some((x) => x.id !== ctx.row.id && /жил/i.test(x.oiType || ''))))}
     ${q.tab === 'photo' ? photosBlock(o, ctx, q) : `${form ? `<div class="om-group om-accs">${form}</div>` : note ? '' : '<div class="om-card om-empty">Полей осмотра у этого объекта нет — только снимки</div>'}
-      ${note ? `<div class="om-group om-form om-note-card">${note.fields.map((f) => fieldHTML(f, ctx)).join('')}</div>` : ''}`}
+      ${note ? `<div class="om-group om-form om-note-card">${note.fields.map((f) => fieldHTML(f, ctx)).join('')}</div>` : ''}
+      ${isDocHolderOi(ctx.oi) && !ctx.row.found ? scanBlock(o, ctx.row.id, ui) : ''}`}
     ${ctx.row.found && !ctx.ro && q.tab !== 'photo' ? `<button type="button" class="om-btn om-btn-danger om-found-del" data-found-del="${esc(ctx.row.id)}">${ico('trash', 18)}${ctx.row.comp ? 'Убрать литеру' : 'Убрать выявленное строение'}</button>` : ''}
     ${oiTabs(o, ctx, q)}`;
 }
@@ -1013,7 +1060,7 @@ function invRow(o, x) {
 
 const INV_FILTERS = [['', 'Все'], ['none', 'Не осмотрено'], ['done', 'Осмотрено'], ['broken', 'Нерабочие'], ['off', 'Списано']];
 // Опись: поиск, отбор, выбор нескольких позиций «в одну карточку» (sel — выбранные; to — добавление в карточку).
-function viewInv(o, q, sel, filtersOpen) {
+function viewInv(o, q, sel, filtersOpen, ui = {}) {
   const inv = o && inventoryOf(session.state.person, o.id, q.inv);
   if (!inv) return `${back(o ? href({ v: 'obj', id: o.id }) : href({ v: 'trips' }), o ? o.title : 'Выезды')}<div class="om-card om-empty">Опись не назначена</div>`;
   // Разбивка описи по спискам — осмотрщик видит все, кроме «Вне ТЗ» (пользователь 16.11.2026: «осмотрщик видит
@@ -1090,6 +1137,7 @@ function viewInv(o, q, sel, filtersOpen) {
   }).join('')}</div>${list.length > INV_LIMIT ? `<p class="om-muted om-more">Показаны первые ${INV_LIMIT} из ${list.length} — уточните поиск</p>` : ''}`
     : '<div class="om-card om-empty">Позиций не найдено</div>'}
     ${inv.kind === 'inv' && !target ? extrasBlock(o, inv, ro) : ''}
+    ${inv.kind === 'mech' && !target ? scanBlock(o, inv.oiId, ui) : ''}
     ${bar}`;
 }
 
@@ -1680,7 +1728,7 @@ export function mountOsmotr(host) {
   let mapKey = '';
   let savedAt = '';
   // Состояние экрана объекта: подтверждение «Осмотр закончен» (по объекту).
-  const ui = { tripFilters: false, heads: new Map(), asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false, take: '', takeDay: '', detachAsk: '', literOpen: false, literErr: '', literDraft: {}, carLeave: '', carErr: '', carFor: '' };
+  const ui = { tripFilters: false, heads: new Map(), asking: false, askFor: '', filters: false, cadRow: '', contactOpen: false, take: '', takeDay: '', detachAsk: '', literOpen: false, literErr: '', literDraft: {}, carLeave: '', carErr: '', carFor: '', scanDel: '' };
   // Оглавление инструкций — сразу: подсказки «Инструкция: …» у ОИ и позиций описи.
   instrIndex(() => { const v = q.v || 'today'; if (v === 'oi' || v === 'item' || v === 'instr') render(); });
   // Выбранные позиции описи (в одну карточку) — по описи; сменилась опись — выбор снимается.
@@ -1713,9 +1761,9 @@ export function mountOsmotr(host) {
     if (selFor !== q.id + '|' + q.inv + '|' + (q.to || '')) { sel.clear(); selFor = q.id + '|' + q.inv + '|' + (q.to || ''); }
     const screen = v === 'trips' ? viewTrips(withCars(all), q, unread, ui) : v === 'menu' ? viewMenu(all, unread)
       : v === 'notes' ? viewNotes(notes, ui.listFrom) : v === 'obj' ? viewObj(o, q, ui) : v === 'doc' ? viewDoc(o, q)
-        : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt) : v === 'ph' ? viewPhoto(o, q)
+        : v === 'oi' || v === 'sec' ? viewOi(o, q, opened, savedAt, ui) : v === 'ph' ? viewPhoto(o, q)
           : v === 'report' ? viewReport(q, routeCame, ui.listFrom) : v === 'cad' ? viewCad(q, ui.cadRow, ui.detachAsk, ui.listFrom) : v === 'file' ? viewFile(all, q, ui) : v === 'plans' ? viewPlans(all, ui) : v === 'stats' ? viewStats(q, ui.listFrom) : v === 'instr' ? viewInstr(q, () => { if ((q.v || '') === 'instr') render(); })
-          : v === 'inv' ? viewInv(o, q, sel, ui.filters) : v === 'item' ? viewItem(o, q) : v === 'car' ? viewCar(o, q, ui) : viewToday(all, q, unread);
+          : v === 'inv' ? viewInv(o, q, sel, ui.filters, ui) : v === 'item' ? viewItem(o, q) : v === 'car' ? viewCar(o, q, ui) : viewToday(all, q, unread);
     const openParcel = !!(scope.$('.om-parcel') && scope.$('.om-parcel').open);
     const asBar = session.state.role !== 'insp'
       ? `<div class="om-asbar" role="status"><span>Вы смотрите как: осмотрщик</span><a href="#/">Вернуться</a></div>` : '';
@@ -2131,6 +2179,40 @@ export function mountOsmotr(host) {
     ui.detachAsk = '';
     host.toast('Снимок удалён', 'ok');
     location.hash = href({ v: 'item', id: o.id, inv: inv.id, it: it.id });
+  });
+  // «Документы на месте»: свой скан без запроса, название, пересъёмка возвращённого, «Убрать» — с подтверждением.
+  const scanOf = (id) => cur && (resultsOf(cur.typeId, cur.ocId).scans || []).find((x) => x.id === id);
+  scope.on('change', '[data-scan-add]', (e, input) => {
+    const files = [...(input.files || [])];
+    if (!files.length || !cur) return;
+    addScan(cur.typeId, cur.ocId, files, { oiId: input.dataset.scanAdd || '' });
+    changed();
+    host.toast(`Скан отправлен в ЦОД${files.length > 1 ? ` · страниц ${files.length}` : ''}`, 'ok');
+    render();
+  });
+  scope.on('change', '[data-scan-title]', (e, input) => {
+    const sc = scanOf(input.dataset.scanTitle);
+    if (!sc) return;
+    sc.title = input.value.trim() || 'Документ с осмотра';
+    saveResults();
+  });
+  scope.on('change', '[data-scan-retake]', (e, input) => {
+    const files = [...(input.files || [])];
+    if (!files.length || !cur) return;
+    replaceScan(cur.typeId, cur.ocId, input.dataset.scanRetake, files);
+    changed();
+    host.toast('Скан переснят — снова ждёт ЦОД', 'ok');
+    render();
+  });
+  scope.on('click', '[data-scan-del]', (e, b) => { ui.scanDel = b.dataset.scanDel; render(); });
+  scope.on('click', '[data-scan-del-no]', () => { ui.scanDel = ''; render(); });
+  scope.on('click', '[data-scan-del-yes]', (e, b) => {
+    if (!cur) return;
+    removeScan(cur.typeId, cur.ocId, b.dataset.scanDelYes);
+    ui.scanDel = '';
+    changed();
+    host.toast('Скан убран', 'ok');
+    render();
   });
   // «Запросить документы»: скан или снимок — ответ «Получен» по строке запроса.
   scope.on('change', '[data-ask-file]', async (e, input) => {

@@ -468,3 +468,8 @@ a.om-thumb{display:block}
 .om-transfer legend{padding:0 4px}
 [data-odo-day]{display:flex;flex-direction:column;gap:10px}
 [data-km-route][hidden],[data-mode][hidden]{display:none}
+/* «Документы на месте»: свой скан осмотрщика — название полем, «Убрать» — тихой кнопкой. */
+.om-scan-t{width:100%;min-height:40px}
+.om-scans .om-oi{align-items:flex-start}
+.om-scan-delbtn{background:none;border-color:transparent;color:var(--om-muted)}
+.om-scan-del{margin:0 16px 12px}

@@ -100,7 +100,7 @@ function cadItem(req, row, cache) {
   const review = row.review || {};
   const state = review.state || (row.file && row.file.docId ? 'accepted' : 'wait');
   return {
-    key: cadKey(req.id, row.id), source: 'кадастр', typeId: row.typeId, ocId: row.ocId, oiId: '',
+    key: cadKey(req.id, row.id), source: 'кадастр', typeId: row.typeId, ocId: row.ocId, oiId: cadHolderOi(rec, row),
     title: row.doc || 'Ответ кадастра', by: row.answeredBy || req.person || '', at: row.answeredAt || '',
     pages: review.pages || cadPages(row), state, reason: review.reason || '',
     decidedBy: review.by || '', decidedAt: review.at || '', docId: review.docId || (row.file && row.file.docId) || '',
@@ -110,6 +110,14 @@ function cadItem(req, row, cache) {
     scanDate: row.scanDate || '', answer: row.answer || '', request: `${cadKindLabel(req.kind)} № ${req.no}`,
     returns: row.returns || [], doc: acceptedDoc(rec, review.docId || (row.file && row.file.docId)),
   };
+}
+
+// Строка запроса по ЕНИ ТС или механизма записи — документ по умолчанию к этому ОИ, иначе к ОЦ.
+function cadHolderOi(rec, row) {
+  const d = (s) => String(s || '').replace(/\D/g, '');
+  const e = d(row.eni);
+  const o = e && docHolderOis(rec).find((x) => d(x.eni) === e);
+  return o ? o.id : '';
 }
 
 // Документ принятого — как он сейчас в карточке (вид, название, ОИ): от них правка принятого.
@@ -220,7 +228,23 @@ function docFileFrom(pages) {
   return f;
 }
 
-// Принять: у записи (oiId пуст — у ОЦ, иначе у ОИ) появляется документ с
+// К чему крепится найденный на месте документ (пользователь 23.11.2026, запись графа
+// naydennye-na-meste-dokumenty-nedvizhimost-k-oc-ts-i-mehanizmy-k-samomu): «Для недвижки крепится все на уровень ОЦ.
+// Для ТС - на уровне самого ТС. То бишь Если ТС заведена как ОИ, то крепится к ОИ (но все равно видно и в ОЦ), если
+// ТС заведена как ОЦ, то на уровне ОЦ. У механизмов автоматически в их карточку по той же логике». Из ОИ выбрать можно
+// только ТС и механизмы; литера, участок, квартира — нет, их документ у ОЦ.
+const DOC_HOLDER_CARDS = new Set(['vehicle', 'mech']);
+export const isDocHolderOi = (o) => !!o && DOC_HOLDER_CARDS.has(o.card);
+export const docHolderOis = (rec) => ((rec && rec.oi) || []).filter(isDocHolderOi);
+function holderOi(rec, oiId) {
+  if (!oiId) return null;
+  const o = (rec.oi || []).find((x) => x.id === oiId);
+  failIf(!o, 'ОИ записи не найден');
+  failIf(!isDocHolderOi(o), 'Документ недвижимости крепится к объекту оценки, а не к ОИ');
+  return o;
+}
+
+// Принять: у записи (oiId пуст — у ОЦ, иначе у ОИ — только ТС или механизм) появляется документ с
 // источником «осмотр» / «кадастр» и статусом «Загружен». Возвращает документ.
 // Повторно принять нельзя; принять можно только ждущий разбора.
 export function acceptScan(key, { docType = '', oiId = '', title = '' } = {}) {
@@ -232,11 +256,7 @@ export function acceptScan(key, { docType = '', oiId = '', title = '' } = {}) {
   const ocId = loc.kind === 'scan' ? loc.ocId : loc.row.ocId;
   const rec = recOf(typeId, ocId);
   failIf(!rec, 'Запись объекта оценки не найдена');
-  let target = rec;
-  if (oiId) {
-    target = (rec.oi || []).find((o) => o.id === oiId);
-    failIf(!target, 'ОИ записи не найден');
-  }
+  const target = holderOi(rec, oiId) || rec;
   failIf(loc.kind === 'cad' && !loc.row.file, 'У ответа нет файла');
   const pages = loc.kind === 'scan' ? loc.scan.pages : cadPages(loc.row);
   const base = loc.kind === 'scan' ? loc.scan.title : loc.row.doc;
@@ -250,6 +270,11 @@ export function acceptScan(key, { docType = '', oiId = '', title = '' } = {}) {
     from: loc.kind === 'scan' ? `скан осмотра, ${loc.scan.by || ''}`.replace(/, $/, '') : `${cadKindLabel(loc.req.kind)} № ${loc.req.no}`,
   };
   if (!attached && pages.length > 1) doc.scanPages = pages.map((p) => ({ ...p }));
+  // Кто и когда отсканировал, кто и когда принял (пользователь 23.11.2026: «Обязательно нам надо сохранять кто и
+  // когда отсканировал. Пригодится»; «Так же кто принял и обработал. И когда»). Правки ЦОД — doc.edits (editAccepted).
+  const sc = loc.kind === 'scan' ? { by: loc.scan.by || '', at: loc.scan.at || '' } : { by: loc.row.answeredBy || '', at: loc.row.answeredAt || '' };
+  doc.scanned = { ...sc, ...(loc.kind === 'cad' && loc.row.onSite ? { onSite: true } : {}) };
+  doc.accepted = { by: me(), at: now() };
   // Скан по позиции описи — документ позиции, а не записи ОЦ (В13).
   if (loc.kind === 'scan' && loc.scan.inv) {
     doc.source = 'опись';
@@ -360,8 +385,7 @@ export function editAccepted(key, { docType = '', oiId = '', title = '' } = {}) 
   const rec = recOf(typeId, ocId);
   const at = findDoc(rec, docId);
   failIf(!at, 'Документ у объекта не найден — его могли удалить из карточки');
-  const target = oiId ? (rec.oi || []).find((o) => o.id === oiId) : rec;
-  failIf(!target, 'ОИ записи не найден');
+  const target = holderOi(rec, oiId) || rec;
   const was = { type: at.doc.type, name: at.doc.name, oi: at.holder === rec ? '' : at.holder.id };
   if (docType) at.doc.type = docType;
   if (title.trim()) at.doc.name = title.trim();
@@ -376,6 +400,7 @@ export function editAccepted(key, { docType = '', oiId = '', title = '' } = {}) 
   if (loc.kind === 'scan') loc.scan.returns = [...(loc.scan.returns || []), entry];
   else loc.row.returns = [...(loc.row.returns || []), entry];
   if (review) review.oiId = oiId || '';
+  at.doc.edits = [...(at.doc.edits || []), { by: entry.by, at: entry.at, text: entry.reason }];
   rec.updatedAt = now();
   resetCardDocuments();
   scheduleSave();
@@ -396,7 +421,7 @@ export function moveScan(key, { typeId, ocId, oiId = '' }) {
   failIf(loc.typeId === typeId && loc.ocId === ocId && (loc.scan.oiId || '') === oiId, 'Скан уже у этого объекта');
   const rec = recOf(typeId, ocId);
   failIf(!rec, 'Запись объекта оценки не найдена');
-  failIf(oiId && !(rec.oi || []).some((o) => o.id === oiId), 'ОИ записи не найден');
+  holderOi(rec, oiId);
   const from = resultsOf(loc.typeId, loc.ocId);
   const scan = loc.scan;
   from.scans = from.scans.filter((x) => x !== scan);

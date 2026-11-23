@@ -23,8 +23,7 @@ import { getType, sortedTypes } from '../../kernel/registry.js';
 import { optionsFor } from '../../kernel/dicts.js';
 import { toast } from '../../kernel/toast.js';
 import {
-  scanQueue, scanCounts, acceptScan, returnScan, rejectScan, editAccepted, moveScan, SCAN_SOURCES, SCAN_STATES, scanStateLabel,
-} from '../../kernel/scanQueue.js';
+  scanQueue, scanCounts, acceptScan, returnScan, rejectScan, editAccepted, moveScan, SCAN_SOURCES, SCAN_STATES, scanStateLabel, docHolderOis, isDocHolderOi } from '../../kernel/scanQueue.js';
 import { oiLabel } from '../inspection/tasks.js';
 import { fmtEni } from '../../kernel/fmt.js';
 import { pageViewerHTML, bindPageViewer, bindPageViewerKeys } from '../../kernel/viewer/pageViewer.js';
@@ -128,13 +127,19 @@ export function mountScans(host) {
   const defaultDocType = (it, types) => (it.docType && types.includes(it.docType) ? it.docType
     : types.includes(it.title) ? it.title : '');
 
+  // ОИ по умолчанию — только ТС или механизм; прежний выбор литеры или участка становится «Объект оценки в целом».
+  function holderOf(it, oiId = it.oiId) {
+    const rec = oiId ? recOf(it) : null;
+    return rec && isDocHolderOi((rec.oi || []).find((o) => o.id === oiId)) ? oiId : '';
+  }
+
   function ensureDraft(it) {
     if (draft.key === it.key) return;
     if (draft.key) drafts.set(draft.key, draft);
     if (drafts.has(it.key)) { draft = drafts.get(it.key); err = ''; return; }
     const types = docTypesFor(it);
-    draft = it.doc ? { key: it.key, docType: it.doc.type, oiId: it.doc.oiId, title: it.doc.name, reason: '', pages: [] }
-      : { key: it.key, docType: defaultDocType(it, types), oiId: it.oiId || '', title: it.title, reason: '', pages: [] };
+    draft = it.doc ? { key: it.key, docType: it.doc.type, oiId: holderOf(it, it.doc.oiId), title: it.doc.name, reason: '', pages: [] }
+      : { key: it.key, docType: defaultDocType(it, types), oiId: holderOf(it), title: it.title, reason: '', pages: [] };
     move = { key: it.key, q: '', pick: null, oiId: '' };
     err = '';
   }
@@ -220,7 +225,8 @@ export function mountScans(host) {
     ensureDraft(it);
     const types = docTypesFor(it);
     if (draft.docType && !types.includes(draft.docType)) types.unshift(draft.docType);
-    const ois = rec ? rec.oi || [] : [];
+    // Из ОИ — только ТС и механизмы: документ недвижимости — у ОЦ (kernel/scanQueue.js, docHolderOis).
+    const ois = docHolderOis(rec);
     return `<section class="sc-sec" aria-label="${esc(head)}"><h3>${esc(head)}</h3><div class="sc-form">
       <div class="field"><label for="sc-f-type">Вид документа</label>
         <select class="select" id="sc-f-type" data-sc-f-type ${draft.docType ? '' : 'aria-invalid="false"'}>${draft.docType ? '' : '<option value="" selected>— выберите вид —</option>'}${types.map((t) => `<option ${draft.docType === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select></div>
@@ -290,7 +296,7 @@ export function mountScans(host) {
       <div data-sc-move-hits>${moveHitsHTML(it)}</div>
       ${prec ? `<div class="sc-form"><div class="field"><label for="sc-move-oi">К чему относится</label>
         <select class="select" id="sc-move-oi" data-sc-move-oi><option value="">Объект оценки в целом</option>
-          ${(prec.oi || []).map((o) => `<option value="${esc(o.id)}" ${move.oiId === o.id ? 'selected' : ''}>${esc(oiLabel(o))}</option>`).join('')}</select></div>
+          ${docHolderOis(prec).map((o) => `<option value="${esc(o.id)}" ${move.oiId === o.id ? 'selected' : ''}>${esc(oiLabel(o))}</option>`).join('')}</select></div>
         <div class="field sc-move-go"><button type="button" class="btn btn-ghost" data-sc-move-go>Перенести</button></div></div>` : ''}
     </section>`;
   }

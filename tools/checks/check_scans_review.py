@@ -30,7 +30,7 @@ MAKE = """async ([ty, oc, n, by, title]) => { const IR = await import('./app/ker
   const s = IR.addResultScan(ty, oc, files, { title, by }); return 'scan|' + ty + '|' + oc + '|' + s.id; }""" % GIF
 SQ = "await import('./app/kernel/scanQueue.js')"
 REC = """async ([ty, oc]) => { const R = await import('./app/kernel/registry.js'); const r = R.getType(ty).records.loadRecord(oc);
-  return { eni: r.eni, oi: (r.oi || []).map((o) => o.id), docs: (r.docs || []).map((d) => d.id),
+  return { eni: r.eni, oi: (r.oi || []).map((o) => o.id), hold: (r.oi || []).filter((o) => o.card === 'vehicle' || o.card === 'mech').map((o) => o.id), docs: (r.docs || []).map((d) => d.id),
     oiDocs: Object.fromEntries((r.oi || []).map((o) => [o.id, (o.docs || []).map((d) => [d.id, d.type])])) }; }"""
 
 
@@ -40,7 +40,8 @@ def run(t):
     two = pg.evaluate("""async () => { const R = await import('./app/kernel/registry.js'); const t = R.getType('civil');
       const rows = t.records.queryRecords({ filter: {}, offset: 0, limit: 60 }).rows.filter((s) => s.eni);
       const a = rows.find((s) => (t.records.loadRecord(s.id).oi || []).length >= 1);
-      const b = rows.find((s) => s !== a && s.eni !== a.eni && (t.records.loadRecord(s.id).oi || []).length >= 1);
+      // У «куда» — ТС или механизм: документ крепится к ним, к литере — нет (решение 23.11.2026, kernel/scanQueue.js).
+      const b = rows.find((s) => s !== a && s.eni !== a.eni && (t.records.loadRecord(s.id).oi || []).some((o) => o.card === 'vehicle' || o.card === 'mech'));
       return [a.id, b.id]; }""")
     oc_a, oc_b = two
 
@@ -87,14 +88,16 @@ def run(t):
     t.ck(t.wait_until("() => document.querySelectorAll('[data-sc-move-pick]').length > 0"), 'поиск переноса по ЕНИ ничего не нашёл')
     pg.click('[data-sc-move-pick^="civil|%s"]' % oc_b)
     t.wait_for('[data-sc-move-oi]')
-    pg.select_option('[data-sc-move-oi]', rb['oi'][0])
+    opts = pg.evaluate("() => [...document.querySelectorAll('[data-sc-move-oi] option')].map((o) => o.value)")
+    t.ck(opts == [''] + rb['hold'], 'в переносе «К чему относится» не «ОЦ, ТС и механизмы»: %s, ОИ записи %s' % (opts, rb['oi']))
+    pg.select_option('[data-sc-move-oi]', rb['hold'][0])
     pg.click('[data-sc-move-go]')
     nk = 'scan|civil|%s|%s' % (oc_b, sid)
     t.ck(t.wait_until("(k) => decodeURIComponent(location.hash).includes(k)", nk), 'после переноса скан не открыт у нового объекта: %s' % pg.evaluate('location.hash'))
     moved = pg.evaluate("""async ([a, b, sid]) => { const IR = await import('./app/kernel/inspectionResults.js');
       const at = (oc) => (IR.resultsOf('civil', oc).scans || []).find((x) => x.id === sid); const s = at(b);
       return { fromA: !!at(a), toB: !!s, oi: s ? s.oiId : '' }; }""", [oc_a, oc_b, sid])
-    t.ck(not moved['fromA'] and moved['toB'] and moved['oi'] == rb['oi'][0], 'перенос не переложил скан: %s' % moved)
+    t.ck(not moved['fromA'] and moved['toB'] and moved['oi'] == rb['hold'][0], 'перенос не переложил скан: %s' % moved)
 
     # --- приём и правка принятого: вид и ОИ ------------------------------------------
     # Вид документа обязателен, если осмотрщик его не предложил (находка аудита 30.10).
@@ -107,7 +110,7 @@ def run(t):
     t.wait_until("() => /Исправлено/.test(document.querySelector('.sc-pane').innerText)")
     rb2 = pg.evaluate(REC, ['civil', oc_b])
     doc_id = pg.evaluate("async (k) => (%s).scanQueue({}).find((x) => x.key === k).docId" % SQ, nk)
-    t.ck(doc_id in rb2['docs'] and not any(doc_id == d[0] for d in rb2['oiDocs'][rb['oi'][0]]),
+    t.ck(doc_id in rb2['docs'] and not any(doc_id == d[0] for d in rb2['oiDocs'][rb['hold'][0]]),
          'правка принятого не перенесла документ к ОЦ: %s' % rb2)
 
     # --- отказ кадастра: строка снова «Ждёт» с причиной -----------------------------
