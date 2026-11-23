@@ -1,5 +1,6 @@
 import { esc } from '../dom.js';
 import { photoPages, photoFileAt, catLabel, docTypes } from './deps.js';
+import { docTrail } from '../docsTable.js';
 
 // Выезжающий сайдбар просмотрщика (кнопка-гамбургер в левом верхнем углу).
 //
@@ -28,7 +29,7 @@ function docItemHTML(x, active) {
 
   return `<button class="vsb-item ${on ? 'on' : ''}" data-vsb-doc="${esc(x.scope)}|${esc(x.doc.id)}">
     <span class="vsb-tag">${esc(x.label)}</span>
-    <span class="vsb-main"><b>${esc(x.doc.name)}</b><span class="vsb-sub">${esc(x.doc.date || '')}</span></span>
+    <span class="vsb-main"><b>${esc(x.doc.name)}</b><span class="vsb-sub">${esc(x.doc.date || '')}</span>${docTrail(x.doc) ? `<span class="vsb-sub vsb-trail">${esc(docTrail(x.doc))}</span>` : ''}</span>
     ${pages ? `<span class="vsb-count">${pages}</span>` : ''}
   </button>`;
 }

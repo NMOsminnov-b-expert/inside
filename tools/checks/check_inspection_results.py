@@ -16,7 +16,8 @@
   * на 760–1920 подписи обрезаны или страница уезжает вбок;
   * срез ЦОД «Осмотр закончен — проверить» не находит объект с законченным
     осмотром, его счётчик отстаёт или объект остаётся в срезе после снятия
-    отметки «завершён».
+    отметки «завершён»;
+  * во вкладке осталась загрузка архива приложения «Осмотр» (от архива отказались 23.11.2026).
 """
 NAME = 'результаты осмотра у ЦОД'
 
@@ -35,22 +36,6 @@ TABS = "els => els.map((e) => e.dataset.tab)"
 
 def tabs(pg):
     return pg.eval_on_selector_all('[data-tab]', TABS)
-
-
-def _make_archive():
-    """Архив в раскладке приложения «Осмотр» (docs/ТЗ.md приложения, раздел 1)."""
-    import io, json, os, tempfile, zipfile
-    jpg = bytes.fromhex('ffd8ffe000104a46494600010100000100010000ffd9')
-    root = 'Осмотры/7.3 Проверка/'
-    path = os.path.join(tempfile.gettempdir(), 'inside-check-osmotr.zip')
-    with zipfile.ZipFile(path, 'w', zipfile.ZIP_DEFLATED) as z:
-        z.writestr(root + 'Недвижимое/Литер А/Фасад/Литер_А_20261101_101501_001.jpg', jpg)
-        z.writestr(root + 'Недвижимое/Литер А/Внутренние помещения/Литер_А_20261101_102001_001.jpg', jpg)
-        z.writestr(root + 'Недвижимое/Литер А/Литер_А.json', json.dumps({'floorsN': '3', 'carried.electricity': 'Подведены'}, ensure_ascii=False))
-        z.writestr(root + 'Недвижимое/Литер А/Литер_А_голос_20261101_103000_001.m4a', bytes(32))
-        z.writestr(root + 'Недвижимое/Навес/Фасад/Навес_20261101_111000_001.jpg', jpg)
-        z.writestr(root + 'Движимое/01KG 999 ZZZ/01KG_999_ZZZ_20261101_112000_001.jpg', jpg)
-    return path
 
 
 def run(t):
@@ -83,25 +68,10 @@ def run(t):
         t.ck(rows and all(r[2] not in ('', '—') and r[3] not in ('', '—') for r in rows), 'у ОИ объекта среза нет значений или снимков: %s' % rows)
         t.ck(t.wait_until("() => /Фото · [1-9]/.test((document.querySelector('.viewer [data-vmode=photo]') || {}).textContent || '')"), 'у ОИ объекта среза нет снимков в просмотрщике')
 
-    # --- импорт архива приложения «Осмотр» (опция начального этапа) ---------------
-    arc = _make_archive()
+    # --- архива приложения «Осмотр» нет: «От архива приложения осмотр мы отказываемся. Все будет через веб версию»
+    # (пользователь 23.11.2026; решение import-arhiva-prilozheniya-osmotr-vo-vkladku-rezultaty-osmotra-opciya отменено).
     t.open('#/oc/residential-house/oc-rh-2?tab=inspection', wait='.ir')
-    t.ck('начальный этап' in pg.inner_text('.ir-imp'), 'у импорта архива нет пометки «начальный этап»')
-    for rnd, want in ((1, 'снимков [1-9]'), (2, 'уже были')):
-        with pg.expect_file_chooser() as fc:
-            pg.click('.ir-imp [data-ir-zip]')
-        fc.value.set_files(arc)
-        t.ck(t.wait_until("([w]) => new RegExp(w).test((document.querySelector('.ir-imp .ir-msg') || {}).textContent || '')", [want]),
-             'импорт архива (%d-й раз): нет итога «%s»' % (rnd, want))
-    st = pg.evaluate("""async () => { const R = await import('./app/kernel/inspectionResults.js'); const r = R.peekResults('residential-house', 'oc-rh-2');
-      const G = await import('./app/kernel/registry.js'); const rec = G.getType('residential-house').records.loadRecord('oc-rh-2');
-      const lit = rec.oi.find((o) => o.card === 'building');
-      return { ph: r.photos.filter((p) => p.oiId === lit.id && p.source).length, cats: [...new Set(r.photos.filter((p) => p.oiId === lit.id && p.source).map((p) => p.cat))].sort(),
-        floors: (r.assets[lit.id] || {}).floorsN, voices: (r.voices || []).filter((v) => v.source).length,
-        found: (r.found || []).filter((f) => f.source && f.source.kind === 'archive').map((f) => f.name).sort() }; }""")
-    t.ck(st['ph'] == 2 and st['cats'] == ['Внутренние помещения', 'Фасад'], 'импорт: снимки литеры не по папкам или удвоены: %s' % st)
-    t.ck(st['floors'] == '3' and st['voices'] == 1, 'импорт: значения или голос не легли: %s' % st)
-    t.ck(st['found'] == ['01KG 999 ZZZ', 'Навес'], 'импорт: неизвестные папки не стали выявленными: %s' % st['found'])
+    t.ck(pg.locator('[data-ir-zip], .ir-imp').count() == 0, 'во вкладке осталась загрузка архива приложения «Осмотр»')
 
     # --- приёмка ЦОД: «В карточку», «Принять ОИ», возврат с причиной ----------------
     # (решение priemka-osmotra-cod-vo-vkladke-rezultaty-osmotra-po-oi-vozvrat-po-oi-v)

@@ -1,6 +1,7 @@
 import { archiveDoc } from '../archive.js';
 import { VS, vSt, tabKey, scopesOf, orderedTabs, openTabOnly, syncPageSel } from './state.js';
 import { docListFor, scopeLabel, pushDocPageLog, docTypes, archiveInfo } from './deps.js';
+import { docTrail } from '../docsTable.js';
 
 // Действия с документами и вкладками просмотрщика. Одни и те же функции зовут
 // кнопки панели, контекстное меню и горячие клавиши — поведение не должно
@@ -222,6 +223,9 @@ export function docProperties(ctx, sc, id) {
     { label: 'Принадлежит', value: sc === 'oc' ? 'Объект оценки' : `${scopeLabel(sc)} · ${oi ? (oi.letter ? 'литера ' + oi.letter : oi.name) : ''}` },
     { label: 'Прикреплён', value: d.date || '—' },
   ];
+  // Документ с осмотра: кто и когда отсканировал, принял, исправил (kernel/docsTable.js, docTrail; 23.11.2026).
+  const trail = docTrail(d);
+  if (trail) list.push({ label: 'С осмотра', value: trail });
   if (d.file) {
     list.push({ label: 'Файл', value: d.file.name });
     list.push({ label: 'Размер', value: size(d.file.size || 0) });

@@ -20,6 +20,25 @@ const DOC_COLUMNS = [
 
 const docWidths = {};
 
+// Кто и когда отсканировал и принял документ с осмотра (kernel/scanQueue.js, acceptScan; пользователь 23.11.2026:
+// «Обязательно нам надо сохранять кто и когда отсканировал»; «Так же кто принял и обработал. И когда»; показывать в
+// карточке — «Да»). Последняя правка ЦОД — тоже.
+const pad = (n) => String(n).padStart(2, '0');
+function when(iso) {
+  const d = iso ? new Date(iso) : null;
+  return d && !isNaN(d) ? `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()} ${pad(d.getHours())}:${pad(d.getMinutes())}` : '';
+}
+export function docTrail(d) {
+  const part = (label, x) => (x && (x.by || x.at) ? `${label} ${[x.by, when(x.at)].filter(Boolean).join(', ')}` : '');
+  const ed = (d.edits || []).at(-1);
+  return [part(d.scanned && d.scanned.onSite ? 'получен на месте:' : 'отсканировал', d.scanned), part('принял', d.accepted), part('исправил', ed)].filter(Boolean).join(' · ');
+}
+const nameCell = (d) => {
+  const tr = docTrail(d);
+  return `<td class="ell" title="${esc(tr ? `${d.name}
+${tr}` : d.name)}">${esc(d.name)}${tr ? `<small class="docs-trail">${esc(tr)}</small>` : ''}</td>`;
+};
+
 const head = () => `<thead><tr>${DOC_COLUMNS.map((c, i) => `<th ${headAttrs(c)}>
   ${c.label ? colLabelHTML(c) : ''}${resizeGripHTML(c, i === DOC_COLUMNS.length - 1)}
 </th>`).join('')}</tr></thead>`;
@@ -32,14 +51,14 @@ export function docsTableHTML(rec, withDel) {
   const docs = rec.docs || [];
 
   return shell(`<tbody>${docs.map((d) => `<tr class="clickable" data-open-doc="${d.id}" title="Открыть документ в просмотрщике">
-    <td><span class="tag-mini">${esc(d.type)}</span></td><td class="ell" title="${esc(d.name)}">${esc(d.name)}</td><td>${esc(d.date)}</td>
+    <td><span class="tag-mini">${esc(d.type)}</span></td>${nameCell(d)}<td>${esc(d.date)}</td>
     <td><div class="row-actions">${withDel ? `<button class="btn btn-danger btn-sm" data-doc-del="${d.id}" title="Открепить документ">×</button>` : ''}<span class="rowchev-open">›</span></div></td></tr>`).join('')
     || '<tr><td colspan="4" class="muted">Нет документов</td></tr>'}</tbody>`);
 }
 
 export function docsBlockInner(oi, scope) {
   return shell(`<tbody>${(oi.docs || []).map((d) => `<tr class="clickable" data-open-movdoc="${scope}|${d.id}" title="Открыть документ в просмотрщике">
-    <td><span class="tag-mini">${esc(d.type)}</span></td><td class="ell" title="${esc(d.name)}">${esc(d.name)}</td><td>${esc(d.date)}</td>
+    <td><span class="tag-mini">${esc(d.type)}</span></td>${nameCell(d)}<td>${esc(d.date)}</td>
     <td><span class="rowchev-open">›</span></td></tr>`).join('') || '<tr><td colspan="4" class="muted">Нет документов</td></tr>'}</tbody>`)
     + `<button class="btn btn-ghost btn-sm" data-add-movdoc style="margin-top:6px">+ Добавить документ</button>`;
 }

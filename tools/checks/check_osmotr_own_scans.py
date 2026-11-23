@@ -15,6 +15,7 @@
   * возвращённый ЦОД скан не предлагает «Переснять», не видна причина; пересъёмка не возвращает в «Ждёт ЦОД»;
   * у ЦОД в «К чему относится» есть литера или нет ТС; скан ТС по умолчанию не к ТС; ядро принимает документ к литере;
   * принятый документ без «отсканировал» и «принял» (кто, когда); правка ЦОД не оставляет следа (кто, когда, что);
+    в карточке ОЦ у документа этого не видно;
   * ответ на строку запроса по ЕНИ ТС-ОИ по умолчанию не к этому ТС;
   * ошибки консоли.
 """
@@ -23,7 +24,7 @@ from urllib.parse import quote
 NAME = 'осмотрщик: документы на месте и к чему крепятся'
 
 TOUCHES = ('app/pages/osmotr/osmotr.js', 'app/pages/osmotr/osmotr.css', 'app/kernel/scanQueue.js', 'app/pages/scans/scans.js',
-           'app/pages/inspection/tasks.js', 'app/kernel/inspectionResults.js')
+           'app/pages/inspection/tasks.js', 'app/kernel/inspectionResults.js', 'app/kernel/docsTable.js', 'app/kernel/viewer/sidebar.js', 'app/kernel/viewer/docActions.js')
 
 R = "(await import('./app/kernel/inspectionResults.js'))"
 Q = "(await import('./app/kernel/scanQueue.js'))"
@@ -87,6 +88,14 @@ def run(t):
     t.ck(doc['at'] == 'oc' and doc['scanned'] and doc['scanned']['by'] == me and doc['scanned']['at'] == sc['at'], 'в документе нет, кто и когда отсканировал: %s' % doc)
     t.ck(doc['accepted'] and doc['accepted']['by'] and doc['accepted']['at'], 'в документе нет, кто и когда принял: %s' % doc)
     t.ck(doc['edits'] and doc['edits'][-1]['by'] and doc['edits'][-1]['at'] and 'название' in doc['edits'][-1]['text'], 'правка ЦОД без следа: %s' % doc)
+
+    # В карточке ОЦ у документа — кто и когда отсканировал, принял, исправил (ответ пользователя «Да» 23.11.2026):
+    # список документов просмотрщика (вкладка «Документы», меню слева).
+    t.open('#/oc/civil/oc-cv-1?tab=docs', wait='[data-vsb-toggle]')
+    pg.locator('[data-vsb-toggle]').first.click()
+    t.wait_for('.vsb [data-vsb-doc]')
+    tr = pg.evaluate("() => { const r = [...document.querySelectorAll('[data-vsb-doc]')].find((x) => x.textContent.includes('Справка БТИ, правка')); const s = r && r.querySelector('.vsb-trail'); return r ? (s ? s.textContent : 'строки нет') : 'документа нет'; }")
+    t.ck(('отсканировал ' + me) in tr and 'принял ' in tr and 'исправил ' in tr, 'в документах карточки нет «отсканировал, принял, исправил»: %r' % tr)
 
     # Форма приёма скана ТС: в «К чему относится» — ОЦ и ТС, литеры нет, по умолчанию — ТС.
     pg.set_viewport_size({'width': 1440, 'height': 900})
