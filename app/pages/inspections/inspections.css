@@ -538,6 +538,11 @@ body[data-page="inspections"] .ip-due.due-week{background:var(--amber-50);color:
 body[data-page="inspections"] .ip-flag{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;font-size:11px;font-weight:600;
   background:var(--amber-50);color:var(--amber-700);white-space:nowrap}
 body[data-page="inspections"] .ip-flag.away{background:var(--violet-50);color:var(--violet-700)}
+body[data-page="inspections"] .ip-early{display:flex;flex-direction:column;gap:2px;margin-top:6px;padding:6px 10px;border-radius:8px;
+  background:var(--violet-50);border:1px solid var(--violet-100);font-size:12px;color:var(--ink)}
+body[data-page="inspections"] .ip-early b{color:var(--violet-700);font-size:12px}
+body[data-page="inspections"] .ip-early-note{color:var(--muted);white-space:pre-line}
+body[data-page="inspections"] .ip-flag.early{background:var(--violet-50);color:var(--violet-700);box-shadow:inset 0 0 0 1px var(--violet-600)}
 
 /* Массовые действия — в полосе инструментов, на месте. */
 body[data-page="inspections"] .ip-bulk2{display:inline-flex;align-items:center;flex-wrap:wrap;gap:6px;padding:3px 4px 3px 12px;border-radius:9px;
@@ -838,6 +843,7 @@ body[data-page="inspections"] .ip-stop.home{background:var(--slate-50);align-ite
 body[data-page="inspections"] .ip-stop-n{display:inline-flex;align-items:center;justify-content:center;width:22px;height:22px;border-radius:999px;
   background:var(--blue-600);color:#fff;font-weight:700;font-size:11.5px;font-variant-numeric:tabular-nums}
 body[data-page="inspections"] .ip-stop.prop .ip-stop-n{background:var(--amber-600)}
+body[data-page="inspections"] .ip-stop.early .ip-stop-n{background:var(--violet-600)}
 body[data-page="inspections"] .ip-stop.home .ip-stop-n{background:var(--slate-500)}
 body[data-page="inspections"] .ip-stop-b{display:flex;flex-direction:column;gap:1px;min-width:0}
 body[data-page="inspections"] .ip-stop-h{font-size:13px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -848,6 +854,7 @@ body[data-page="inspections"] .ip-stop-t i{font-style:normal;font-weight:700;col
 .ip-pin span{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:999px;background:#1668c9;color:#fff;
   font:700 12px/1 -apple-system,"Segoe UI",Roboto,Arial,sans-serif;box-shadow:0 1px 4px rgba(0,0,0,.35);border:2px solid #fff}
 .ip-pin.prop span{background:#c07c1e}
+.ip-pin.prop.early span{background:var(--violet-600)}
 .ip-pin.home span{background:#54718f}
 /* Объединённый значок «2 · 5» — шире; подсказка карты — белая карточка с
    тенью и ровным текстом, видна на любом месте значка (13.10.2026: «при
@@ -1519,6 +1526,7 @@ body[data-page="inspections"] .ip-stops-head .btn{margin-left:auto}
 body[data-page="inspections"] .ip-legend{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);white-space:nowrap}
 body[data-page="inspections"] .ip-legend i{width:10px;height:10px;border-radius:50%;background:var(--blue-600)}
 body[data-page="inspections"] .ip-legend i.k-prop{background:var(--amber-600)}
+body[data-page="inspections"] .ip-legend i.k-early{background:var(--violet-600)}
 body[data-page="inspections"] .ip-legend i.k-late{background:var(--danger)}
 body[data-page="inspections"] .ip-legend i.k-none{background:var(--slate-500)}
 body[data-page="inspections"] .ip-stop{grid-template-columns:22px minmax(0,1fr) auto auto;align-items:center}

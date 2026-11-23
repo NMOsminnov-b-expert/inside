@@ -12,8 +12,9 @@
 import { esc } from '../../kernel/dom.js';
 import { build } from '../../kernel/router.js';
 import { assign, unassign, isLive, eventsOf, deadlineOf, workdayOf, inventoryHolders } from '../../kernel/inspections.js';
-import { objectContents, todayIso, stateLabel, EVENT_LABELS } from './model.js';
+import { objectContents, todayIso, stateLabel, EVENT_LABELS, freeOiIds, earlyScopeOf } from './model.js';
 import { PART_KINDS, partValues, partLabel } from '../../kernel/inventories.js';
+import { earlyOf } from '../../kernel/earlyInspection.js';
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 
@@ -173,7 +174,9 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
   if (!c) return paneHTML({ mode: 'none' });
   // У частично осмотренного или назначенного объекта — отмечены свободные ОИ,
   // а не «объект целиком».
-  const freeOi = c.cov && c.cov.state !== 'none' ? c.oi.filter((o) => !c.cov.by.has(o.id)).map((o) => o.id) : [];
+  // Досрочно направлены выбранные ОИ — отмечены они (свободные из них), а не «объект целиком» (model.freeOiIds).
+  const early = earlyOf(c.rec);
+  const freeOi = freeOiIds(target.typeId, target.ocId);
   const pick = prev
     ? { oi: new Set(prev.oiIds || []), docs: new Set(prev.docs || []), inv: new Set(prev.inventories || []) }
     : { oi: new Set(freeOi), docs: new Set(c.groups.flatMap((g) => g.docs).filter((d) => d.def).map((d) => d.id)), inv: new Set() };
@@ -209,6 +212,7 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
       ${prev ? `<p class="ip-pane-meta"><span class="ip-state st-${esc(prev.state)}">${esc(stateLabel(prev))}</span>
         назначил ${esc(prev.by || '—')} ${esc(fmtDate(prev.at))}</p>` : ''}
       ${others.length ? `<p class="ip-pane-meta">Ещё назначено: ${othersText(others)}</p>` : ''}
+      ${early && early.state === 'sent' ? earlyHTML(early, c) : ''}
     </header>
     <div class="ip-pane-body">
       ${whoWhen(people, (prev && prev.person) || person, date || (prev && prev.plannedAt), plan, [target])}
@@ -282,7 +286,8 @@ export function submitPane(root, { targets, prev }) {
     plannedAt: (root.querySelector(`[data-ip-lay="${CSS.escape(t.typeId + '|' + t.ocId)}"]`) || {}).value || common.plannedAt,
     typeId: t.typeId,
     ocId: t.ocId,
-    oiIds,
+    // Пачка: у досрочно направленных выбранных ОИ — только они (у одиночного объекта отметки уже в форме).
+    oiIds: single || !earlyScopeOf(t.typeId, t.ocId) ? oiIds : freeOiIds(t.typeId, t.ocId),
     docs: single ? [...root.querySelectorAll('[data-ip-f-doc]:checked')].map((x) => x.dataset.ipFDoc) : undefined,
     inventories: single ? [...root.querySelectorAll('[data-ip-f-inv]:checked')].map((x) => x.dataset.ipFInv) : [],
     invParts: single ? invPartsOf(root) : {},
@@ -311,3 +316,12 @@ function invPartsOf(root) {
 }
 
 export { unassign };
+
+// Досрочное направление (kernel/earlyInspection.js) — кто направил, что осмотреть, комментарий ЦОД; статус карточки при
+// назначении не меняется.
+function earlyHTML(e, c) {
+  const names = e.oiIds.map((id) => (c.oi.find((o) => o.id === id) || {}).label).filter(Boolean);
+  return `<div class="ip-early" role="note"><b>Досрочно направлен на осмотр</b>
+    <span>${esc([e.by, fmtDate(e.at)].filter(Boolean).join(', '))} · ${names.length ? esc(names.join('; ')) : 'весь объект'}</span>
+    ${e.note ? `<span class="ip-early-note">${esc(e.note)}</span>` : ''}</div>`;
+}

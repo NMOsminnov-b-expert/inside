@@ -24,6 +24,11 @@ import { inventoryById } from '../../kernel/inventories.js';
 import { READY_STATUS, SENT_STATUS } from '../../kernel/inspections.js';
 export { READY_STATUS, SENT_STATUS };
 export const inQueueStatus = (status) => status === READY_STATUS || status === SENT_STATUS;
+// В очереди регионала — по статусу или по флагу «Досрочно направлен на осмотр» при любом статусе
+// (kernel/earlyInspection.js; пользователь 23.11.2026: «После такого направления обьект появляется у регионала»).
+// s — сводка записи (flags.earlySent кладут модули ОЦ).
+export const isEarlySent = (s) => !!(s && s.flags && s.flags.earlySent);
+export const inQueue = (s) => inQueueStatus(s.status) || isEarlySent(s);
 
 // Лимит снимков из ТЗ: 250 на основное строение и участок, 50 на
 // вспомогательное. Здесь общий лимит на задачу — по строениям он разойдётся,

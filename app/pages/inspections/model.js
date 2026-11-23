@@ -10,7 +10,8 @@ import {
   workdayOf, absenceOn, profileOf, profileNames, absenceLabel, deadlineOf, stallOf,
   dayReport, reportTime, activitiesOn, activityKind, planOf, allCadRequests,
 } from '../../kernel/inspections.js';
-import { inspectorsInData, oiLabel, READY_STATUS, inQueueStatus, loadTask } from '../inspection/tasks.js';
+import { inspectorsInData, oiLabel, READY_STATUS, inQueueStatus, inQueue, isEarlySent, loadTask } from '../inspection/tasks.js';
+import { earlyOf } from '../../kernel/earlyInspection.js';
 import { institutionChain } from '../../kernel/contacts.js';
 import { inventoriesForRecord, progressOf } from '../../kernel/inventories.js';
 import { hasResults } from '../../kernel/inspectionResults.js';
@@ -50,10 +51,33 @@ export const regionOf = (s) => eniRegion(s.eni) || '';
 //              assigned — часть назначена, осмотренных нет;
 //              inspected — часть осмотрена (остальные свободны или назначены);
 //              full — свободных ОИ нет (в очередь не попадает).
+// Досрочно направлены выбранные ОИ, а по статусу объект в очередь ещё не идёт — регионалу направлены только они:
+// в покрытии, в отметках окна назначения и при назначении пачкой и с маршрута — только они. null — весь объект.
+export function earlyScope(rec) {
+  const e = earlyOf(rec);
+  return e && e.state === 'sent' && e.oiIds.length && !inQueueStatus(rec.status) ? e.oiIds.slice() : null;
+}
+export function earlyScopeOf(typeId, ocId) {
+  const t = getType(typeId);
+  const rec = t && t.records.loadRecord(ocId);
+  return rec ? earlyScope(rec) : null;
+}
+// Свободные ОИ для назначения: [] — объект целиком (ничего не занято и нет ограничения досрочным направлением).
+export function freeOiIds(typeId, ocId) {
+  const t = getType(typeId);
+  const rec = t && t.records.loadRecord(ocId);
+  if (!rec) return [];
+  const cov = coverageOf(typeId, ocId);
+  const scope = earlyScope(rec);
+  const ids = (scope || (rec.oi || []).map((o) => o.id)).filter((id) => !cov.by.has(id));
+  return !scope && ids.length === (rec.oi || []).length ? [] : ids;
+}
+
 export function coverageOf(typeId, ocId) {
   const t = getType(typeId);
   const rec = t && t.records.loadRecord(ocId);
-  const ids = rec ? (rec.oi || []).map((o) => o.id) : [];
+  const scope = rec ? (earlyScope(rec) ? new Set(earlyScope(rec)) : null) : null;
+  const ids = rec ? (rec.oi || []).map((o) => o.id).filter((id) => !scope || scope.has(id)) : [];
   const total = Math.max(ids.length, 1);
   const by = new Map();       // ОИ → { kind: 'done' | 'live', a }
   allAssignments().forEach((a) => {
@@ -87,7 +111,7 @@ export function queueRows(all, f) {
   const q = (f.q || '').trim().toLowerCase();
   const out = [];
   all.forEach((s) => {
-    if (!inQueueStatus(s.status)) return;
+    if (!inQueue(s)) return;
     if (f.type && s.typeId !== f.type) return;
     if (f.region && regionOf(s) !== f.region) return;
     if (q && !`${s.eniAll || s.eni} ${s.title} ${s.institution} ${s.city}`.toLowerCase().includes(q)) return;
@@ -107,7 +131,7 @@ export function queueFacets(all) {
   const types = new Map();
   const regions = new Map();
   all.forEach((s) => {
-    if (!inQueueStatus(s.status)) return;
+    if (!inQueue(s)) return;
     types.set(s.typeId, s.typeLabel);
     const r = regionOf(s);
     if (r) regions.set(r, (regions.get(r) || 0) + 1);
@@ -425,11 +449,11 @@ export function dueOf(date) {
 export function queueBase(all) {
   const out = [];
   all.forEach((s) => {
-    if (!inQueueStatus(s.status)) return;
+    if (!inQueue(s)) return;
     const cov = coverageOf(s.typeId, s.id);
     if (cov.state === 'full') return;
     const deadline = deadlineOf(s.typeId, s.id);
-    out.push({ ...s, cov, deadline, due: dueOf(deadline), place: placeOf(s) });
+    out.push({ ...s, cov, deadline, due: dueOf(deadline), place: placeOf(s), early: isEarlySent(s) });
   });
   return out;
 }
@@ -461,7 +485,11 @@ export function settlementOf(s) {
 
 // Фасеты и диапазоны очереди. val — значение строки (строка или список);
 // order — порядок значений, если он задан смыслом, а не числом.
+// Направление — обычное или досрочное (фильтр регионала, пользователь 23.11.2026: «У регионала в экране встраиваем
+// фильтр»).
+const EARLY_ORDER = [{ key: 'early', label: 'Досрочно' }, { key: 'usual', label: 'Обычное' }];
 export const QUEUE_FACETS = [
+  { key: 'early', title: 'Направление', val: (s) => (s.early ? 'early' : 'usual'), order: EARLY_ORDER },
   { key: 'due', title: 'Срок', val: (s) => s.due, order: DUE },
   { key: 'cov', title: 'Покрытие ОИ', val: (s) => s.cov.state, order: COVERAGE.filter((c) => c.key) },
   { key: 'region', title: 'Область', val: (s) => regionOf(s) },
@@ -491,6 +519,7 @@ const ASSIGN_STATE_ORDER = [{ key: 'assigned', label: 'Назначено' }, { 
   { key: 'late', label: 'Просрочено' }, { key: 'returned', label: 'Возвращено на доосмотр' }];
 // «Назначено» — строки { a, s }.
 export const ASSIGNED_FACETS = [
+  { key: 'early', title: 'Направление', val: ({ a }) => (a.early ? 'early' : 'usual'), order: EARLY_ORDER },
   { key: 'pick', title: 'Отбор', val: ({ a }) => [...assignedPickOf(a)], order: ASSIGNED_PICKS_ORDER() },
   { key: 'person', title: 'Осмотрщик', val: ({ a }) => a.person },
   { key: 'region', title: 'Область', val: ({ s }) => regionOf(s) },

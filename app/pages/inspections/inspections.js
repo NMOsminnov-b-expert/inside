@@ -37,9 +37,9 @@ import { ENI_REGIONS, plural, fmtEni } from '../../kernel/fmt.js';
 import { eniCodesOf } from '../../kernel/eniField.js';
 import {
   summaries, assignedRows, inspectorRows, isOverdue, stateLabel, EVENT_LABELS,
-  queueBase, regionOf, districtOf, tripGroups, addrGroups, addrRest, addrKey, dueOf, availability, onSiteContacts, assignedPickOf,
+  queueBase, freeOiIds, regionOf, districtOf, tripGroups, addrGroups, addrRest, addrKey, dueOf, availability, onSiteContacts, assignedPickOf,
   QUEUE_FACETS, QUEUE_RANGES, ASSIGNED_FACETS, ASSIGNED_RANGES, applyFilter, facetValues, filterChips, emptyFilter, filterActive,
-  reportDayRows, reportTotals, reportDays, accountingSheets, objectContents, employeeSummary,
+  reportDayRows, reportTotals, reportDays, accountingSheets, employeeSummary,
 } from './model.js';
 import { paneHTML, submitPane, unassign } from './assignPane.js';
 import { calendarHTML, bindCalendarPopover, statsHTML, mountStats, destroyStats, historyHTML, periodBar } from './stats.js';
@@ -186,7 +186,9 @@ export function mountInspections(host) {
       sub: [s.typeLabel, s.institution].filter(Boolean).join(' · '), eni: s.eniAll || s.eni,
     } : null;
   };
-  const objCell = (s, sub, flag = '') => `<span class="ip-obj"><span class="ip-obj-t">${esc(s.title || '—')}${flag ? ` <span class="ip-flag">${esc(flag)}</span>` : ''}</span>
+  // early — досрочное направление (kernel/earlyInspection.js): пометка того же цвета, что значок реестра.
+  const EARLY_FLAG = '<span class="ip-flag early" title="Досрочно направлен на осмотр — статус карточки не меняется">досрочно</span>';
+  const objCell = (s, sub, flag = '', early = false) => `<span class="ip-obj"><span class="ip-obj-t">${esc(s.title || '—')}${early ? ` ${EARLY_FLAG}` : ''}${flag ? ` <span class="ip-flag">${esc(flag)}</span>` : ''}</span>
     <span class="ip-obj-s">${esc(sub)}</span></span>`;
   const more = (n, total) => (total > n ? `<div class="ip-more"><span>Показаны первые ${n} из ${total}</span>
     <button class="btn btn-ghost btn-sm" data-ip-more>Показать ещё ${Math.min(total - n, STEP)}</button></div>` : '');
@@ -405,7 +407,7 @@ export function mountInspections(host) {
             return `<tr data-ip-row="${esc(k)}" draggable="true" data-cov="${s.cov.state}" class="${current === k ? 'cur' : ''} ${checked.has(k) ? 'sel' : ''}" aria-selected="${current === k}">
               <td class="c-check"><input type="checkbox" data-ip-check="${esc(k)}" ${checked.has(k) ? 'checked' : ''} aria-label="Отметить"></td>
               <td class="num">${dueCell(s)}</td>
-              <td>${objCell(s, [s.typeLabel, s.institution, s.eniAll || s.eni].filter(Boolean).join(' · '), s.partial ? 'частично осмотрен' : '')}</td>
+              <td>${objCell(s, [s.typeLabel, s.institution, s.eniAll || s.eni].filter(Boolean).join(' · '), s.partial ? 'частично осмотрен' : '', s.early)}</td>
               <td>${covCell(s.cov)}</td>
             </tr>`;
           }).join('') : ''}</tbody>`;
@@ -445,7 +447,7 @@ export function mountInspections(host) {
     const obj = inGroup
       ? `<span class="ip-obj"><span class="ip-obj-t">${esc(addrRest(s) || s.typeLabel || 'Объект целиком')}</span>
         <span class="ip-obj-s">${esc([who, addrRest(s) ? s.typeLabel : '', s.institution, eniOfAssign(a, s)].filter(Boolean).join(' · '))}</span></span>`
-      : objCell(s, [who, s.typeLabel, s.institution, eniOfAssign(a, s)].filter(Boolean).join(' · '));
+      : objCell(s, [who, s.typeLabel, s.institution, eniOfAssign(a, s)].filter(Boolean).join(' · '), '', !!a.early);
     return `<tr data-ip-row="${esc(a.id)}" draggable="true" class="${inGroup ? 'ip-in-grp' : ''} ${current === a.id ? 'cur' : ''} ${checked.has(a.id) ? 'sel' : ''}" aria-selected="${current === a.id}">
       <td class="c-check"><input type="checkbox" data-ip-acheck="${esc(a.id)}" ${checked.has(a.id) ? 'checked' : ''} aria-label="Отметить"></td>
       <td class="num ${picks.has('late') ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
@@ -1245,7 +1247,6 @@ export function mountInspections(host) {
   // уход; справа — карта OSM с домом, номерами остановок и кругом маршрута.
   // Предложенные системой объекты — совет: лишний убирается, остальные
   // назначаются одной кнопкой на этот день.
-  const objectContentsIds = (typeId, ocId) => { const c = objectContents(typeId, ocId); return c ? c.oi.map((o) => o.id) : []; };
   const firstWorkday = (name) => { for (let k = 0; k < 14; k++) { const d = shiftD(todayD, k); if (workdayOf(name, d).ok) return d; } return todayD; };
   // mode — 'day' (маршрут дня) | 'all' (все объекты осмотрщика на карте,
   // замечание пользователя 29.10.2026 «Нужен просмотр и всех обьектов»).
@@ -1321,8 +1322,11 @@ export function mountInspections(host) {
     // дорога от предыдущей — «+мин · км», близкое — «рядом».
     const km = (v) => v.toFixed(1).replace('.', ',');
     const leg = (x) => (x.km < 0.3 ? 'рядом' : `+${x.drive} мин · ${km(x.km)} км`);
-    const stop = (x, i) => `<li class="ip-stop ${x.fixed ? 'fixed' : 'prop'} ${x.done ? 'done' : ''}" data-ip-stop="${i + 1}">
-        <span class="ip-stop-n" aria-label="${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}, ${i + 1}">${x.done ? '✓' : i + 1}</span>
+    // Досрочно направленные среди предложенных — отдельной категорией (пользователь 23.11.2026: «предлагается в том
+    // числе в рекомендациях отдельной категорией»): свой цвет номера и строка легенды.
+    const early = (x) => !x.fixed && !!x.s.early;
+    const stop = (x, i) => `<li class="ip-stop ${x.fixed ? 'fixed' : 'prop'} ${early(x) ? 'early' : ''} ${x.done ? 'done' : ''}" data-ip-stop="${i + 1}">
+        <span class="ip-stop-n" aria-label="${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : early(x) ? 'предложено, досрочно' : 'предложено'}, ${i + 1}">${x.done ? '✓' : i + 1}</span>
         <div class="ip-stop-b">
           <b class="ip-stop-h">${esc(x.s.title)}</b>
           <span class="ip-sub">${esc([x.s.typeLabel, x.s.metrics && x.s.metrics.area ? `${Math.round(x.s.metrics.area).toLocaleString('ru-RU')} м²` : '', x.s.institution].filter(Boolean).join(' · '))}</span>
@@ -1331,6 +1335,8 @@ export function mountInspections(host) {
         ${x.fixed ? '' : `<button class="ip-x" data-ip-route-skip="${esc(x.key)}" aria-label="Убрать из маршрута" title="Убрать из маршрута">×</button>`}
       </li>`;
     const nFixed = r.stops.filter((x) => x.fixed).length;
+    const nEarly = r.stops.filter(early).length;
+    const nProp = r.proposed.length - nEarly;
     const addr = profileOf(me.name).homeAddress;
     return `<div class="ip-repbar ip-routebar">
         ${modeSeg}
@@ -1353,7 +1359,7 @@ export function mountInspections(host) {
       <div class="ip-route">
         <div class="ip-route-side">
         <div class="ip-stops-head">
-          <span class="ip-legend"><i class="k-fixed"></i>назначено ${nFixed}</span>${r.proposed.length ? `<span class="ip-legend"><i class="k-prop"></i>предложено ${r.proposed.length}</span>` : ''}
+          <span class="ip-legend"><i class="k-fixed"></i>назначено ${nFixed}</span>${nProp ? `<span class="ip-legend"><i class="k-prop"></i>предложено ${nProp}</span>` : ''}${nEarly ? `<span class="ip-legend"><i class="k-early"></i>досрочно ${nEarly}</span>` : ''}
           <label class="ip-prop-tg"><input type="checkbox" data-ip-route-prop ${route.showProp ? 'checked' : ''}> Предложения на день</label>
           ${r.proposed.length ? '<button class="btn btn-primary btn-sm" data-ip-route-assign>Назначить предложенные</button>' : ''}
         </div>
@@ -1470,9 +1476,9 @@ export function mountInspections(host) {
     const items = [];
     if (r.home.gps) items.push({ n: '⌂', cls: 'home', ll: r.home.gps, tip: `<b>${esc(r.home.label === 'дом' ? 'Дом' : 'Временное жильё')}</b><br>выезд ${r.start}` });
     r.stops.forEach((x, i) => items.push({
-      n: String(i + 1), cls: x.fixed ? 'fixed' : 'prop', ll: x.gps,
+      n: String(i + 1), cls: x.fixed ? 'fixed' : x.s.early ? 'prop early' : 'prop', ll: x.gps,
       title: `${i + 1}. ${x.s.title}`,
-      tip: `<b>${i + 1}. ${esc(x.s.title)}</b><br><span class="ip-tip-sub">${esc(x.s.typeLabel || '')}${x.s.typeLabel ? ' · ' : ''}${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : 'предложено'}</span>`,
+      tip: `<b>${i + 1}. ${esc(x.s.title)}</b><br><span class="ip-tip-sub">${esc(x.s.typeLabel || '')}${x.s.typeLabel ? ' · ' : ''}${x.fixed ? (x.done ? 'осмотрено' : 'назначено') : x.s.early ? 'предложено · досрочно' : 'предложено'}</span>`,
     }));
     const groups = [];
     items.forEach((it) => {
@@ -1485,7 +1491,8 @@ export function mountInspections(host) {
     box._pins = [];
     groups.forEach((g) => {
       const lead = g.items[0];
-      const cls = g.items.some((x) => x.cls === 'fixed') ? 'fixed' : lead.cls;
+      // Склейка: назначенное важнее, среди предложенных — досрочное (своя категория не теряется в склейке).
+      const cls = g.items.some((x) => x.cls === 'fixed') ? 'fixed' : g.items.some((x) => x.cls === 'prop early') ? 'prop early' : lead.cls;
       const wide = g.items.length > 1;
       const el = document.createElement('div');
       el.className = `ip-pin ${cls}`;
@@ -3111,11 +3118,7 @@ export function mountInspections(host) {
     r.proposed.forEach((k) => {
       const x = r.stops.find((s) => s.key === k);
       if (!x) return;
-      const free = x.cov && x.cov.by ? (() => {
-        const t = all.get(k);
-        const ids = (objectContentsIds(t.typeId, t.id)).filter((id) => !x.cov.by.has(id));
-        return ids.length === x.cov.total ? [] : ids;
-      })() : [];
+      const free = freeOiIds(x.s.typeId, x.s.id);
       if (assign({ typeId: x.s.typeId, ocId: x.s.id, person: view.person, oiIds: free, plannedAt: route.day })) n++;
     });
     redraw();

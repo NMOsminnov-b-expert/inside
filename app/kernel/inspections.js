@@ -25,7 +25,7 @@ import { optionsFor } from './dicts.js';
 import {
   SKIP_REASONS, ABSENCE_KINDS, ACTIVITY_KINDS, CAD_DOCS, DEFAULT_DOC_TYPES, CAR_FUELS,
 } from './inspectionsDicts.js';
-import { setEarlyAssigns } from './earlyInspection.js';
+import { setEarlyAssigns, earlyOf } from './earlyInspection.js';
 
 // Перечни «Осмотров» — из раздела «Справочники» (группа «Осмотры», решение
 // пользователя 15.10.2026), встроенные — запасные (kernel/inspectionsDicts.js).
@@ -165,8 +165,11 @@ function recordsOf(typeId) {
 export const READY_STATUS = 'Удостоверен по документам';
 export const SENT_STATUS = 'Направлен на осмотр';
 export const DONE_STATUS = 'Осмотрен';
+// Досрочно направленный объект (kernel/earlyInspection.js): статус не двигается ни назначением, ни снятием —
+// пользователь 23.11.2026: «Статус при этом не переводится… Ставится флаг».
+const earlySent = (rec) => { const e = earlyOf(rec); return !!e && e.state === 'sent'; };
 function moveStatus(recs, rec, ocId, from, to) {
-  if (!from.includes(rec.status)) return;
+  if (!from.includes(rec.status) || earlySent(rec)) return;
   recs.setStatus(ocId, to);
 }
 
@@ -237,6 +240,9 @@ export function assign({ typeId, ocId, person, oiIds = [], docs, inventories = [
       state: 'assigned',
       doneAt: '',
     };
+    // Назначение по досрочному направлению — пометкой: по ней приёмка ЦОД ставит «Осмотр проведён досрочно».
+    const recs = recordsOf(typeId);
+    if (recs && earlySent(recs.loadRecord(ocId))) a.early = true;
     assignments.push(a);
     logEvent('assigned', a);
   }
