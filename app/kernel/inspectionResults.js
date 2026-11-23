@@ -15,6 +15,7 @@
 // отправляет, когда связь есть (развилка: очередь отправки и её показ).
 import { registerPersisted, scheduleSave, adoptBaseline } from './persist.js';
 import { keepFileLocally } from './localFiles.js';
+import { testDataOn } from './testData.js';
 
 const key = (typeId, ocId) => `${typeId}|${ocId}`;
 const results = new Map();
@@ -81,7 +82,8 @@ export const peekResults = (typeId, ocId) => results.get(key(typeId, ocId)) || n
 
 // Все результаты осмотров (без создания пустых) — очередь «Сканы с осмотров»
 // (kernel/scanQueue.js) перебирает по ним сканы.
-export const allResults = () => [...results.values()];
+// Тумблер «Тестовые данные» выключен — демо-результаты (сканы, уведомления) не видны (kernel/testData.js).
+export const allResults = () => [...results.values()].filter((r) => testDataOn() || !r.demo);
 
 // Был ли осмотр объекта вообще — без создания пустой записи.
 export function hasResults(typeId, ocId) {

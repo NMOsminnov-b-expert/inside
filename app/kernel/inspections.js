@@ -26,6 +26,7 @@ import {
   SKIP_REASONS, ABSENCE_KINDS, ACTIVITY_KINDS, CAD_DOCS, DEFAULT_DOC_TYPES, CAR_FUELS,
 } from './inspectionsDicts.js';
 import { setEarlyAssigns, earlyOf } from './earlyInspection.js';
+import { testDataOn } from './testData.js';
 
 // Перечни «Осмотров» — из раздела «Справочники» (группа «Осмотры», решение
 // пользователя 15.10.2026), встроенные — запасные (kernel/inspectionsDicts.js).
@@ -73,6 +74,9 @@ const demo = demoInspections({ isDefaultDoc, me: session.state.person });
 registerDemoResults(demo.results, demo.resultsVer);
 const assignments = demo.assignments;
 const events = demo.events;
+// Тумблер «Тестовые данные» выключен (kernel/testData.js) — демо-назначения и демо-события не видны нигде; в данных
+// они остаются, иначе сохранение сочло бы их удалёнными. Правки идут по полному списку.
+const visA = () => (testDataOn() ? assignments : assignments.filter((a) => !a.demo));
 
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: назначения и их журнал — записи на сервере с автором
 // и временем сервера; осмотрщик видит только свои назначения, менеджер —
@@ -122,24 +126,24 @@ export function logEvent(kind, a, extra = {}) {
 }
 
 export function eventsOf({ person = '', typeId = '', ocId = '' } = {}) {
-  return events.filter((e) => (!person || e.person === person)
+  return (testDataOn() ? events : events.filter((e) => !e.demo)).filter((e) => (!person || e.person === person)
     && (!typeId || e.typeId === typeId) && (!ocId || e.ocId === ocId));
 }
 
 // --- выборки -----------------------------------------------------------------
 
-export const allAssignments = () => assignments;
+export const allAssignments = () => visA();
 export const assignmentById = (id) => assignments.find((a) => a.id === id) || null;
 
 export function assignmentsOf(typeId, ocId, { live = true } = {}) {
-  return assignments.filter((a) => a.typeId === typeId && a.ocId === ocId && (!live || isLive(a)));
+  return visA().filter((a) => a.typeId === typeId && a.ocId === ocId && (!live || isLive(a)));
 }
 // Досрочный осмотр (kernel/earlyInspection.js) берёт живые назначения объекта отсюда — регистрацией, без круга импортов.
 setEarlyAssigns((typeId, ocId) => assignmentsOf(typeId, ocId).map((a) => ({ person: a.person, state: a.state, plannedAt: a.plannedAt || '',
   label: (ASSIGN_STATES.find((x) => x.key === a.state) || {}).label || a.state })));
 
 export function assignmentsOfPerson(person, { live = true } = {}) {
-  return assignments.filter((a) => a.person === person && (!live || isLive(a)));
+  return visA().filter((a) => a.person === person && (!live || isLive(a)));
 }
 
 // Назначение покрывает ОИ, если оно на объект целиком (oiIds пуст) или ОИ в
@@ -326,17 +330,17 @@ export function finishWork(person, typeId, ocId, done, { incomplete = false, rea
 // срез «Мне осмотреть», задачи осмотрщика, приложение «Осмотр».
 // У кого опись уже в действующих назначениях (регионалу: «опись уже у такого-то»).
 export function inventoryHolders(invId, exceptId = '') {
-  return assignments.filter((a) => isLive(a) && a.id !== exceptId && (a.inventories || []).includes(invId))
+  return visA().filter((a) => isLive(a) && a.id !== exceptId && (a.inventories || []).includes(invId))
     .map((a) => ({ person: a.person, part: (a.invParts || {})[invId] || null, assignId: a.id }));
 }
 
 export function liveObjectsOf(person) {
-  return new Set(assignments.filter((a) => a.person === person && isLive(a)).map((a) => a.typeId + '|' + a.ocId));
+  return new Set(visA().filter((a) => a.person === person && isLive(a)).map((a) => a.typeId + '|' + a.ocId));
 }
 
 export function finishedObjects() {
   const by = new Map();
-  assignments.forEach((a) => {
+  visA().forEach((a) => {
     if (a.state === 'removed') return;
     const k = a.typeId + '|' + a.ocId;
     by.set(k, (by.get(k) !== false) && a.state === 'done');
@@ -526,7 +530,7 @@ export function saveProfile(name, patch) {
 // Дата увольнения в будущем — снимаются только выезды с этого дня и без даты.
 function releaseFired(name, firedDate) {
   const from = firedDate && firedDate > localIso(new Date()) ? firedDate : '';
-  assignments.filter((a) => a.person === name && isLive(a) && (!from || !a.plannedAt || a.plannedAt >= from)).forEach((a) => {
+  visA().filter((a) => a.person === name && isLive(a) && (!from || !a.plannedAt || a.plannedAt >= from)).forEach((a) => {
     a.state = 'removed';
     a.removedAt = now();
     logEvent('removed', a, { text: 'осмотрщик уволен — объект возвращён к назначению' });
@@ -638,7 +642,7 @@ export function regionsOf(name, summaryEni) {
   // Объекты осмотрщика по областям — за всё время назначений; в профиле
   // область показывается с этим числом (выбор строкой с числом).
   const objs = new Map();
-  assignments.forEach((a) => {
+  visA().forEach((a) => {
     if (a.person !== name) return;
     const r = eniRegion(summaryEni(a.typeId, a.ocId));
     if (!r) return;
@@ -772,7 +776,7 @@ export function decideMove(id, ok, why = '') {
   changed();
   return a;
 }
-export const moveRequests = () => assignments.filter((a) => isLive(a) && a.moveReq);
+export const moveRequests = () => visA().filter((a) => isLive(a) && a.moveReq);
 
 // Вернуть снятое с дня (указание пользователя 14.10.2026: «Снятое тоже
 // должна быть возможность заново назначить»): снятие отменяется — дата
@@ -1008,7 +1012,7 @@ export function dayReport(person, date) {
   // Отчёт обязателен только в рабочий день с выездами — назначениями с
   // плановой датой этого дня (ответ пользователя 12.10.2026 «Отчеты нужны
   // только при выездах»): работа дома, разбор снимков, переезд — без отчёта.
-  const trips = assignments.filter((a) => a.person === person && a.plannedAt === date && a.state !== 'removed').length;
+  const trips = visA().filter((a) => a.person === person && a.plannedAt === date && a.state !== 'removed').length;
   const due = work.ok && trips > 0;
   return {
     person, date, work: work.ok, reason: work.reason, morning, evening, km, kmBy, litres,

@@ -5,10 +5,11 @@ import { recHasSpecials } from '../../kernel/specials/model.js';
 import { eniAllOf, foldEniList } from '../../kernel/eniFold.js';
 import { ocFullAddress, syncOcAddress } from '../../kernel/address.js';
 import { adoptBaseline, removedIds } from '../../kernel/persist.js';
+import { testDataOn, shownBy } from '../../kernel/testData.js';
 import { fmtNum, num, localIso } from '../../kernel/fmt.js';
 import { manifest } from './manifest.js';
 import { session } from '../../kernel/session.js';
-import { records, addRecord, nextId } from './data/store.js';
+import { records, SEED_IDS, addRecord, nextId } from './data/store.js';
 import { totalPendingNotes } from '../../kernel/notes/model.js';
 import { filterRows, sortRows, computeFacets, locateIn } from './data/query.js';
 import { bulkSummaries, bulkCount, setBulkCount, isBulkId, materialize } from './data/bulk.js';
@@ -179,9 +180,11 @@ function bulkSummary(raw) {
 
 // Полный набор сводок модуля: сид + синтетика (материализованные записи
 // берутся из сида, чтобы правки пользователя были видны в списке).
+// Тумблер «Тестовые данные» выключен — засев и сгенерированный объём не показываются (kernel/testData.js).
+const shown = shownBy(SEED_IDS, isBulkId);
 function allSummaries() {
-  const own = records.map(summarize);
-  const bulk = bulkSummaries(bulkSummary);
+  const own = records.filter(shown).map(summarize);
+  const bulk = testDataOn() ? bulkSummaries(bulkSummary) : [];
 
   if (!bulk.length) return own;
 
@@ -263,6 +266,7 @@ export function partyNames() {
 // в пределах текущего объёма её не считаем дважды (с объёмом по умолчанию
 // 1000, 13.10.2026, вкладка «Недвижимое» показывала 2016 вместо 1016).
 export function totalCount() {
+  if (!testDataOn()) return records.filter(shown).length;
   const n = bulkCount();
   const twice = records.filter((r) => isBulkId(r.id) && +r.id.slice(r.id.lastIndexOf('-b') + 2) < n).length;
   return records.length - twice + n;

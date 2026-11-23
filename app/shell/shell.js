@@ -1,4 +1,5 @@
 import { $, esc } from '../kernel/dom.js';
+import { testDataOn, setTestDataOn } from '../kernel/testData.js';
 import { createScope } from '../kernel/scope.js';
 import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF, OSMOTR_HREF, INSPECTIONS_HREF, SCANS_HREF, ANALYTICS_HREF } from '../kernel/router.js';
 import { session, seesEverything, myInstitutions, ROLES, roleLabel } from '../kernel/session.js';
@@ -38,6 +39,10 @@ function userMenuHTML() {
     ${showInst ? `<div class="um-h">Мои учреждения</div>
       <div class="um-pad"><input class="input" data-um-inst placeholder="через запятую" value="${esc((st.institutions || []).join(', '))}"
         title="Сотрудник видит в логе действий и архиве только объекты этих учреждений"></div>` : ''}
+    <div class="um-sep"></div>
+    <div class="um-h">Данные — только в макете</div>
+    <label class="um-item" title="Демо-записи и сгенерированный объём: включено — видны, выключено — скрыты, видны только заведённые вручную. Страница перезагрузится">
+      <input type="checkbox" role="switch" data-um-test ${testDataOn() ? 'checked' : ''}>Тестовые данные</label>
     ${extra ? `<div class="um-sep"></div>${extra}` : ''}`;
 }
 
@@ -50,6 +55,8 @@ function renderUserMenu() {
   box.querySelectorAll('input[name="um-role"]').forEach((r) => r.onchange = () => session.set({ role: r.value }));
   const inst = box.querySelector('[data-um-inst]');
   if (inst) inst.onchange = () => session.set({ institutions: inst.value.split(',').map((x) => x.trim()).filter(Boolean) });
+  const test = box.querySelector('[data-um-test]');
+  if (test) test.onchange = () => setTestDataOn(test.checked);
   if (state.userExtra && state.userExtra.bind) state.userExtra.bind(box);
 }
 

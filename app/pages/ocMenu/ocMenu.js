@@ -1,4 +1,5 @@
 import { esc } from '../../kernel/dom.js';
+import { testDataOn } from '../../kernel/testData.js';
 import { sortedTypes, getType } from '../../kernel/registry.js';
 import { build, MENU_HREF } from '../../kernel/router.js';
 import { selectDialog } from '../../kernel/dialog.js';
@@ -123,10 +124,11 @@ export function mountOcMenu(host) {
   // Роль — в общем меню оболочки (она действует и в карточках); здесь — то,
   // что относится только к реестру.
   host.setUserMenuExtra && host.setUserMenuExtra({
-    html: () => `<div class="um-h">Демо-объём реестра</div>
+    // Объём генерации — только при включённых тестовых данных (kernel/testData.js).
+    html: () => `${testDataOn() ? `<div class="um-h">Демо-объём реестра</div>
       <div class="um-pad um-seg" role="group" aria-label="Демо-объём реестра">
         ${[0, 1000, 5000, 20000].map((n) => `<button class="um-seg-b ${bulkTotal() === n ? 'on' : ''}" data-um-bulk="${n}">${n ? n.toLocaleString('ru') : 'Сид'}</button>`).join('')}
-      </div>
+      </div>` : ''}
       <div class="um-h">Клавиши реестра</div>
       <div class="um-pad um-keys"><kbd>/</kbd> поиск · <kbd>j</kbd> <kbd>k</kbd> по списку · <kbd>Enter</kbd> карточка · <kbd>Space</kbd> превью · <kbd>Esc</kbd> закрыть</div>`,
     bind: (box) => {

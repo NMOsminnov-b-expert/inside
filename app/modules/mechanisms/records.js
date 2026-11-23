@@ -1,4 +1,5 @@
 import { matchSummary, facetsFrom, sortRows, locateIn } from '../../kernel/registryRows.js';
+import { shownBy } from '../../kernel/testData.js';
 import { manifest } from './manifest.js';
 import { registerPersisted, copyTag } from '../../kernel/persist.js';
 import { fmtNum, localIso } from '../../kernel/fmt.js';
@@ -17,6 +18,9 @@ import { createSeed } from './data/seed.js';
 const records = createSeed();
 records.forEach((r) => { migrateMechHolder(r.mech); syncMechName(r.mech); });
 const SEED_IDS = records.map((r) => r.id);
+// Тумблер «Тестовые данные» выключен — демо-записи не показываются (kernel/testData.js).
+const shown = shownBy(new Set(SEED_IDS));
+const live = () => records.filter(shown);
 let seq = 0;
 
 // Введённое переживает перезагрузку страницы — как у остальных типов ОЦ
@@ -125,20 +129,20 @@ export function summarize(rec) {
 }
 
 export function queryRecords({ filter, sort, offset = 0, limit = 50 } = {}) {
-  const rows = sortRows(records.map(summarize).filter((row) => matchSummary(row, filter)), sort);
+  const rows = sortRows(live().map(summarize).filter((row) => matchSummary(row, filter)), sort);
   return { rows: rows.slice(offset, offset + limit), total: rows.length };
 }
 
-export function countRecords(filter) { return records.map(summarize).filter((row) => matchSummary(row, filter)).length; }
+export function countRecords(filter) { return live().map(summarize).filter((row) => matchSummary(row, filter)).length; }
 // Отбор, фасеты и локатор — общие для модулей с записями-массивом
 // (kernel/registryRows.js): раньше здесь проверялись только тип, статус и
 // учреждение, и поиск, срезы и признаки на ТС и механизмы не действовали.
-export function facets(filter) { return facetsFrom(records.map(summarize), filter); }
-export function locate(query) { return locateIn(records.map(summarize), query); }
+export function facets(filter) { return facetsFrom(live().map(summarize), filter); }
+export function locate(query) { return locateIn(live().map(summarize), query); }
 export function getSummary(id) { const rec = loadRecord(id); return rec ? summarize(rec) : null; }
 export function loadRecord(id) { return records.find((rec) => rec.id === id) || null; }
 export function allRecords() { return records; }
-export function totalCount() { return records.length; }
+export function totalCount() { return live().length; }
 export function bulkCount() { return 0; }
 export function setBulkCount() {}
 

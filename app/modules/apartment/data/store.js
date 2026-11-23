@@ -14,6 +14,8 @@ import { demoEniNear, refreshDemoPlaces } from '../../../kernel/demoPlaces.js';
 // 12.10.2026 панель осмотров загружает все записи).
 export const records = createSeed();
 records.forEach(syncOcAddress);
+// Номера записей засева — для тумблера «Тестовые данные» (kernel/testData.js).
+export const SEED_IDS = new Set(records.map((r) => r.id));
 
 // Засев в нетронутом виде — образец мест демо-записей для сохранённых копий
 // (kernel/demoPlaces.js, refreshDemoPlaces): records к восстановлению уже
