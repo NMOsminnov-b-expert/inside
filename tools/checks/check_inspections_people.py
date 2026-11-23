@@ -14,6 +14,7 @@
   * в «Аналитике» выбор периода не один; нет блоков статистики, итогов, отчётов дня;
   * правка «Авто» показала полосу сохранения профиля; «Отменить» у «Авто» сняло черновик профиля;
   * сетка Планирования уходит без анимации ухода и появляется без анимации появления;
+  * поля ввода и выбора увеличиваются при наведении (23.11.2026), кнопки — нет;
   * ошибки консоли.
 """
 from urllib.parse import quote
@@ -80,3 +81,15 @@ def run(t):
     t.ck(t.wait_until("() => !document.querySelector('.ip-board')"), 'сетка не ушла')
     pg.click('[data-ip-center="grid"]')
     t.ck(t.wait_until("() => { const b = document.querySelector('.ip-board'); return !!b && b.classList.contains('anim-in'); }"), 'сетка появилась без анимации появления')
+
+    # Поля ввода и выбора при наведении не увеличиваются, кнопки — увеличиваются (пользователь 23.11.2026:
+    # «Поля для ввода при наведении не увеличиваем»).
+    t.open('#/inspections?s=assign&t=queue', wait='.ip-slice')
+    sc = {}
+    for name, sel in [('input', '.ip-slice .isearch input'), ('select', '.ip-slice .select'), ('btn', '.ip-slice [data-ip-mode="all"]')]:
+        el = pg.locator(sel).first
+        el.hover()
+        t.wait_until("([s]) => { const e = document.querySelector(s); return !!e && !e.getAnimations().length; }", [sel])
+        sc[name] = el.evaluate("(e) => getComputedStyle(e).scale")
+    t.ck(sc['input'] in ('none', '1') and sc['select'] in ('none', '1'), 'поле ввода или выбора увеличивается при наведении: %s' % sc)
+    t.ck(sc['btn'] not in ('none', '1'), 'кнопка не увеличивается при наведении: %s' % sc)

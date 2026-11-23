@@ -40,9 +40,10 @@
   transition-timing-function:var(--ease-spring),var(--ease-spring),ease,ease,ease,var(--ease-out),ease;
 }
 @media (hover:hover) and (pointer:fine){
-  :where(button,[role="button"],[role="tab"],a[href],summary,select,.select,.btn,.itab,.pill,input[type="checkbox"],input[type="radio"]):where(:hover):not(:disabled,[aria-disabled="true"]){scale:var(--hover-scale)}
-  /* Поля ввода — едва заметно: текст под курсором не должен «плыть». */
-  :where(.isearch,.input):where(:hover){scale:var(--hover-scale-wide)}
+  :where(button,[role="button"],[role="tab"],a[href],summary,.btn,.itab,.pill,input[type="checkbox"],input[type="radio"]):where(:hover):not(:disabled,[aria-disabled="true"],.select,.input){scale:var(--hover-scale)}
+  /* Поля ввода и выбора при наведении не увеличиваются (пользователь 23.11.2026: «Поля для ввода при наведении не
+     увеличиваем»): отклик у них — цвет рамки и фокус. Свой выпадающий список (.select — кнопка, kernel/dropdown.js)
+     — тоже поле. */
 }
 :where(button,[role="button"],[role="tab"],a[href],summary,.btn,.itab,.pill,input[type="checkbox"],input[type="radio"]):where(:active):not(:disabled,[aria-disabled="true"]){
   scale:var(--press-scale);transition-duration:var(--dur-press);transition-timing-function:ease-out;
