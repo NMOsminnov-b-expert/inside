@@ -60,6 +60,9 @@ const moduleOf = (v) => String(v).split(':')[0];
 function typesOfKind(kind) {
   const all = sortedTypes();
   if (kind === 'movable') return all.filter((t) => t.manifest.assetKind === 'movable');
+  // Реестры «Транспорт» и «Оборудование» (state.js, TABS).
+  if (kind === 'vehicle') return all.filter((t) => t.manifest.id === 'vehicle');
+  if (kind === 'mech') return all.filter((t) => t.manifest.id === 'mechanisms');
   if (kind === 'estate') return all.filter((t) => t.manifest.assetKind !== 'movable');
   return all;
 }

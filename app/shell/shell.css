@@ -205,3 +205,16 @@ body[data-page="inspections"] .goto + .top-user{margin-left:auto}
 .crumbs > b{flex:none}
 .crumbs > span:not([data-crumb]){flex:none}
 @media (max-width:900px){.goto{flex:0 1 180px;min-width:120px}}
+
+/* Меню по группам — как в рабочей системе (23.11.2026): подпись группы капсом и линия до края; значки — линейные (SVG). */
+.side-nav{overflow-x:hidden;overflow-y:auto;scrollbar-width:thin}
+.nav-group{display:flex;align-items:center;gap:8px;padding:12px 10px 4px;font-size:10.5px;font-weight:700;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--muted);white-space:nowrap}
+.nav-group:first-child{padding-top:4px}
+.nav-group::after{content:"";flex:1;height:1px;background:var(--line)}
+.nav-ico{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;flex-shrink:0}
+.nav-svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+.nav-item.active{box-shadow:inset 3px 0 0 var(--blue-600)}
+/* Свёрнутое меню: вместо подписи группы — тонкий разделитель. */
+.sidebar.collapsed .nav-group{padding:8px 12px 4px;font-size:0;gap:0}
+.sidebar.collapsed .nav-group span{display:none}

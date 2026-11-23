@@ -5,8 +5,9 @@ import { selectDialog } from '../../kernel/dialog.js';
 import { session } from '../../kernel/session.js';
 import {
   createState, applyQueryToState, hashFor, emptyFilter, isFilterEmpty, rolePerms, ROLES, FLAG_LABELS,
-  TABS, colDefs, colDefaults, colOrder, colWidths, setColOrder, resetCols, queryFilter,
+  tabOf, tabOfType, colDefs, colDefaults, colOrder, colWidths, setColOrder, resetCols, queryFilter,
 } from './state.js';
+import { setActiveNav } from '../../shell/shell.js';
 import {
   queryAll, countAll, facetsAll, setBulkTotal, bulkTotal, totalObjects, mutate,
 } from './query.js';
@@ -71,10 +72,6 @@ const EXPORT_LIMIT = 20000;
 export function mountOcMenu(host) {
   const scope = host.scope;
 
-  host.setCrumbs([
-    { label: 'Главная', to: MENU_HREF },
-    { label: 'Объекты оценки', current: true },
-  ]);
   host.setDrawer(null);
   host.ensureStyle('./app/pages/ocMenu/ocMenu.css');
 
@@ -162,28 +159,23 @@ export function mountOcMenu(host) {
     const perms = rolePerms(state.role);
     const types = sortedTypes();
     const role = ROLES.find((r) => r.key === state.role);
-    const mov = state.tab === 'movable';
-    const group = (m) => types.filter((t) => (t.manifest.assetKind === 'movable') === m)
-      .map((t) => `<button data-create="${esc(t.manifest.id)}">${esc(t.manifest.icon)} ${esc(t.manifest.label)}</button>`).join('');
-
-    // Сначала — типы текущей вкладки.
+    const btns = (list) => list.map((t) => `<button data-create="${esc(t.manifest.id)}">${esc(t.manifest.icon)} ${esc(t.manifest.label)}</button>`).join('');
+    // Сначала — типы текущего реестра, затем остальные.
+    const own = types.filter((t) => tabOfType(t.manifest.id) === state.tab);
+    const rest = types.filter((t) => tabOfType(t.manifest.id) !== state.tab);
     return `<div class="dd reg-create">
       <button class="btn btn-primary" data-dd-toggle ${perms.create ? '' : 'disabled'}
         title="${perms.create ? '' : `Роль «${esc(role ? role.label : '')}» новые ОЦ не создаёт`}">+ Создать ОЦ ▾</button>
       <div class="dd-menu reg-create-menu">
-        <div class="dd-group">${mov ? 'Движимое имущество' : 'Недвижимое имущество'}</div>${group(mov)}
-        <div class="dd-group">${mov ? 'Недвижимое имущество' : 'Движимое имущество'}</div>${group(!mov)}
+        <div class="dd-group">${esc(tabOf(state.tab).label)}</div>${btns(own)}
+        <div class="dd-group">Другие объекты оценки</div>${btns(rest)}
       </div>
     </div>`;
   }
 
-  // Вкладки — сегментом рядом с заголовком; число — все записи категории.
-  function tabsHTML() {
-    return `<div class="reg-tabs" role="tablist" aria-label="Категория имущества">
-      ${TABS.map((t) => `<button class="reg-tab ${state.tab === t.key ? 'on' : ''}" role="tab"
-        aria-selected="${state.tab === t.key}" data-tab="${t.key}">${esc(t.label)}
-        <span>${totalObjects(t.key).toLocaleString('ru')}</span></button>`).join('')}
-    </div>`;
+  // Число объектов реестра — рядом с поиском (как в рабочей системе): по текущему отбору.
+  function totalHTML(total) {
+    return `<b>${total.toLocaleString('ru')}</b> <span>${plural(total)}</span>`;
   }
 
   function filterCount() {
@@ -215,7 +207,7 @@ export function mountOcMenu(host) {
   function recentHTML() {
     const list = state.recent.filter((r) => {
       const t = getType(r.typeId);
-      return t && ((t.manifest.assetKind === 'movable') === (state.tab === 'movable'));
+      return t && tabOfType(t.manifest.id) === state.tab;
     });
     if (!list.length) return '';
     return `<div class="dd reg-recent-dd">
@@ -297,11 +289,10 @@ export function mountOcMenu(host) {
   // сказать, что смягчить (практика APCS tri-sostoyaniya-ozhidanie-pustota-otkaz).
   function emptyHTML() {
     if (!totalObjects(state.tab)) {
-      const mov = state.tab === 'movable';
-      const types = sortedTypes().filter((t) => (t.manifest.assetKind === 'movable') === mov);
+      const types = sortedTypes().filter((t) => tabOfType(t.manifest.id) === state.tab);
       return `<div class="reg-empty">
-        <b>${mov ? 'Движимого пока нет' : 'Недвижимого пока нет'}</b>
-        <span>${mov ? 'Транспортные средства и механизмы появятся здесь, когда их заведут объектами оценки.' : 'Объекты появятся здесь после создания.'}</span>
+        <b>${esc(tabOf(state.tab).label)}: объектов пока нет</b>
+        <span>Объекты появятся здесь после создания.</span>
         <div class="reg-empty-acts">${rolePerms(state.role).create ? types.map((t, i) => `<button class="btn ${i ? 'btn-ghost' : 'btn-primary'} btn-sm" data-create="${esc(t.manifest.id)}">+ ${esc(t.manifest.label)}</button>`).join('') : ''}</div>
       </div>`;
     }
@@ -341,13 +332,15 @@ export function mountOcMenu(host) {
 
     disposeColsObserver();
 
+    setActiveNav(tabOf(state.tab).nav);
+    host.setCrumbs([{ label: 'Главная', to: MENU_HREF }, { label: tabOf(state.tab).label, current: true }]);
     scope.setHTML(`
       <div class="reg ${state.dense ? 'dense' : ''}" style="--reg-row-h:${ROW()}px">
         <div class="reg-head">
-          <h1 class="reg-h1">Объекты оценки</h1>
-          <div data-region-tabs>${tabsHTML()}</div>
-          <span class="reg-grow"></span>
+          <h1 class="reg-h1">${esc(tabOf(state.tab).label)}</h1>
           ${locatorHTML(state)}
+          <span class="reg-total" data-region-total>${totalHTML(total)}</span>
+          <span class="reg-grow"></span>
           <div data-region-create>${createDdHTML()}</div>
         </div>
 
@@ -359,7 +352,7 @@ export function mountOcMenu(host) {
             <div class="reg-facets" data-region-facets>${facetsHTML(state, lastFacets)}</div>
           </aside>
 
-          <section class="reg-body" aria-label="Объекты оценки">
+          <section class="reg-body" aria-label="${esc(tabOf(state.tab).label)}">
             <div class="reg-view-box" data-cols-box style="${tableVarsStyle(state)}">
               <div data-region-thead>${tableHeadHTML(state, allSelected(total))}</div>
               <div class="reg-viewport" data-viewport>
@@ -397,8 +390,8 @@ export function mountOcMenu(host) {
     lastTotal = total;
     rowsCache = null;
 
-    const tabs = scope.$('[data-region-tabs]');
-    if (tabs) tabs.innerHTML = tabsHTML();
+    const tot = scope.$('[data-region-total]');
+    if (tot) tot.innerHTML = totalHTML(total);
 
     const create = scope.$('[data-region-create]');
     if (create) create.innerHTML = createDdHTML();
@@ -580,6 +573,14 @@ export function mountOcMenu(host) {
     renderData();
   }
 
+  // Смена реестра (пункт меню → адрес ?tab=): отбор, выбор и превью — с чистого листа.
+  function resetForTab() {
+    state.selected.clear();
+    state.previewId = null;
+    state.previewType = null;
+    cursor = -1;
+  }
+
   function switchTab(key) {
     if (state.tab === key) return;
     state.tab = key;
@@ -747,7 +748,7 @@ export function mountOcMenu(host) {
     const blob = new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = `oc-reestr-${state.tab === 'movable' ? 'dvizhimoe' : 'nedvizhimoe'}-${localIso()}.csv`;
+    a.download = `oc-reestr-${{ estate: 'nedvizhimoe', vehicle: 'transport', mech: 'oborudovanie' }[state.tab] || 'nedvizhimoe'}-${localIso()}.csv`;
     a.click();
     // Ссылку отзываем, когда скачивание уже началось: сразу после click() в
     // части браузеров оно обрывалось (код-ревью 09.10.2026).
@@ -1013,7 +1014,9 @@ export function mountOcMenu(host) {
   return {
     onRoute(route) {
       alive = true;
+      const was = state.tab;
       applyQueryToState(state, route.query || {});
+      if (state.tab !== was) resetForTab();
       renderShell();
     },
     destroy() {

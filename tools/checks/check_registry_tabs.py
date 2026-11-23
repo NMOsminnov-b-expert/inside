@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""Главная: вкладки «Недвижимое / Движимое» и доработка реестра (01.10.2026).
+"""Главная: три реестра — «Недвижимое», «Транспорт», «Оборудование» — и доработка реестра (01.10.2026).
+
+С 23.11.2026 вместо вкладок «Недвижимое / Движимое» — три пункта меню, как в рабочей системе (пользователь: «макет вот
+в такой формат приведи… Проще будет на демонстрациях»; запись графа maket-v-format-rabochey-sistemy-…). Ловит ещё:
+  * пункт меню не открывает свой реестр или не подсвечен; заголовок и число объектов не того реестра; старая ссылка
+    ?tab=movable не ведёт на «Транспорт»; в крошках не название реестра; в карточке ТС подсвечен не «Транспорт».
 
 Что ловит сценарий (обход главной и канва 01.10.2026, задача графа
 glavnaya-vkladki-nedvizhimoe-dvizhimoe):
@@ -16,7 +21,7 @@ glavnaya-vkladki-nedvizhimoe-dvizhimoe):
   * роль и демо-объём — в меню пользователя, а не строкой на главной;
   * на 1280 и 1024 строки заголовка и видов не вылезают за край.
 """
-NAME = 'главная: вкладки и реестр'
+NAME = 'главная: три реестра и реестр'
 
 TOUCHES = (
     'app/pages/ocMenu/*', 'app/kernel/registryRows.js', 'app/kernel/columns.js',
@@ -51,18 +56,23 @@ def run(t):
     # перезагрузками — сид включается снова.
     t.open('', wait='.reg-tr')
     t.set_bulk(0)
-    tabs = pg.eval_on_selector_all('.reg-tab', "els => els.map((e) => e.innerText.replace(/\\s+/g, ' ').trim())")
-    # 18: + две демо-записи «Сети: …» (23.10.2026). Движимое: заведённые здесь
-    # ТС и механизмы + четыре демо-записи ОЦ «ТС» для осмотра ТС (27.10.2026)
-    # + две демо-записи ОЦ «Механизмы и оборудование» (02.11.2026).
-    t.ck(tabs == ['Недвижимое 18', 'Движимое 8'], 'вкладки не те: %s' % tabs)
+    total = lambda: int(pg.locator('.reg-total b').inner_text().replace(' ', '').replace(' ', ''))
+    want = pg.evaluate("async () => { const Q = await import('./app/pages/ocMenu/query.js'); return ['estate', 'vehicle', 'mech'].map((k) => Q.totalObjects(k)); }")
+    # Транспорт: 4 демо-записи ОЦ «ТС» (27.10.2026) + заведённая здесь; оборудование: 2 демо (02.11.2026) + заведённая.
+    t.ck(want[1:] == [5, 3], 'в реестрах транспорта и оборудования не 5 и 3 записи: %s' % want)
+    t.ck(pg.locator('.reg-h1').inner_text().strip() == 'Недвижимое' and total() == want[0], 'заголовок или число не «Недвижимое %d»: %s %s' % (want[0], pg.locator('.reg-h1').inner_text(), total()))
+    t.ck(pg.locator('.nav-item.active').get_attribute('data-nav') == 'oc-estate', 'в меню подсвечено не «Недвижимое»')
+    t.ck('Недвижимое' in pg.inner_text('#crumbs'), 'в крошках нет «Недвижимое»')
+    t.ck(pg.locator('.reg-tab').count() == 0, 'остались вкладки «Недвижимое / Движимое»')
     estate_heads = pg.evaluate(HEADS)
     t.ck('КОД ЕНИ' in estate_heads and 'ОБЪЕКТ' in estate_heads, 'у недвижимого нет ЕНИ и объекта: %s' % estate_heads)
     t.ck(pg.locator('.reg-tr .reg-obj-s').count() > 0, 'у объекта нет второй строки (тип · учреждение)')
 
-    pg.click('[data-tab="movable"]')
-    t.wait_until("() => location.hash.includes('tab=movable')")
-    t.ck(pg.locator('.reg-tr').count() == 8, 'на вкладке «Движимое» не восемь записей (2 заведённые + 4 демо ТС + 2 демо механизмов)')
+    pg.click('[data-nav="oc-vehicle"]')
+    t.wait_until("() => location.hash.includes('tab=vehicle')")
+    t.ck(t.wait_until("() => document.querySelectorAll('.reg-tr').length === 5"), 'в «Транспорте» не пять записей (4 демо ТС + заведённая)')
+    t.ck(pg.locator('.reg-h1').inner_text().strip() == 'Транспорт' and total() == 5, 'заголовок или число не «Транспорт 5»')
+    t.ck(pg.locator('.nav-item.active').get_attribute('data-nav') == 'oc-vehicle', 'в меню подсвечен не «Транспорт»')
     mov_heads = pg.evaluate(HEADS)
     t.ck('КОД ЕНИ' not in mov_heads and 'ПОЗИЦИЙ' in mov_heads and 'РЕГ. / ИНВ. №' in mov_heads,
          'столбцы движимого не те: %s' % mov_heads)
@@ -76,7 +86,7 @@ def run(t):
     t.wait_until("() => !document.querySelector('.reg-tr') && !!document.querySelector('.reg-empty')")
     t.ck('ничего не найдено' in pg.locator('.reg-empty').inner_text(), 'пустой отбор без пояснения')
     pg.locator('[data-chip-remove^="q|"]').first.click()
-    t.wait_until("() => document.querySelectorAll('.reg-tr').length === 6")
+    t.wait_until("() => document.querySelectorAll('.reg-tr').length === 5")
 
     # Превью движимого открывается без ошибки, состав — от модуля.
     before = len(t.console)
@@ -95,15 +105,28 @@ def run(t):
     t.wait_until("() => [...document.querySelectorAll('.reg-th')].some((e) => e.innerText.trim() === 'УЧРЕЖДЕНИЕ')")
     t.ck(pg.locator('.reg-more.open').count() == 1, 'меню «⋯» закрылось после включения столбца')
     pg.locator('.reg-h1').click()
-    pg.click('[data-tab="estate"]')
-    t.wait_until("() => !location.hash.includes('tab=movable')")
-    t.ck(pg.evaluate(HEADS) == estate_heads, 'включение столбца у движимого изменило столбцы недвижимого')
+    # Оборудование — свой реестр, столбцы движимого.
+    pg.click('[data-nav="oc-mech"]')
+    t.wait_until("() => location.hash.includes('tab=mech')")
+    t.ck(t.wait_until("() => document.querySelectorAll('.reg-tr').length === 3"), 'в «Оборудовании» не три записи (2 демо + заведённая)')
+    t.ck(pg.locator('.reg-h1').inner_text().strip() == 'Оборудование', 'заголовок не «Оборудование»')
+    pg.click('[data-nav="oc-estate"]')
+    t.wait_until("() => !location.hash.includes('tab=') && document.querySelector('.reg-h1').textContent.trim() === 'Недвижимое'")
+    t.ck(pg.evaluate(HEADS) == estate_heads, 'включение столбца у движимого изменило столбцы недвижимого: %s → %s' % (estate_heads, pg.evaluate(HEADS)))
+    # Старая ссылка ?tab=movable — «Транспорт»; карточка ТС подсвечивает «Транспорт».
+    t.open('#/?tab=movable', wait='.reg-tr')
+    t.ck(t.wait_until("() => document.querySelector('.reg-h1').textContent.trim() === 'Транспорт'"), 'ссылка ?tab=movable не ведёт на «Транспорт»')
+    vid = pg.evaluate("async () => (await import('./app/kernel/registry.js')).getType('vehicle').records.queryRecords({ filter: {}, offset: 0, limit: 1 }).rows[0].id")
+    t.open('#/oc/vehicle/' + vid, wait='[data-oc-head]')
+    t.ck(pg.locator('.nav-item.active').get_attribute('data-nav') == 'oc-vehicle' and 'Транспорт' in pg.inner_text('#crumbs'), 'в карточке ТС не подсвечен «Транспорт» или нет его в крошках')
+    t.open('', wait='.reg-tr')
+    t.set_bulk(0)
 
     # --- срезы, фильтры, чипы ---------------------------------------------------------------
     n_notes = int(pg.locator('[data-slice="notes"] b').inner_text().replace('\xa0', ''))
     pg.click('[data-slice="notes"]')
     t.wait_until("() => !!document.querySelector('.reg-chip-f')")
-    t.ck(pg.locator('.reg-tr').count() == n_notes, 'срез «Заметки» показал не столько, сколько обещал счётчик')
+    t.ck(pg.locator('.reg-tr').count() == n_notes, 'срез «Заметки» показал не столько, сколько обещал счётчик: %d / %d' % (pg.locator('.reg-tr').count(), n_notes))
     t.ck(pg.locator('.reg-chip-f').count() == 1, 'нет чипа среза')
     pg.click('.reg-chips-reset')
     t.wait_until("() => !document.querySelector('.reg-chip-f')")
@@ -142,8 +165,8 @@ def run(t):
     t.ck(pg.locator('[data-user-role]').inner_text().strip() == '· осмотрщик', 'роль не видна в шапке')
     t.set_role('any')
     t.set_bulk(20000)
-    est = pg.locator('[data-tab="estate"] span').inner_text().replace('\xa0', '').replace(' ', '')
-    t.ck(est == '20018', 'демо-объём 20 000 дал не 20 018 недвижимых: %s' % est)
+    est = total()
+    t.ck(est == 20018, 'демо-объём 20 000 дал не 20 018 недвижимых: %s' % est)
     t.set_bulk(0)
 
     # --- узкие ширины -------------------------------------------------------------------------

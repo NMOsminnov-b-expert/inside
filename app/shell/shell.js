@@ -84,7 +84,10 @@ export function setUserMenuExtra(conf) {
 function bindNav() {
   document.querySelectorAll('.nav-item').forEach((b) => {
     b.onclick = () => {
-      if (b.dataset.nav === 'oc') location.hash = MENU_HREF;
+      // Три реестра вместо вкладок «Недвижимое / Движимое» (как в рабочей системе, 23.11.2026).
+      if (b.dataset.nav === 'oc-estate') location.hash = MENU_HREF;
+      if (b.dataset.nav === 'oc-vehicle') location.hash = `${MENU_HREF}?tab=vehicle`;
+      if (b.dataset.nav === 'oc-mech') location.hash = `${MENU_HREF}?tab=mech`;
       if (b.dataset.nav === 'archive') location.hash = ARCHIVE_HREF;
       if (b.dataset.nav === 'docs') location.hash = DOCS_HREF;
       if (b.dataset.nav === 'dict') location.hash = DICTS_HREF;
@@ -244,7 +247,12 @@ export function updateDrawer() {
 }
 
 // Активный пункт бокового меню (пока в макете один рабочий раздел).
-export function setActiveNav(key) {
+// Пункт реестра по типу ОЦ: ТС — «Транспорт», механизмы — «Оборудование», остальное — «Недвижимое».
+export const navOfType = (typeId) => (typeId === 'vehicle' ? 'oc-vehicle' : typeId === 'mechanisms' ? 'oc-mech' : 'oc-estate');
+
+export function setActiveNav(key0) {
+  // «oc» — прежнее имя пункта «Объекты оценки»: теперь это «Недвижимое».
+  const key = key0 === 'oc' ? 'oc-estate' : key0;
   document.querySelectorAll('.nav-item').forEach((b) => {
     b.classList.toggle('active', b.dataset.nav === key);
   });

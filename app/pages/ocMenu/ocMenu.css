@@ -182,6 +182,9 @@ body[data-page="oc-menu"] .reg-tools{display:flex;align-items:center;gap:4px;mar
 /* --- заголовок: «Объекты оценки» · вкладки · поиск · создать --- */
 body[data-page="oc-menu"] .reg-head{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
 body[data-page="oc-menu"] .reg-h1{margin:0;font-size:19px;font-weight:700;color:var(--ink);white-space:nowrap}
+/* Число объектов реестра — после поиска, как в рабочей системе (23.11.2026). */
+body[data-page="oc-menu"] .reg-total{white-space:nowrap;color:var(--muted);font-size:12.5px}
+body[data-page="oc-menu"] .reg-total b{font-size:19px;font-weight:700;color:var(--ink);font-variant-numeric:tabular-nums}
 body[data-page="oc-menu"] .reg-tabs{display:flex;gap:2px;background:#dde7f1;border-radius:10px;padding:3px}
 body[data-page="oc-menu"] .reg-tab{display:inline-flex;align-items:center;gap:8px;height:30px;padding:0 12px;border-radius:8px;
   font-size:13px;font-weight:600;color:#33445c;background:none;border:0;cursor:pointer}
@@ -190,7 +193,7 @@ body[data-page="oc-menu"] .reg-tab:hover{color:var(--blue-700)}
 body[data-page="oc-menu"] .reg-tab.on{background:#fff;color:var(--blue-700);box-shadow:0 1px 2px rgba(19,41,62,.14)}
 body[data-page="oc-menu"] .reg-tab.on span{color:var(--blue-600)}
 body[data-page="oc-menu"] .reg-tab:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
-body[data-page="oc-menu"] .reg-locator{position:relative;display:flex;align-items:center;flex:0 1 320px;max-width:none;min-width:200px}
+body[data-page="oc-menu"] .reg-locator{position:relative;display:flex;align-items:center;flex:0 1 470px;max-width:none;min-width:200px}
 body[data-page="oc-menu"] .reg-locator-input{height:34px;border-width:1px;box-shadow:none;border-radius:8px;padding-left:32px;padding-right:32px}
 body[data-page="oc-menu"] .reg-locator-ico{opacity:1;color:#8394aa;display:flex}
 body[data-page="oc-menu"] .reg-kbd{position:absolute;right:9px;font-family:Consolas,monospace;font-size:11px;border:1px solid var(--line);

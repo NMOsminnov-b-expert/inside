@@ -45,7 +45,7 @@ export function sliceDefs(tab) {
     { key: 'stale', group: 'att', short: '30+ дн.', label: 'Без движения 30+ дней', hint: 'не менялись больше 30 дней', dot: 'grey',
       patch: { staleDays: 30 } },
   ];
-  return all.filter((d) => !(d.estate && tab === 'movable'));
+  return all.filter((d) => !(d.estate && tab !== 'estate'));
 }
 
 export function filterForSlice(def, person) {

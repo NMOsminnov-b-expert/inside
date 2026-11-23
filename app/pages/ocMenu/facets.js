@@ -1,6 +1,6 @@
 import { esc } from '../../kernel/dom.js';
 import { sortedTypes } from '../../kernel/registry.js';
-import { FLAG_LABELS } from './state.js';
+import { FLAG_LABELS, isMovableTab } from './state.js';
 
 // Фасеты со счётчиками: сужение выборки вместо прокрутки.
 // Счётчик каждого фасета считается без учёта самого этого фасета,
@@ -88,7 +88,7 @@ const MOVABLE_FLAGS = ['pendingNotes', 'earlySent', 'earlyDone'];
 
 export function facetsHTML(state, facets) {
   const f = state.filter;
-  const mov = state.tab === 'movable';
+  const mov = isMovableTab(state.tab);
 
   const sections = SECTIONS.filter((s) => !(mov && MOVABLE_SKIP.includes(s.key))).map((s) => `<div class="reg-facet ${open[s.key] ? 'open' : ''}">
     <button class="reg-facet-h" data-facet-toggle="${esc(s.key)}">

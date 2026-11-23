@@ -94,3 +94,10 @@ _add('Осмотрщик · Инструкции', 'osmotry', 'insp', '#/osmotr?
 # ответами (harness: map.darek.kg, use_cadastre_fixture).
 _add('Аналитика · Земли по айыл аймакам', 'analytics', 'rm', '#/analytics', '.an-page',
      ('app/pages/analytics/', 'app/kernel/landStats.js', 'app/kernel/darekAdmin.js', 'app/kernel/mapgl.js'))
+
+# Реестры объектов оценки — три пункта меню вместо вкладок (как в рабочей системе, 23.11.2026; запись графа
+# maket-v-format-rabochey-sistemy-…).
+_REG_TOUCH = ('app/pages/ocMenu/', 'app/shell/', 'app/kernel/registryRows.js', 'app/kernel/columns.js', 'app/kernel/flagBadges.js')
+_add('Реестр · Недвижимое', 'reestr', 'any', '#/', '.reg-tr', _REG_TOUCH)
+_add('Реестр · Транспорт', 'reestr', 'any', '#/?tab=vehicle', '.reg-tr', _REG_TOUCH)
+_add('Реестр · Оборудование', 'reestr', 'any', '#/?tab=mech', '.reg-tr', _REG_TOUCH)

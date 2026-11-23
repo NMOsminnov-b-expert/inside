@@ -110,13 +110,20 @@ export const COLUMNS_MOV = [
 
 export const DEFAULT_COLUMNS_MOV = ['title', 'regNo', 'status', 'positions', 'qty', 'cost', 'insp', 'updatedAt'];
 
-// Вкладка: «estate» — недвижимое, «movable» — движимое (manifest.assetKind).
+// Реестр: «estate» — недвижимое, «vehicle» — транспорт, «mech» — оборудование. Три пункта меню вместо вкладок
+// «Недвижимое / Движимое» (как в рабочей системе, пользователь 23.11.2026); прежний адрес ?tab=movable — «Транспорт».
 export const TABS = [
-  { key: 'estate', label: 'Недвижимое' },
-  { key: 'movable', label: 'Движимое' },
+  { key: 'estate', label: 'Недвижимое', nav: 'oc-estate' },
+  { key: 'vehicle', label: 'Транспорт', nav: 'oc-vehicle' },
+  { key: 'mech', label: 'Оборудование', nav: 'oc-mech' },
 ];
+export const tabOf = (key) => TABS.find((t) => t.key === key) || TABS[0];
+// Движимое (ТС и оборудование) — свои столбцы, фильтры и срезы.
+export const isMovableTab = (tab) => tab === 'vehicle' || tab === 'mech';
+// Реестр типа ОЦ: ТС — транспорт, механизмы — оборудование, остальное — недвижимое.
+export const tabOfType = (typeId) => (typeId === 'vehicle' ? 'vehicle' : typeId === 'mechanisms' ? 'mech' : 'estate');
 
-const movable = (state) => state.tab === 'movable';
+const movable = (state) => isMovableTab(state.tab);
 export const colDefs = (state) => (movable(state) ? COLUMNS_MOV : COLUMNS);
 export const colDefaults = (state) => (movable(state) ? DEFAULT_COLUMNS_MOV : DEFAULT_COLUMNS);
 export const colOrder = (state) => (movable(state) ? state.columnsMov : state.columns);
@@ -208,7 +215,7 @@ export function stateToQuery(state) {
   const f = state.filter;
   const q = {};
 
-  if (state.tab === 'movable') q.tab = 'movable';
+  if (state.tab !== 'estate') q.tab = state.tab;
   if (f.q) q.q = f.q;
   LIST_KEYS.forEach((k) => { if (f[k].length) q[k] = f[k].join('~'); });
   if (f.staleDays) q.stale = String(f.staleDays);
@@ -229,7 +236,7 @@ export function applyQueryToState(state, query) {
 
   state.filter = f;
   state.sliceKey = query.slice || null;
-  state.tab = query.tab === 'movable' ? 'movable' : 'estate';
+  state.tab = query.tab === 'movable' ? 'vehicle' : TABS.some((t) => t.key === query.tab) ? query.tab : 'estate';
 
   if (query.sort) {
     const [key, dir] = query.sort.split(':');

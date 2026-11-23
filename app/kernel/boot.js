@@ -1,4 +1,4 @@
-import { initShell, contentRoot, setCrumbs, setDrawer, updateDrawer, setActiveNav, setUserMenuExtra } from '../shell/shell.js';
+import { initShell, contentRoot, setCrumbs, setDrawer, updateDrawer, setActiveNav, setUserMenuExtra, navOfType } from '../shell/shell.js';
 import { createScope } from './scope.js';
 import { esc } from './dom.js';
 import { closePopout } from './viewer/popout.js';
@@ -81,12 +81,20 @@ function backLabel(route, kind) {
   return kind === 'docs' ? 'К документам' : 'К объектам оценки';
 }
 
+// Реестр карточки в крошках — по типу ОЦ: «Недвижимое», «Транспорт», «Оборудование» (три реестра, 23.11.2026).
+function registryCrumb(typeId) {
+  const nav = navOfType(typeId);
+  if (nav === 'oc-vehicle') return { label: 'Транспорт', to: `${MENU_HREF}?tab=vehicle` };
+  if (nav === 'oc-mech') return { label: 'Оборудование', to: `${MENU_HREF}?tab=mech` };
+  return { label: 'Недвижимое', to: MENU_HREF };
+}
+
 function originCrumbs(route, kind) {
   const from = origin(route);
   if (!from) {
     return kind === 'docs'
       ? [{ label: 'Главная', to: MENU_HREF }, { label: 'Документы', to: DOCS_HREF }]
-      : [{ label: 'Главная', to: MENU_HREF }, { label: 'Объекты оценки', to: MENU_HREF }];
+      : [{ label: 'Главная', to: MENU_HREF }, registryCrumb(route.typeId)];
   }
   return [
     { label: 'Главная', to: MENU_HREF },
@@ -362,7 +370,7 @@ async function onRoute(route) {
 
   unmount();
   resetShellSlots();
-  setActiveNav('oc');
+  setActiveNav(navOfType(type.manifest.id));
 
   const mod = await type.load();
   if (stale()) return;
