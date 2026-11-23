@@ -1658,13 +1658,15 @@ body[data-page="inspections"] .ip-qswitch button{display:flex;align-items:center
 body[data-page="inspections"] .ip-qswitch b{padding:0 7px;border-radius:999px;background:var(--slate-50);color:var(--ink-ctl);font-size:11px;margin:0}
 body[data-page="inspections"] .ip-qswitch button[aria-pressed="true"] b{background:var(--blue-600);color:#fff}
 
-/* Мягкое увеличение у широких элементов: строки списков, людей, подбора, групп. */
+/* Широкие элементы (строки списков, людей, подбора, групп) — без увеличения при наведении: во всю ширину
+   прокручиваемого списка увеличенная строка выходила за край, появлялась полоса и экран перестраивался (замечание
+   23.11.2026); отклик — подсветка, нажатие — лёгкое сжатие. */
 body[data-page="inspections"] :is(.ip-today-row,.ip-person-main,.ip-aperson,.ip-rank-b,.ip-grp-t,.ip-dp-trip,.ip-dgroup-h,.ip-note,.ip-load-objs button,.ip-ld-name){
-  --hover-scale:var(--hover-scale-wide);--press-scale:var(--press-scale-wide)}
-/* Строки очереди — карточками: подъём и лёгкое увеличение под курсором. */
-body[data-page="inspections"] .ip-tbl tbody tr[data-ip-row]{transition:scale var(--dur-spring) var(--ease-spring),background-color var(--dur-fast) ease,box-shadow var(--dur) var(--ease-out)}
+  --hover-scale:1;--press-scale:var(--press-scale-wide)}
+/* Строки очереди — карточками: подъём тенью под курсором, без увеличения (та же полоса прокрутки). */
+body[data-page="inspections"] .ip-tbl tbody tr[data-ip-row]{transition:background-color var(--dur-fast) ease,box-shadow var(--dur) var(--ease-out)}
 @media (hover:hover) and (pointer:fine){
-  body[data-page="inspections"] .ip-tbl tbody tr[data-ip-row]:hover{scale:var(--hover-scale-wide);box-shadow:var(--lift-sh);position:relative;z-index:1}
+  body[data-page="inspections"] .ip-tbl tbody tr[data-ip-row]:hover{box-shadow:var(--lift-sh);position:relative;z-index:1}
 }
 /* Клетки «Загрузки» — компактные: полное увеличение, выбранная — приподнята. */
 body[data-page="inspections"] .ip-ld-b{transition:scale var(--dur-spring) var(--ease-spring),box-shadow var(--dur) var(--ease-out),background-color var(--dur-fast) ease}

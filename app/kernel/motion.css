@@ -48,10 +48,12 @@
 :where(button,[role="button"],[role="tab"],a[href],summary,.btn,.itab,.pill,input[type="checkbox"],input[type="radio"]):where(:active):not(:disabled,[aria-disabled="true"]){
   scale:var(--press-scale);transition-duration:var(--dur-press);transition-timing-function:ease-out;
 }
-/* Строки таблиц — крупные: подъём и лёгкое увеличение. */
-:where(.itbl,.tbl) tbody tr{transition:scale var(--dur-spring) var(--ease-spring),background-color var(--dur-fast) ease,box-shadow var(--dur) var(--ease-out)}
+/* Строки таблиц — подъём тенью и подсветкой, без увеличения: таблицы живут в прокручиваемых рамках, и увеличенная
+   строка выходила за край — появлялась полоса прокрутки, и экран перестраивался под курсором (замечание пользователя
+   23.11.2026, «Что осмотрено»: «Из-за полосы ниже у нас перестройка интерфейса»). Тень за край не выходит. */
+:where(.itbl,.tbl) tbody tr{transition:background-color var(--dur-fast) ease,box-shadow var(--dur) var(--ease-out)}
 @media (hover:hover) and (pointer:fine){
-  :where(.itbl,.tbl) tbody tr:where(:hover){scale:var(--hover-scale-wide);box-shadow:var(--lift-sh);position:relative;z-index:1}
+  :where(.itbl,.tbl) tbody tr:where(:hover){box-shadow:var(--lift-sh);position:relative;z-index:1}
 }
 
 /* Появление: панели, всплывающие окна, списки. */
