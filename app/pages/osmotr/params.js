@@ -5,17 +5,19 @@
 // tools/docs/build_pwa_fields.py («Поля осмотра PWA.xlsx»). Схема прежнего экрана осмотрщика
 // (pages/inspection/form.js) здесь не используется: поля не смешиваются.
 //
-// Отличие от приложения — одно: у ТС нет «Адреса на момент осмотра» (пользователь 16.11.2026: «Адрес на
-// момент осмотров разве что убираем у ТС»).
+// Отличия от приложения: у ТС нет «Адреса на момент осмотра» (пользователь 16.11.2026: «Адрес на
+// момент осмотров разве что убираем у ТС»); у строения нет «Общих параметров» и «Общих параметров квартиры», а «Тип
+// ОИ» осмотрщик не меняет — он из состава объекта и только показывается (пользователь 18.11.2026: «в составе объекта
+// нельзя менять», «общие параметры убираем»; уточнение — «Тип ОИ — только показать», убрать оба блока).
 //
 // Поле: key — путь значения в «Результатах осмотра» (kernel/fieldSchema.js, getValue); opts — перечень; multi —
 // выбор нескольких; num — число; long — текст; req(values) — обязательное; visible(values) — показывается;
-// counted — идёт ли в «заполнено N из M» (комментарий не идёт, как в приложении).
+// counted — идёт ли в «заполнено N из M» (комментарий не идёт, как в приложении). Раздел fixed — не правится:
+// значение по умолчанию (pwaDefaults) выводится фактом в шапке ОИ.
 
 const UTILITY = ['Подведены', 'Проходят рядом', 'На удалении', 'Отсутствуют в районе'];
 const SEWERAGE = ['Подведена центральная', 'Септик', 'Очистные сооружения', 'Проходят рядом', 'На удалении', 'Отсутствуют в районе'];
 const HEATING = [...UTILITY, 'Автономное'];
-const BUILD_TYPE = ['Отдельностоящее', 'Встроенное'];
 const LAND_FORM = ['Квадратная', 'Прямоугольная', 'Близкая к прямоугольной', 'Трапециевидная', 'Вытянутая прямоугольная',
   'Близкая к Г-образной', 'Г-образная', 'Неправильный многоугольник', 'Неправильный многоугольник с заужением',
   'Узкая зауженная прямоугольная', 'Треугольная', 'Иное'];
@@ -39,25 +41,13 @@ const OI_TYPES = [FLAT, BUILDING, HOUSE, OTHER, AUX];
 const AGRI = 'Сельскохозяйственный';
 
 const always = () => true;
-const isFlat = (v) => v[OBJ_KIND] === FLAT;
-const notFlat = (v) => !isFlat(v);
 const isAgri = (v) => v[LAND_TYPE] === AGRI;
 const notAgri = (v) => !isAgri(v);
 
 const COMMENT = { key: 'comments', title: 'Комментарии', fields: [{ key: 'note', label: 'Комментарий осмотрщика', long: true, rows: 3, counted: false }] };
 
 const building = () => [
-  { key: 'kind', title: 'Тип ОИ', fields: [{ key: OBJ_KIND, label: 'Тип ОИ', opts: OI_TYPES }] },
-  { key: 'general', title: 'Общие параметры', fields: [
-    { key: 'buildType', label: 'Тип строения', opts: BUILD_TYPE, visible: notFlat },
-    { key: 'floorsN', label: 'Количество этажей', num: true, int: true, visible: notFlat },
-  ] },
-  { key: 'flat', title: 'Общие параметры квартиры', fields: [
-    { key: 'aptFloor', label: 'Этаж', num: true, int: true, visible: isFlat },
-    { key: 'aptBuildingFloors', label: 'Этажность дома', num: true, int: true, visible: isFlat },
-    { key: 'aptStoreys', label: 'Количество этажей в квартире', num: true, int: true, visible: isFlat },
-    { key: 'aptRooms', label: 'Количество комнат', num: true, int: true, visible: isFlat },
-  ] },
+  { key: 'kind', title: 'Тип ОИ', fixed: true, fields: [{ key: OBJ_KIND, label: 'Тип ОИ', opts: OI_TYPES, counted: false }] },
   { key: 'sanuzel', title: 'Санузел', fields: [{ key: 'bathroom', label: 'Санузел', multi: true, opts: ['Внутри', 'Снаружи'] }] },
   { key: 'nets', title: 'Инженерные сети', fields: [
     { key: 'electricity', label: 'Наличие электроснабжения', opts: UTILITY, req: always },
@@ -103,7 +93,8 @@ const vehicle = () => [
   // Регистрационный номер осмотрщик не редактирует (пользователь 17.11.2026) — он в шапке ТС из записи (data.js tsLine).
   { key: 'readings', title: 'Показания', fields: [
     { key: 'f.mileage', label: 'Пробег', num: true, int: true },
-    { key: 'f.mileage@unit', label: 'Единица', opts: ['км', 'миль'] },
+    // «Единица» → «Единица измерения расстояния» (пользователь 19.11.2026).
+    { key: 'f.mileage@unit', label: 'Единица измерения расстояния', opts: ['км', 'миль'] },
     { key: 'f.engineHours', label: 'Моточасы, ч', num: true, int: true },
     { key: 'f.wheel', label: 'Руль', opts: ['Левый', 'Правый'] },
   ] },
@@ -126,7 +117,7 @@ export function pwaSections(oi) {
 }
 
 // Значения по умолчанию — что приложение подставляет само (не считается заполненным осмотрщиком): тип ОИ — по
-// виду ОИ в составе.
+// виду ОИ в составе (и только он: осмотрщик его не меняет).
 export function pwaDefaults(oi) {
   if (!oi) return {};
   if (oi.card === 'apartment') return { [OBJ_KIND]: FLAT };

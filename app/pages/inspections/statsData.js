@@ -12,6 +12,7 @@ import { getType } from '../../kernel/registry.js';
 import { allAssignments, eventsOf, deadlineOf, workdayOf, isLive } from '../../kernel/inspections.js';
 import { dayOf, regionOf, queueBase, isOverdue, employeeSummary } from './model.js';
 import { inspectMinutes } from './route.js';
+import { allInventories, markOf } from '../../kernel/inventories.js';
 
 const isoDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const parse = (iso) => new Date(iso + 'T00:00:00');
@@ -98,6 +99,62 @@ function kindsOf(cache, a, out) {
     const k = o && OI_KINDS.some(([x]) => x === o.card) ? o.card : 'building';
     out[k] = (out[k] || 0) + 1;
   });
+}
+
+// --- осмотрено по счетам ---------------------------------------------------------------
+//
+// Пользователь 18.11.2026: «в статистике должно быть прописано что осмотрено в разрезе счетов» — у осмотрщика.
+// Счета и правила (ответы пользователя 18.11.2026): 31113 «Сооружения» и земли 31411/31412 — «пока пропусти»;
+// 31123 — позиции описей со счётом 31123120 и 31123130 (офисное и компьютерное), остальное оборудование — 31122;
+// 31123 — двумя строками, по счетам 31123120 и 31123130 (пользователь 19.11.2026: «31123 должен быть разбит на
+// 31123120, 31123130»);
+// мебель не учитывается ни там, ни там. Единица — штука: ОИ, единица механизмов, количество в позиции описи.
+// Жилое или нежилое — по типу ОЦ: квартира и литеры «Квартиры» и «Жилого дома» — 31111, литеры остальных типов — 31112
+// (предложение, литеры «Земельного участка» отнесены к нежилым — на согласование).
+export const ACCOUNTS = [
+  ['31111', 'Жилые здания и помещения'],
+  ['31112', 'Нежилые здания и помещения'],
+  ['31121', 'Транспортные средства'],
+  ['31122', 'Механизмы и производственное оборудование'],
+  ['31123120', 'Офисное оборудование'],
+  ['31123130', 'Компьютерное оборудование'],
+];
+const RESIDENTIAL = ['apartment', 'residential-house'];
+const OFFICE_ACC = ['31123120', '31123130'];
+const FURNITURE = 'Мебель';
+
+// Счёт ОИ и сколько единиц в нём; null — не считается (участок, вспомогательная постройка).
+function accountOfOi(typeId, o) {
+  const card = o ? o.card : (typeId === 'vehicle' ? 'vehicle' : typeId === 'mechanisms' ? 'mech' : typeId === 'apartment' ? 'apartment' : 'building');
+  if (card === 'apartment') return ['31111', 1];
+  if (card === 'building') return [RESIDENTIAL.includes(typeId) ? '31111' : '31112', 1];
+  if (card === 'vehicle') return ['31121', 1];
+  // Единицы механизмов — список oi.mechanisms (данные ОИ; модуль механизмов страницам не импортируется).
+  if (card === 'mech') return ['31122', o && Array.isArray(o.mechanisms) ? Math.max(1, o.mechanisms.length) : 1];
+  // Прежний вид движимого (МЕХ / ОФИС) — по виду.
+  // ОФИС прежнего вида — к офисному: компьютер это или нет, по прежней записи не понять.
+  if (card === 'movable') return [o.kind === 'ОФИС' ? '31123120' : '31122', 1];
+  return null;
+}
+
+export function accountsFor(name, period) {
+  const inRange = (day) => !!day && day >= period.from && day <= period.to;
+  const out = Object.fromEntries(ACCOUNTS.map(([k]) => [k, 0]));
+  const cache = new Map();
+  allAssignments().filter((a) => a.person === name && a.state === 'done' && inRange(dayOf(a.doneAt))).forEach((a) => {
+    const rec = recordOf(cache, a.typeId, a.ocId);
+    const ois = (a.oiIds && a.oiIds.length) ? a.oiIds.map((id) => ((rec && rec.oi) || []).find((x) => x.id === id)) : [null];
+    ois.forEach((o) => { const r = accountOfOi(a.typeId, o); if (r && r[0] in out) out[r[0]] += r[1]; });
+  });
+  // Описи: позиции, отмеченные осмотрщиком «осмотрено» в периоде; счёт — по счёту учёта позиции.
+  allInventories().forEach((inv) => inv.items.forEach((it) => {
+    if (it.kind === FURNITURE) return;
+    const m = markOf(inv.id, it.id);
+    if (!m || m.state !== 'seen' || m.by !== name || !inRange(dayOf(m.at))) return;
+    const acc = String(it.acc || '');
+    out[OFFICE_ACC.includes(acc) ? acc : '31122'] += Math.max(1, it.qty || 1);
+  }));
+  return out;
 }
 
 // --- показатели осмотрщика ----------------------------------------------------------

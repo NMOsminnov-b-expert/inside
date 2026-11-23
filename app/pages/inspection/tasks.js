@@ -289,7 +289,7 @@ export function oiLabel(oi) {
 
   if (oi.card === 'building') {
     // Выявленное на осмотре — по факту, без литеры.
-    if (oi.draft) return ['Выявлено', name || foundCat(oi.cat).label].join(' · ');
+    if (oi.draft) return ['Выявлено', name || (oi.cat ? foundCat(oi.cat).label : oi.letter ? 'Литера ' + oi.letter : 'Строение')].join(' · ');
     const head = oi.letter ? 'Литера ' + oi.letter : 'Строение';
     return same(head) ? head : [head, name].filter(Boolean).join(' · ');
   }
@@ -394,11 +394,14 @@ export function mechProgress(oi, values) {
   const units = (oi && oi.mechanisms) || [];
   const v = values || {};
   const get = (id, k) => String(((v.u || {})[id] || {})[k] || v[`u.${id}.${k}`] || '');
-  const p = { total: units.length, seen: 0, missing: 0, broken: 0, repair: 0 };
+  const p = { total: units.length, seen: 0, missing: 0, broken: 0, repair: 0, off: 0 };
   units.forEach((u) => {
     const f = get(u.id, 'found');
     const st = get(u.id, 'state');
-    if (f === 'Найдено') p.seen++;
+    // «Списано» (u.<единица>.off, отметка осмотрщика 19.11.2026) засчитывается осмотром единицы.
+    const off = get(u.id, 'off') === 'true';
+    if (off) p.off++;
+    if (f === 'Найдено' || (off && f !== 'Не найдено')) p.seen++;
     if (f === 'Не найдено') p.missing++;
     if (st === 'Нерабочее') p.broken++;
     if (st === 'В ремонте') p.repair++;
@@ -459,8 +462,13 @@ const two = (n) => String(n).padStart(2, '0');
 // Местное время осмотра, как его видит осмотрщик: «15.10.2026 14:05».
 const stamp = (d) => `${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYear()} ${two(d.getHours())}:${two(d.getMinutes())}`;
 
-export function addFoundOi(typeId, ocId, { cat = 'other', name = '', landId = '', by = '' } = {}) {
-  const c = foundCat(cat);
+// letter и comp — литера, добавленная осмотрщиком в состав объекта (страница осмотрщика, 18.11.2026): та же запись
+// «выявлено», с буквой литеры и пометкой «в составе»; на экране объекта она стоит в «Составе объекта», а не в
+// «Выявлено на месте».
+// cat: '' — без вида (литера состава, пользователь 19.11.2026: «при добавлении литеры убрать поле Вид»): тип
+// осмотрщик выбирает в самой карточке литеры («Тип и класс капитальности»).
+export function addFoundOi(typeId, ocId, { cat = 'other', name = '', landId = '', by = '', letter = '', comp = false } = {}) {
+  const c = cat === '' ? { key: '', litKind: '', residential: false } : foundCat(cat);
   const item = {
     id: 'found-' + Date.now().toString(36) + (++foundSeq),
     card: 'building',
@@ -473,6 +481,8 @@ export function addFoundOi(typeId, ocId, { cat = 'other', name = '', landId = ''
     landId,
     foundBy: by,
     foundAt: stamp(new Date()),
+    ...(letter ? { letter: String(letter).trim() } : {}),
+    ...(comp ? { comp: true } : {}),
   };
   foundOi(typeId, ocId).push(item);
   saveResults();
@@ -534,6 +544,33 @@ export function addFoundTs(typeId, ocId, d) {
   foundOi(typeId, ocId).push(d);
   saveResults();
   return d;
+}
+
+// Автомобиль, выявленный на месте (веб-страница осмотрщика, пользователь 19.11.2026: «добавить в недвижимое и движимое
+// кнопку автомобили выявленные на месте… будет создаваться карточка во вкладке выезды, некоторые поля типа адреса,
+// организации, даты осмотра копируются, в этой карточке будут поля марка модель и номер, при выходе… выбор сохранить
+// или удалить»). Ответы: кнопка — у недвижимости и ТС; черновик при объекте, где нашли (разбирает ЦОД, как выявленное
+// ТС); поля — марка, модель, госномер, VIN и поля осмотра ТС (значения — в assets по id). Адрес, учреждение и дата выезда — копией (copy) на момент создания.
+// unsaved — заведён, но ещё не сохранён осмотрщиком: ЦОД его не видит; уйти с карточки — только «Сохранить» или «Удалить».
+export function addFoundCar(typeId, ocId, { by = '', address = '', institution = '', date = '' } = {}) {
+  const d = { ...newFoundTs(by), car: true, unsaved: true, where: address, copy: { address, institution, date } };
+  d.vehicle.f = { make: '', model: '', plate: '', vin: '' };
+  foundOi(typeId, ocId).push(d);
+  saveResults();
+  return d;
+}
+export function setFoundCar(d, key, value) {
+  if (!['make', 'model', 'plate', 'vin'].includes(key)) return;
+  d.vehicle.f[key] = String(value || '');
+  const f = d.vehicle.f;
+  d.name = [[f.make, f.model].map((x) => String(x || '').trim()).filter(Boolean).join(' '), String(f.plate || '').trim()].filter(Boolean).join(' · ');
+  saveResults();
+}
+// Сохранить можно, когда указана марка, модель, госномер или VIN.
+export const foundCarEmpty = (d) => !['make', 'model', 'plate', 'vin'].some((k) => String((d.vehicle.f || {})[k] || '').trim());
+export function saveFoundCar(d) {
+  delete d.unsaved;
+  saveResults();
 }
 // Отменённый черновик: снимки и документы остаются в осмотре без привязки —
 // «Любые фото с осмотров — важная информация».

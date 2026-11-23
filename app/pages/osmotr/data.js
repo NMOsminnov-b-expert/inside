@@ -15,6 +15,7 @@ import { geoByEni, centerOf, featuresInBox, dashed } from '../../kernel/cadastre
 import { PARCEL_FIELDS, BUILD_FIELDS, buildsOfParcel, parcelRows } from '../../kernel/cadastreTip.js';
 import { scheduleSave } from '../../kernel/persist.js';
 import { institutionChain } from '../../kernel/contacts.js';
+import { staffProfile } from '../../kernel/staffProfiles.js';
 import { loadTask, ownOis, oiLabel } from '../inspection/tasks.js';
 import { gpsOfObject } from '../inspections/route.js';
 
@@ -117,13 +118,15 @@ export function inventoriesOf(rec, list, ois) {
     const whoOf = (it) => others.filter((h) => inPart(it, h.part)).map((h) => h.person).join(', ');
     out.push({ id, kind: 'inv', title: inv.title, part: mine.map((a) => partLabel((a.invParts || {})[id])).join('; '), items: inv.items.map((it, i) => ({ id: it.id, no: it.no || i + 1, inv: it.inv || '', name: it.name, place: it.place || '',
       qty: it.qty || 1, cost: it.costInitial || '', balance: it.costBalance || '', priority: it.priority || '', list: it.list || '', dept: it.dept || '',
-      model: it.model || '', kind: it.kind || '', mol: it.mol || '',
+      model: it.model || '', kind: it.kind || '', mol: it.mol || '', acc: it.acc || '',
       own: own(it), who: own(it) ? '' : whoOf(it) || 'не в вашей части' })) });
   });
+  // Стоимость единицы механизмов в карточке ОИ — балансовая (mechanisms/form/view.js, уточнение 17.09.2026);
+  // cost — для отбора и порядка по стоимости, balance — в карточку позиции.
   ois.filter((o) => o.card === 'mech').forEach((o) => {
     out.push({ id: 'mech:' + o.id, kind: 'mech', oiId: o.id, title: oiLabel(o),
-      items: (o.mechanisms || []).map((u, i) => ({ id: u.id, no: i + 1, inv: u.inv || '', name: u.name || 'Единица', place: '', qty: u.qty || 1, cost: u.cost || '', balance: '', priority: '', list: '', dept: '',
-        model: (u.params && u.params.model) || u.model || '', kind: u.type || '', mol: '', own: true, who: '' })) });
+      items: (o.mechanisms || []).map((u, i) => ({ id: u.id, no: i + 1, inv: u.inv || '', name: u.name || 'Единица', place: '', qty: u.qty || 1, cost: u.cost || '', balance: u.cost || '', priority: '', list: '', dept: '',
+        model: (u.params && u.params.model) || u.model || '', kind: u.type || '', mol: '', acc: '', own: true, who: '' })) });
   });
   return out.map((x) => ({ ...x, folder: `${MACHINES}/${clean(x.title)}` }));
 }
@@ -227,10 +230,14 @@ export function myObjects(person) {
       note: list.map((a) => a.note).filter(Boolean).join('\n'), by: list[0].by || '',
       // ЕНИ — назначенных ОИ (решение пользователя 05.11.2026 «Только назначенных ОИ»), объект целиком — всех.
       eni: foldEniList(ois.map((x) => x.eni).filter(Boolean)) || rec.eni || '', address: rec.address || '', institution: [rec.institution, rec.podved].filter(Boolean).join(' · '),
+      // Головное учреждение и подведомственная — отбор по подведомственным в «Выездах» (18.11.2026).
+      head: rec.institution || '', podved: rec.podved || '',
       lat: gps ? gps[0] : null, lon: gps ? gps[1] : null, contour: ringOf(rec.geo), geoSrc: rec.geo && rec.geo.src ? rec.geo.src : '',
       // Сведения участка по Кадастру — строками, как подпись участка на карте макета (kernel/cadastreTip.js).
       parcel: rec.geo && rec.geo.extent ? parcelRows({ NAZNACHENI: rec.geo.purpose, PROPFOR_NAME: rec.geo.use, PROPFORM_NAME: rec.geo.ownForm, DOMCODE: rec.geo.house, ...(rec.geo.props || {}) },
         rec.geo.contour ? { type: 'MultiPolygon', coordinates: rec.geo.contour } : null, rec.geo.builds || []) : [],
+      // Оператор ЦОД карточки — ФИО и контакты из профиля сотрудника (пользователь 19.11.2026).
+      cod: staffProfile((rec.resp || {}).cod),
       ois, docs, contacts, returned, facts: factsOf(rec), ts: rec.vehicle ? tsLine(rec.vehicle.f) : '',
       // Снято регионалом сегодня; запрос переноса и ответ на него (решения 06.11.2026).
       removed: list.every((a) => a.state === 'removed'), removedAt: list.every((a) => a.state === 'removed') ? (list[0].removedAt || '') : '',

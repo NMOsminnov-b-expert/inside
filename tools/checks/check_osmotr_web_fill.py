@@ -15,13 +15,22 @@
   * первая правка не переводит назначение «в работу»;
   * поля не как в приложении «Осмотр» (Params.kt, сводка «Поля осмотра PWA»):
     у ТС есть «Адрес на момент осмотра» (убран 16.11.2026) или нет руля,
-    топлива, общего состояния; у строения нет «Тип ОИ» или есть класс
-    капитальности; тип ОИ «Квартира» не переключает форму; тип участка не
-    переключает сельхозхарактеристики и сети;
+    топлива, общего состояния; у строения есть класс капитальности; тип
+    участка не переключает сельхозхарактеристики и сети;
+  * тип ОИ правится осмотрщиком или не тот, что в составе объекта (в том
+    числе при прежнем значении в результатах); у строения или квартиры
+    остались «Общие параметры» (пользователь 18.11.2026: «в составе объекта
+    нельзя менять», «общие параметры убираем»);
   * обязательные поля участка (сети) не считаются в «обязательных осталось»;
   * снимок не встаёт в выбранную категорию, не переносится, не удаляется;
-  * выявленное на месте строение не добавляется, не открывается своей формой
-    осмотра, не убирается;
+  * выявленное на месте строение не добавляется, не убирается; у «Выявлено на
+    месте» список видов вместо текстового поля, строение без названия
+    добавляется; внутри выявленного — что-то кроме комментария и снимков
+    (пользователь 18.11.2026);
+  * «Добавить литеру» (18.11.2026): нет кнопки в «Составе объекта» здания или
+    она есть у квартиры; литера без буквы или с буквой, которая уже есть в
+    составе, добавляется; добавленная не встаёт в состав с буквой (а встаёт в
+    «Выявлено на месте»), не открывается формой здания, не убирается;
   * комментарий осмотрщика — отдельным разделом, а не полем на экране ОИ;
   * у законченного осмотра поля правятся;
   * на 360 пикселях экран ОИ или раздела прокручивается вбок.
@@ -46,10 +55,10 @@ OIS = """async () => {
     const rec = tk.loadTask(o.typeId, o.ocId); const oi = tk.ownOis(rec).find((y) => y.id === x.id);
     const own = (r.resultsOf(o.typeId, o.ocId).assets || {})[x.id] || {}; const def = P.pwaDefaults(oi);
     const vals = { ...def, ...own, f: { ...(def.f || {}), ...(own.f || {}) } };
-    const secs = P.pwaSections(oi).filter((z) => z.key !== 'comments')
+    const secs = P.pwaSections(oi).filter((z) => z.key !== 'comments' && !z.fixed)
       .map((z) => ({ key: z.key, n: z.fields.filter((q) => !q.visible || q.visible(vals)).length })).filter((z) => z.n);
     const kind = oi.card === 'building' ? (oi.residential ? 'жилое' : oi.litKind === 'prod' ? 'производственное' : 'нежилое') : oi.card;
-    return { obj: o.id, oi: x.id, kind, state: o.state, secs };
+    return { obj: o.id, oi: x.id, kind, state: o.state, secs, objKind: def.objKind || '' };
   }));
 }"""
 VAL = """async ([id, oi, key]) => { const [t, c] = id.split('|'); const r = (await import('./app/kernel/inspectionResults.js')).resultsOf(t, c);
@@ -58,6 +67,8 @@ FINISH = """async ([id, done]) => { const [t, c] = id.split('|'); const k = awai
   const s = (await import('./app/kernel/session.js')).session.state; k.finishWork(s.person, t, c, done); k.changed(); }"""
 STATE = """async (id) => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
   return (d.myObjects(s.person).find((o) => o.id === id) || {}).state; }"""
+FACT = """(l) => { const dt = [...document.querySelectorAll('.om-oifacts dt')].find((e) => e.textContent === l);
+  return dt ? dt.nextElementSibling.textContent : null; }"""
 SAVED = "() => /^Сохранено \\d\\d:\\d\\d$/.test(document.querySelector('.om-saved')?.textContent || '')"
 
 
@@ -128,12 +139,29 @@ def run(t):
     lb = labels()
     t.ck('Адрес на момент осмотра' not in lb, 'у ТС осталось «Адрес на момент осмотра» (16.11.2026: «убираем у ТС»)')
     t.ck('Регистрационный номер' not in lb, 'госномер у ТС правится (17.11.2026: «рег номер осмотрщик не редактирует»)')
-    for w in ('Пробег', 'Единица', 'Моточасы, ч', 'Руль', 'Тип топлива', 'Общее состояние', 'Комментарий осмотрщика'):
+    for w in ('Пробег', 'Единица измерения расстояния', 'Моточасы, ч', 'Руль', 'Тип топлива', 'Общее состояние', 'Комментарий осмотрщика'):
         t.ck(w in lb, 'у ТС нет поля «%s» приложения' % w)
     go(t, qs(obj, oi), '.om-app[data-v="oi"] .om-title')
     lb = pg.locator('.om-secrow b').all_inner_texts()
-    for w in ('Тип ОИ', 'Общие параметры', 'Санузел', 'Инженерные сети'):
+    for w in ('Санузел', 'Инженерные сети'):
         t.ck(w in lb, 'у строения нет «%s» приложения' % w)
+    for w in ('Тип ОИ', 'Общие параметры', 'Общие параметры квартиры'):
+        t.ck(w not in lb, 'у строения остался раздел «%s» (18.11.2026: тип ОИ — только показать, общие параметры убраны)' % w)
+    # Тип ОИ — фактом из состава, без поля выбора; у каждого вида — свой.
+    for kind in ('нежилое', 'жилое', 'apartment'):
+        x = kinds[kind]
+        go(t, qs(x['obj'], x['oi']), '.om-app[data-v="oi"] .om-title')
+        t.ck(pg.evaluate(FACT, 'Тип ОИ') == x['objKind'], '%s: тип ОИ на экране «%s», в составе «%s»' % (kind, pg.evaluate(FACT, 'Тип ОИ'), x['objKind']))
+        t.ck(pg.locator('[data-f="objKind"]').count() == 0, '%s: тип ОИ можно поменять' % kind)
+        lb = pg.locator('.om-secrow b').all_inner_texts()
+        t.ck('Общие параметры квартиры' not in lb and 'Общие параметры' not in lb, '%s: остались «Общие параметры»: %s' % (kind, lb))
+    # Прежнее значение в результатах (тип меняли до 18.11.2026) — не в счёт: тип по составу.
+    pg.evaluate("""async ([id, oi]) => { const [t, c] = id.split('|'); (await import('./app/kernel/inspectionResults.js')).valuesOf(t, c, oi).objKind = 'Квартира'; }""", [obj, oi])
+    go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] .om-title')
+    go(t, qs(obj, oi), '.om-app[data-v="oi"] .om-oifacts')
+    t.ck(pg.evaluate(FACT, 'Тип ОИ') == b['objKind'], 'прежний тип ОИ из результатов перебил тип из состава: %s' % pg.evaluate(FACT, 'Тип ОИ'))
+    lb = pg.locator('.om-secrow b').all_inner_texts()
+    t.ck('Санузел' in lb and 'Инженерные сети' in lb, 'прежний тип ОИ «Квартира» переключил форму: %s' % lb)
     for w in ('Тип и класс капитальности', 'Доп параметры (производственное строение)'):
         t.ck(w not in lb, 'у строения есть «%s» — в приложении нет' % w)
     land = kinds['land']
@@ -147,31 +175,25 @@ def run(t):
     t.ck(t.wait_until("() => !document.querySelector('.om-acc[data-sec=agri]') && !!document.querySelector('.om-acc[data-sec=nets]')"),
          'несельхозучасток: остались сельхозхарактеристики или нет сетей')
 
-    # --- правка полей строения: список, число, тип ОИ, мультивыбор ---
-    go(t, qs(obj, oi, 'general'), '.om-app[data-v="sec"] .om-form')
-    sel = pg.locator('select[data-f="buildType"]')
+    # --- правка полей строения: список, мультивыбор; число — у ТС ---
+    go(t, qs(obj, oi, 'nets'), '.om-app[data-v="sec"] .om-form')
+    sel = pg.locator('select[data-f="electricity"]')
     opt = sel.locator('option').nth(1).inner_text().strip()
     sel.select_option(label=opt)
     t.ck(t.wait_until(SAVED), 'после правки нет строки «Сохранено»')
-    t.ck(pg.evaluate(VAL, [obj, oi, 'buildType']) == opt, 'выбор «Расположение строения» не дошёл до результатов осмотра')
+    t.ck(pg.evaluate(VAL, [obj, oi, 'electricity']) == opt, 'выбор «Наличие электроснабжения» не дошёл до результатов осмотра')
     t.ck(t.wait_until("async (id) => (await (%s)(id)) === 'progress'" % STATE, obj), 'первая правка не перевела назначение «в работу»')
-    inp = pg.locator('input[data-f="floorsN"]')
+    t.ck(pg.locator('.om-acc[data-sec="nets"][open]').count() == 1, 'раздел свернулся после правки')
+    pg.evaluate(FINISH, [ts['obj'], False])
+    go(t, qs(ts['obj'], ts['oi']), '.om-app[data-v="oi"] .om-form')
+    inp = pg.locator('input[data-f="f.mileage"]')
+    inp.fill('')
     inp.click()
     inp.press_sequentially('3')
     pg.wait_for_timeout(450)  # перерисовка по событию назначения приходит через 300 мс — ввод не должен сбиться
     inp.press_sequentially('2')
-    t.ck(pg.evaluate("() => document.activeElement && document.activeElement.dataset.f") == 'floorsN', 'ввод числа сбивает фокус')
-    t.ck(str(pg.evaluate(VAL, [obj, oi, 'floorsN'])) == '32', 'этажность не сохранилась: %s' % pg.evaluate(VAL, [obj, oi, 'floorsN']))
-
-    t.ck(pg.locator('.om-acc[data-sec="general"][open]').count() == 1, 'раздел свернулся после правки')
-    go(t, qs(obj, oi, 'kind'), '.om-acc[data-sec="kind"][open]')
-    kind_sel = pg.locator('.om-acc[data-sec="kind"] select[data-f="objKind"]')
-    t.ck(kind_sel.count() == 1, 'в разделе «Тип ОИ» нет поля')
-    kind_sel.select_option(label='Квартира')
-    t.ck(t.wait_until("() => [...document.querySelectorAll('.om-secrow b')].some((b) => b.textContent === 'Общие параметры квартиры') && ![...document.querySelectorAll('.om-secrow b')].some((b) => b.textContent === 'Общие параметры')"),
-         'тип ОИ «Квартира» не переключил форму на квартиру')
-    pg.locator('select[data-f="objKind"]').select_option(label='Здание')
-    t.ck(t.wait_until("() => [...document.querySelectorAll('.om-secrow b')].some((b) => b.textContent === 'Общие параметры')"), 'тип ОИ «Здание» не вернул форму строения')
+    t.ck(pg.evaluate("() => document.activeElement && document.activeElement.dataset.f") == 'f.mileage', 'ввод числа сбивает фокус')
+    t.ck(str(pg.evaluate(VAL, [ts['obj'], ts['oi'], 'f.mileage'])) == '32', 'пробег не сохранился: %s' % pg.evaluate(VAL, [ts['obj'], ts['oi'], 'f.mileage']))
 
     go(t, qs(obj, oi, 'sanuzel'), '.om-acc[data-sec="sanuzel"][open]')
     opt_btn = pg.locator('.om-acc[data-sec="sanuzel"] .om-opt').first
@@ -226,13 +248,26 @@ def run(t):
 
     # --- выявлено на месте: добавить строение, осмотреть, убрать ---
     go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] [data-found]')
-    pg.locator('[data-found] select[name=cat]').select_option('prod')
+    t.ck(pg.locator('[data-found] select').count() == 0 and pg.locator('[data-found] input[name=name]').count() == 1,
+         'в «Выявлено на месте» не одно текстовое поле (18.11.2026: «просто текстовое поле»)')
+    n_found = pg.locator('.om-found a.om-oi-link').count()
+    pg.evaluate("() => document.querySelector('[data-found] input[name=name]').removeAttribute('required')")
+    pg.fill('[data-found] input[name=name]', '   ')
+    pg.locator('[data-found] button[type=submit]').click()
+    t.ck(t.wait_until("() => document.activeElement && document.activeElement.name === 'name'"), 'пустое название не вернуло фокус в поле')
+    t.ck(t.wait_until("() => /v=obj/.test(location.hash)") and pg.locator('.om-found a.om-oi-link').count() == n_found, 'строение без названия добавилось')
     pg.fill('[data-found] input[name=name]', 'Склад во дворе')
     pg.locator('[data-found] button[type=submit]').click()
-    t.ck(t.wait_until("() => /v=oi/.test(location.hash) && /oi=found-/.test(location.hash) && !!document.querySelector('.om-secrow')"),
-         'добавленное строение не открылось осмотром ОИ')
+    t.ck(t.wait_until("() => /v=oi/.test(location.hash) && /oi=found-/.test(location.hash) && !!document.querySelector('.om-note-card textarea[data-f=note]')"),
+         'добавленное строение не открылось осмотром ОИ с комментарием')
     t.ck(pg.locator('.om-title').inner_text().strip() == 'Склад во дворе', 'у выявленного не то название: %s' % pg.locator('.om-title').inner_text())
-    t.ck(pg.locator('select[data-f="objKind"]').evaluate('(e) => e.value') == 'Здание', 'у выявленного производственного тип ОИ не «Здание»')
+    t.ck(pg.locator('.om-secrow, .om-oifacts, .om-empty, .om-idrow .om-chip, .om-scr [data-f]:not([data-f=note])').count() == 0,
+         'внутри выявленного не только комментарий и снимки (разделы, тип ОИ, поля или «заполнено»)')
+    t.ck(pg.locator('.om-objtabs .om-btab', has_text='Фото').count() == 1, 'у выявленного нет вкладки «Фото»')
+    note = pg.locator('.om-note-card textarea[data-f="note"]')
+    note.press_sequentially('Металлический, без фундамента')
+    t.ck(t.wait_until("async ([id, oi]) => (await (%s)([id, oi, 'note'])) === 'Металлический, без фундамента'" % VAL,
+                      [obj, pg.evaluate("() => new URLSearchParams(location.hash.split('?')[1]).get('oi')")]), 'комментарий выявленного не сохранился')
     go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] .om-found')
     t.ck(pg.locator('.om-found a.om-oi-link', has_text='Склад во дворе').count() == 1, 'выявленного нет в блоке «Выявлено на месте»')
     pg.locator('.om-found a.om-oi-link', has_text='Склад во дворе').click()
@@ -241,11 +276,66 @@ def run(t):
     t.ck(t.wait_until("() => /v=obj/.test(location.hash) && !!document.querySelector('.om-found') && !document.querySelector('.om-found a.om-oi-link')"),
          'выявленное строение не убралось')
 
+    # --- «Добавить литеру» в составе объекта ---
+    LETTERS = """(id) => [...document.querySelectorAll('.om-comp:not(.om-found) a.om-oi-link .om-sq')].map((e) => e.textContent.trim()).filter((x) => x.length && x.length < 4)"""
+    go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] [data-liter-open]')
+    had = pg.evaluate(LETTERS)
+    t.ck(had, 'в составе объекта нет литер с буквой — повтор буквы не проверить')
+    found_n = pg.locator('.om-found a.om-oi-link').count()
+    pg.locator('[data-liter-open]').click()
+    t.wait_for('[data-liter] #om-liter-letter')
+    t.ck(pg.evaluate("() => document.activeElement && document.activeElement.id") == 'om-liter-letter', 'форма литеры открылась без фокуса на букве')
+    # Вида при добавлении нет (пользователь 19.11.2026: «при добавлении литеры убрать поле Вид»).
+    t.ck(pg.locator('[data-liter] select, #om-liter-cat').count() == 0 and 'Вид' not in pg.locator('[data-liter]').inner_text(),
+         'в форме «Добавить литеру» осталось поле «Вид»')
+    pg.fill('#om-liter-name', 'Склад у ворот')
+    pg.evaluate("() => document.querySelector('#om-liter-letter').removeAttribute('required')")
+    pg.locator('[data-liter] button[type=submit]').click()
+    t.ck(t.wait_until("() => /Укажите букву/.test(document.querySelector('[data-liter] .om-warn')?.textContent || '')"), 'литера без буквы добавилась или нет подсказки')
+    t.ck(pg.locator('#om-liter-name').input_value() == 'Склад у ворот', 'после ошибки пропало введённое название')
+    if had:
+        pg.fill('#om-liter-letter', had[0].lower())
+        pg.locator('[data-liter] button[type=submit]').click()
+        t.ck(t.wait_until("(l) => (document.querySelector('[data-liter] .om-warn')?.textContent || '').includes('Литера ' + l + ' уже есть')", had[0]),
+             'литера с буквой %s, которая уже есть в составе, добавилась' % had[0])
+    new = next(c for c in 'ЯЮЭЬЫ' if c not in had)
+    pg.fill('#om-liter-letter', new)
+    pg.locator('[data-liter] button[type=submit]').click()
+    t.ck(t.wait_until("() => /v=oi/.test(location.hash) && /oi=found-/.test(location.hash) && !!document.querySelector('.om-secrow')"), 'добавленная литера не открылась осмотром ОИ')
+    t.ck(pg.locator('.om-oihead .om-sq').inner_text().strip() == new and pg.locator('.om-title').inner_text().strip() == 'Склад у ворот',
+         'у добавленной литеры не та буква или название: %s / %s' % (pg.locator('.om-oihead .om-sq').inner_text(), pg.locator('.om-title').inner_text()))
+    lb = pg.locator('.om-secrow b').all_inner_texts()
+    t.ck('Санузел' in lb and 'Инженерные сети' in lb, 'у добавленной литеры не форма здания: %s' % lb)
+    t.ck(pg.evaluate(FACT, 'Тип ОИ') == 'Здание', 'у литеры без вида тип ОИ не «Здание»: %s' % pg.evaluate(FACT, 'Тип ОИ'))
+    rec = pg.evaluate("""async (oi) => { const tk = await import('./app/pages/inspection/tasks.js'); const d = await import('./app/pages/osmotr/data.js');
+      const s = (await import('./app/kernel/session.js')).session.state; const o = d.myObjects(s.person).find((x) => x.id === decodeURIComponent(location.hash.match(/id=([^&]+)/)[1]));
+      const f = tk.foundOi(o.typeId, o.ocId).find((x) => x.id === oi); return f && { cat: f.cat, litKind: f.litKind, residential: f.residential }; }""",
+      pg.evaluate("() => decodeURIComponent(location.hash.match(/oi=([^&]+)/)[1])"))
+    t.ck(rec == {'cat': '', 'litKind': '', 'residential': False}, 'литера без вида записана с видом: %s' % rec)
+    go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] [data-liter-open]')
+    t.ck(pg.evaluate(LETTERS) == had + [new], 'добавленной литеры нет в «Составе объекта»: %s' % pg.evaluate(LETTERS))
+    t.ck(pg.locator('.om-found a.om-oi-link').count() == found_n, 'добавленная литера попала в «Выявлено на месте»')
+    row = pg.locator('.om-comp:not(.om-found) a.om-oi-link', has_text='Склад у ворот')
+    t.ck(row.count() == 1 and 'добавлена на месте' in row.inner_text(), 'у литеры в составе нет пометки «добавлена на месте»')
+    row.click()
+    t.wait_for('[data-found-del]')
+    t.ck('Убрать литеру' in pg.locator('[data-found-del]').inner_text(), 'у добавленной литеры кнопка не «Убрать литеру»')
+    pg.locator('[data-found-del]').click()
+    t.ck(t.wait_until("([l]) => /v=obj/.test(location.hash) && !!document.querySelector('[data-liter-open]') && ![...document.querySelectorAll('.om-comp a.om-oi-link')].some((a) => a.textContent.includes('Склад у ворот'))", [new]),
+         'добавленная литера не убралась из состава')
+    flat = next((x for x in pg.evaluate(OIS) if x['obj'].startswith('apartment|')), None)
+    t.ck(flat, 'у осмотрщика нет квартиры — кнопку «Добавить литеру» у квартиры не проверить')
+    if flat:
+        go(t, 'v=obj&id=' + quote(flat['obj'], safe=''), '.om-app[data-v="obj"] .om-title')
+        t.ck(pg.locator('[data-liter-open]').count() == 0, 'у квартиры есть «Добавить литеру»')
+
     # --- законченный осмотр — только просмотр ---
     pg.evaluate(FINISH, [obj, True])
-    go(t, qs(obj, oi, 'general'), '.om-app[data-v="sec"] .om-form')
+    go(t, qs(obj, oi, 'nets'), '.om-app[data-v="sec"] .om-form')
     t.ck(t.wait_until("() => document.querySelector('.om-idrow').textContent.includes('только просмотр') && [...document.querySelectorAll('.om-form [data-f], .om-form [data-ms]')].every((e) => e.disabled)"),
          'у законченного осмотра поля правятся')
+    go(t, 'v=obj&id=' + quote(obj, safe=''), '.om-app[data-v="obj"] .om-title')
+    t.ck(pg.locator('[data-liter-open]').count() == 0, 'у законченного осмотра есть «Добавить литеру»')
 
     # --- ширины ---
     pg.set_viewport_size({'width': 360, 'height': 780})

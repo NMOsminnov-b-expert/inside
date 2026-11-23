@@ -12,13 +12,16 @@
     телефон — не ссылка tel:, почта — не mailto:;
   * убранный контакт остаётся на экране;
   * у законченного объекта контакты можно добавлять и убирать;
-  * на 360 пикселях объект прокручивается вбок.
+  * на 360 пикселях объект прокручивается вбок;
+  * (19–20.11.2026) в сведениях выезда (карточка «Учреждение / Выезд / Назначил») нет «Оператор ЦОД» с ФИО оператора
+    карточки ОЦ, телефоном (tel:) и почтой (mailto:) из профиля сотрудника; оператор попал в «Контакты»
+    (контакты — только учреждения и добавленные на месте); «Оператор ЦОД» есть у объекта без оператора.
 """
 from harness import use_cadastre_fixture
 
 NAME = 'контакты и маршрут (веб)'
 
-TOUCHES = ('app/pages/osmotr/*', 'app/kernel/inspectionResults.js')
+TOUCHES = ('app/pages/osmotr/*', 'app/kernel/inspectionResults.js', 'app/kernel/staffProfiles.js')
 
 OBJS = """async () => { const d = await import('./app/pages/osmotr/data.js'); const s = (await import('./app/kernel/session.js')).session.state;
   return d.myObjects(s.person).map((o) => ({ id: o.id, typeId: o.typeId, ocId: o.ocId, state: o.state, removed: o.removed, returned: (o.returned || []).length,
@@ -53,6 +56,31 @@ def run(t):
     t.ck(pg.evaluate(RH, [PT, IOS]) == 'maps://?daddr=42.87,74.57', 'iPhone: маршрут — не Apple Карты')
     t.ck(pg.evaluate(RH, [PT, PC]).startswith('https://www.google.com/maps/dir/'), 'компьютер: маршрут — не Google Карты в браузере')
     t.ck(pg.evaluate(RH, [{}, AND]) == '', 'без точки и адреса предлагается маршрут')
+
+    # --- оператор ЦОД карточки ОЦ — в сведениях выезда, не в «Контактах» ---
+    cods = pg.evaluate("""async () => { const d = await import('./app/pages/osmotr/data.js'); const tk = await import('./app/pages/inspection/tasks.js');
+      const sp = await import('./app/kernel/staffProfiles.js'); const s = (await import('./app/kernel/session.js')).session.state;
+      return d.myObjects(s.person).map((o) => { const rec = tk.loadTask(o.typeId, o.ocId) || {}; const who = (rec.resp || {}).cod || '';
+        return { id: o.id, who, prof: sp.staffProfile(who) }; }); }""")
+    with_cod = next((x for x in cods if x['prof'] and x['prof']['phone'] and x['prof']['email']), None)
+    if t.ck(with_cod, 'нет объекта, у карточки которого оператор ЦОД с телефоном и почтой в профиле'):
+        open_obj(with_cod['id'])
+        first = pg.locator('.om-facts .om-cod')
+        pr = with_cod['prof']
+        t.ck(first.count() == 1, 'в сведениях выезда нет «Оператор ЦОД»')
+        t.ck('Оператор ЦОД' not in pg.locator('.om-contacts').inner_text(), 'оператор ЦОД остался в «Контактах»')
+        txt = first.inner_text()
+        t.ck(with_cod['who'] in txt and 'Оператор ЦОД' in txt, 'в строке нет ФИО оператора ЦОД карточки (%s) или подписи: %r' % (with_cod['who'], txt))
+        t.ck(pr['phone'] in txt and pr['email'] in txt, 'в строке оператора ЦОД нет телефона или почты текстом: %r' % txt)
+        tel = 'tel:' + ''.join(ch for ch in pr['phone'] if ch.isdigit() or ch == '+')
+        t.ck(first.locator('a[href="%s"]' % tel).count() == 1 and first.locator('a[href="mailto:%s"]' % pr['email']).count() == 1,
+             'у оператора ЦОД телефон — не tel: или почта — не mailto:')
+    none = next((x for x in cods if not x['who']), None)
+    if none:
+        open_obj(none['id'])
+        t.ck(pg.locator('.om-cod').count() == 0, 'у объекта без оператора ЦОД есть «Оператор ЦОД»')
+    t.ck(pg.evaluate("async () => (await import('./app/kernel/staffProfiles.js')).staffProfile('  ')") is None, 'профиль без имени — не пусто')
+    open_obj(o['id'])
 
     # --- контакты: проверки ввода ---
     add = pg.locator('.om-ct-add')

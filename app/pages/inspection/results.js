@@ -140,7 +140,8 @@ function itemsOf(typeId, rec, r, list) {
     x.stage = stageOf(x);
     items.push(x);
   });
-  ((r && r.found) || []).forEach((f) => items.push({ id: f.id, kind: 'found', found: f, label: oiLabel(f), photos: photosOf(f.id), voices: voicesOf(f.id), values: 0, diffs: 0 }));
+  // Автомобиль, выявленный на месте, но не сохранённый осмотрщиком (tasks.js, addFoundCar), — не показывается.
+  ((r && r.found) || []).filter((f) => !f.unsaved).forEach((f) => items.push({ id: f.id, kind: 'found', found: f, label: oiLabel(f), photos: photosOf(f.id), voices: voicesOf(f.id), values: 0, diffs: 0 }));
   return items;
 }
 // ОИ, которые принимаются: на них было назначение.
@@ -168,7 +169,7 @@ function summaryHTML(rec, list, items, r) {
   const photos = r ? r.photos.length : 0;
   const scans = (r && r.scans) || [];
   const waitScans = scans.filter((s) => !(s.review && s.review.state)).length;
-  const found = ((r && r.found) || []).length;
+  const found = ((r && r.found) || []).filter((f) => !f.unsaved).length;
   // Удалено осмотрщиком на телефоне после отправки — в системе остаётся с пометкой (решение 03.11.2026: «Система копит всё»).
   const deleted = r ? [...(r.photos || []), ...(r.voices || []), ...(r.scans || [])].filter((x) => x.deletedByInspector).length : 0;
   const outcome = r && r.outcome;

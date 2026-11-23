@@ -54,24 +54,9 @@ body[data-page="osmotr"] .content{height:100dvh;overflow:hidden;padding:0;backgr
 .om-seg.on b{color:rgba(255,255,255,.75)}
 .om-seg.none{opacity:.55}
 
-/* Главная: плитка «осмотреть» и следующий объект */
-.om-hero{display:grid;grid-template-columns:118px 1fr;gap:12px;margin-bottom:6px}
-.om-tile{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:120px;border-radius:22px;background:#fff;border:2px solid #8fb8e0;box-shadow:var(--om-card-sh);text-align:center}
-.om-tile b{font-size:38px;font-weight:800;line-height:1;font-variant-numeric:tabular-nums}
-.om-tile span{font-size:13px;color:var(--om-muted)}
-.om-next{display:flex;flex-direction:column;gap:4px;min-width:0;padding:14px;border-radius:22px;background:linear-gradient(135deg,#e2d4f3,#d5e3f6);box-shadow:var(--om-card-sh)}
-.om-next .om-cap{color:#7a41b8}
-.om-next-title{font-weight:700;font-size:16px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
-.om-next-none{justify-content:center;color:var(--om-muted);font-size:14px}
-.om-mono{font-family:ui-monospace,"SF Mono",Consolas,monospace;font-size:12px;color:var(--om-muted);letter-spacing:.02em}
-.om-next-act{display:flex;flex-wrap:wrap;gap:8px;margin-top:auto;padding-top:6px}
-/* На узком экране кнопки встают друг под другом, а не выталкивают страницу вбок. */
-.om-next-act .om-btn{flex:1 1 auto;min-width:0;padding:0 12px}
-
 /* Кнопки — «пилюли» стенда */
 .om-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:44px;padding:0 16px;border-radius:14px;background:rgba(255,255,255,.75);border:1px solid var(--om-glass-line);font-weight:600;font-size:15px;color:var(--om-ink);white-space:nowrap;cursor:pointer}
 .om-btn-primary{background:linear-gradient(180deg,#4b8fe2,#2f74d0);border-color:#2a6bc2;color:#fff;box-shadow:0 6px 16px rgba(47,116,208,.35)}
-.om-next .om-btn-primary{background:#7a41b8;border-color:#6b37a3;box-shadow:0 6px 16px rgba(122,65,184,.3)}
 
 /* Группа строк — белая плашка с разделителями */
 .om-group{background:#fff;border-radius:var(--om-r);box-shadow:var(--om-card-sh);overflow:hidden}
@@ -144,6 +129,7 @@ a.om-row:hover{background:#f7f9fb}
 .om-facts{display:flex;flex-direction:column;gap:10px;border-left:4px solid #0f9080;margin-bottom:12px}
 .om-facts small{display:block;font-size:13px;color:var(--om-muted)}
 .om-facts b{font-weight:600}
+.om-cod-ct{display:flex;align-items:center;gap:6px;width:fit-content;max-width:100%;margin-top:4px;color:var(--om-blue-700);font-size:14px;text-decoration:none;overflow-wrap:anywhere}
 .om-pre{white-space:pre-line}
 .om-place{margin-bottom:12px;display:flex;flex-direction:column;gap:10px}
 .om-place-addr{margin:0;font-weight:600}
@@ -166,7 +152,6 @@ a.om-row:hover{background:#f7f9fb}
 .om-ct-more>summary,.om-ct-add>summary{min-height:40px;display:flex;align-items:center;font-weight:600;color:var(--om-blue-700);cursor:pointer}
 .om-ct-form{display:flex;flex-direction:column;gap:6px;padding-top:4px}
 .om-ct-form .om-btn-primary{margin-top:6px}
-.om-card.om-doclink{display:flex;margin-bottom:12px;border-left:4px solid var(--om-blue);padding:10px 14px}
 .om-comp{padding:0 0 4px;overflow:hidden;margin-bottom:12px;border-left:4px solid var(--om-blue)}
 .om-card-h{margin:0;padding:12px 16px;font-size:17px;font-weight:700;background:#f4f8fb;border-bottom:1px solid #e3eaf2}
 .om-oi{display:flex;align-items:center;gap:12px;padding:10px 16px}
@@ -196,6 +181,10 @@ a.om-oi-link:hover{background:#f7f9fb}
 /* Осмотр ОИ: шапка и разделы (как «Сведения» литеры на стенде) */
 .om-oihead{display:flex;align-items:center;gap:14px;margin-top:18px}
 .om-oihead small{font-size:14px;color:var(--om-muted)}
+.om-oifacts{margin:14px 0 0;padding:10px 16px;border:1px solid var(--t);border-radius:var(--om-r);background:var(--t50)}
+.om-oifacts>div{display:flex;align-items:baseline;gap:12px}
+.om-oifacts dt{font-size:13px;color:var(--om-muted)}
+.om-oifacts dd{margin:0;font-size:17px;font-weight:700;color:var(--t)}
 .om-sq-lg{width:56px;height:56px;border-radius:14px;font-size:22px;background:var(--t50);color:var(--t)}
 .om-sq-sm{width:30px;height:30px;border-radius:8px;font-size:13px;font-variant-numeric:tabular-nums}
 .om-title-oi{font-size:22px;line-height:1.2}
@@ -250,10 +239,26 @@ textarea.om-input{resize:vertical;line-height:1.4}
 
 /* Выявлено на месте */
 .om-found{border-left-color:#c07c1e}
+.om-cars{border-left-color:var(--t)}
+.om-leave{border-left-color:var(--t)}
+.om-leave .om-shoot-act{padding:12px 16px 8px}
+.om-leave .om-warn{margin:12px 16px 0}
+.om-car-act{margin-top:14px}
+.om-leave .om-btn-danger,.om-car-act .om-btn-danger{margin-top:0}
+.om-site{border-left-color:var(--t)}
+.om-site .om-card-h{display:flex;align-items:center;gap:8px}
+.om-badge-n{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:11px;background:var(--t);color:#fff;font-size:12px}
+.om-site-row+.om-site-row{border-top:1px solid #e3eaf2}
+.om-site-row .om-row-tx small{white-space:normal}
+.om-site-btn{display:flex;align-items:center;justify-content:center;gap:8px;margin:0 16px 12px}
+.om-site-n{color:var(--t);font-weight:600}
 .om-found-add{display:flex;flex-direction:column;gap:8px;padding:12px 16px 12px;border-top:1px solid #e3eaf2}
 .om-found-add .om-flabel{margin:0}
 .om-found-none{padding:10px 16px}
 .om-found-del{width:100%;margin-top:14px}
+.om-liter-btn{display:flex;align-items:center;justify-content:center;gap:8px;width:calc(100% - 32px);margin:10px 16px 12px}
+.om-liter-letter{max-width:96px}
+.om-liter-add .om-warn{margin:0}
 
 /* Комментарий осмотрщика — прямо на экране ОИ, под разделами */
 .om-note-card{margin-top:12px;position:relative}
@@ -319,6 +324,36 @@ textarea.om-input{resize:vertical;line-height:1.4}
 .om-filters{display:flex;flex-direction:column;gap:10px;margin-bottom:10px;padding:12px 14px}
 .om-fgroup .om-flabel{font-size:12px;margin-bottom:4px;color:var(--om-muted)}
 .om-fgroup .om-segs-line{margin:0}
+/* «Выезды»: типы — строкой с прокруткой, выбранный — светлой заливкой с галочкой (как выбранная вкладка состояния,
+   .om-tab3.on); выбранный тип без объектов не бледнеет — выбор должен быть виден. */
+.om-kinds .om-seg.on{background:var(--om-blue-50);border-color:var(--om-blue);color:var(--om-blue-700)}
+.om-kinds .om-seg.on b{color:var(--om-blue-700)}
+.om-kinds .om-seg.on.none{opacity:1}
+.om-kinds .om-seg svg{margin-left:-4px}
+/* Панель фильтров: типы и учреждения — списками строк с чекбоксом (учреждения сворачиваются), внизу «Показать N». */
+.om-fpanel{display:flex;flex-direction:column;gap:8px;margin-bottom:12px;padding:14px 14px 0}
+.om-fpanel .om-cap{margin:4px 2px 0}
+.om-fopt input{width:18px;height:18px;margin:0;flex:none;accent-color:var(--om-blue)}
+.om-fgrps{border:1px solid var(--om-line);border-radius:12px;overflow:hidden}
+.om-fgrps > * + *{border-top:1px solid var(--om-line)}
+.om-fhead{display:flex;align-items:center;gap:8px;width:100%;min-height:44px;padding:0 12px;border:0;background:none;font:inherit;font-size:14px;font-weight:600;color:var(--om-ink);text-align:left;cursor:pointer}
+.om-fhead span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.om-fhead svg{flex:none;color:var(--om-muted);transition:transform .15s}
+.om-fgrp.open .om-fhead svg{transform:rotate(90deg)}
+.om-fon{display:grid;place-items:center;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--om-blue);color:#fff;font-size:12px;font-variant-numeric:tabular-nums}
+.om-fbody{padding:0 12px 6px 36px}
+.om-fopt{display:flex;align-items:center;gap:10px;min-height:44px;padding:0 12px;font-size:14px;cursor:pointer}
+.om-fbody .om-fopt{padding:0}
+.om-fopt span{flex:1;min-width:0}
+.om-ffoot{position:sticky;bottom:78px;display:flex;gap:8px;margin:4px -14px 0;padding:10px 14px 14px;background:linear-gradient(rgba(255,255,255,.6),#fff 30%);border-radius:0 0 var(--om-r) var(--om-r)}
+.om-ffoot .om-btn-primary{flex:1}
+/* Выбранные подведомственные — плашками с крестиком, строкой с прокруткой; «Сбросить всё» в конце. */
+.om-applied{display:flex;align-items:center;gap:6px;overflow-x:auto;scrollbar-width:none;margin:0 0 10px;padding-bottom:2px}
+.om-applied::-webkit-scrollbar{display:none}
+.om-fchip{display:inline-flex;align-items:center;gap:4px;flex:none;max-width:240px;min-height:36px;padding:0 8px 0 12px;border:1px solid var(--om-blue-200);border-radius:18px;background:#fff;font:inherit;font-size:13px;font-weight:600;color:var(--om-blue-700);cursor:pointer}
+.om-fchip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.om-fchip svg{flex:none;color:var(--om-muted)}
+.om-fclear{flex:none;padding:0 6px;font-size:13px;font-weight:600;color:var(--om-blue-700);white-space:nowrap}
 .om-price{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:6px}
 .om-price .om-input{font-variant-numeric:tabular-nums;text-align:right}
 

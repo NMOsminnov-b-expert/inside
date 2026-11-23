@@ -74,7 +74,8 @@ _add('Сканы с осмотров · Возвращено', 'osmotry', 'rm', 
 # 16.11.2026; образец вида — мобильный вид стенда). Приложение «Осмотр» в рамке
 # убрано 17.11.2026 (пользователь: «Старое приложение убираем»).
 _OM_TOUCH = ('app/pages/osmotr/', 'app/kernel/router.js', 'app/kernel/inspections.js', 'app/pages/inspection/tasks.js')
-_add('Осмотрщик · Сегодня', 'osmotry', 'insp', '#/osmotr', '.om-app[data-v="today"]', _OM_TOUCH)
+_add('Осмотрщик · Мои объекты', 'osmotry', 'insp', '#/osmotr', '.om-app[data-v="today"]', _OM_TOUCH)
+_add('Осмотрщик · Статистика', 'osmotry', 'insp', '#/osmotr?v=stats', '.om-app[data-v="stats"]', _OM_TOUCH)
 _add('Осмотрщик · Выезды · Недвижимое', 'osmotry', 'insp', '#/osmotr?v=trips&f=real', '.om-app[data-v="trips"]', _OM_TOUCH)
 _add('Осмотрщик · Выезды · К осмотру', 'osmotry', 'insp', '#/osmotr?v=trips', '.om-app[data-v="trips"]', _OM_TOUCH)
 _add('Осмотрщик · Выезды · Все', 'osmotry', 'insp', '#/osmotr?v=trips&s=all', '.om-app[data-v="trips"]', _OM_TOUCH)

@@ -26,23 +26,26 @@ function rng(seed) {
 }
 
 // Наименование, место, стоимости и — из столбцов описи «Модель средства» и «Тип имущества внутри кода учёта» —
-// модель и тип (16.11.2026: осмотрщику для опознания — МОЛ, модель, тип имущества).
+// модель и тип (16.11.2026: осмотрщику для опознания — МОЛ, модель, тип имущества). Последний столбец — счёт учёта
+// позиции: по нему статистика осмотрщика делит оборудование на 31122 и 31123 (пользователь 18.11.2026: 31123 —
+// «31123120, 31123130», офисное и компьютерное). Счета здесь — демо: у вычислительной техники и оргтехники 31123…,
+// у остального 31122…; у настоящей описи счёт — из её кода учёта.
 const KINDS = [
-  ['Компьютер в комплекте', 'Каб.', 45000, 38000, 'Lenovo ThinkCentre M70t', 'Вычислительная техника'],
-  ['Ноутбук HP ProBook 450', 'Каб.', 62000, 51000, 'HP ProBook 450 G8', 'Вычислительная техника'],
-  ['МФУ Canon i-SENSYS', 'Каб.', 24000, 18000, 'Canon i-SENSYS MF443dw', 'Оргтехника'],
-  ['Принтер HP LaserJet', 'Каб.', 16000, 12000, 'HP LaserJet Pro M404dn', 'Оргтехника'],
-  ['Кондиционер Midea 12', 'Каб.', 38000, 30000, 'Midea MSAG-12HRN1', 'Климатическое оборудование'],
-  ['Стол письменный', 'Каб.', 9000, 7000, '', 'Мебель'],
-  ['Шкаф для документов', 'Каб.', 12000, 9000, '', 'Мебель'],
-  ['Кресло офисное', 'Каб.', 7500, 6000, '', 'Мебель'],
-  ['Сейф металлический', 'Архив', 21000, 18000, 'Valberg ASM-90', 'Мебель'],
-  ['Проектор Epson EB-X51', 'Конф.-зал', 54000, 42000, 'Epson EB-X51', 'Аудио- и видеотехника'],
-  ['Котёл газовый водогрейный', 'Котельная', 1840000, 1200000, 'Viessmann Vitoplex 100', 'Котельное оборудование'],
-  ['Насос циркуляционный Grundfos', 'Котельная', 86000, 60000, 'Grundfos UPS 32-80', 'Насосное оборудование'],
-  ['Генератор дизельный 30 кВт', 'Гараж', 980000, 640000, 'FG Wilson P33-3', 'Электрооборудование'],
-  ['Сварочный аппарат', 'Мастерская', 42000, 30000, 'Ресанта САИ-250', 'Инструмент'],
-  ['Станок сверлильный', 'Мастерская', 155000, 98000, 'JET JDP-17F', 'Станки'],
+  ['Компьютер в комплекте', 'Каб.', 45000, 38000, 'Lenovo ThinkCentre M70t', 'Вычислительная техника', '31123130'],
+  ['Ноутбук HP ProBook 450', 'Каб.', 62000, 51000, 'HP ProBook 450 G8', 'Вычислительная техника', '31123130'],
+  ['МФУ Canon i-SENSYS', 'Каб.', 24000, 18000, 'Canon i-SENSYS MF443dw', 'Оргтехника', '31123120'],
+  ['Принтер HP LaserJet', 'Каб.', 16000, 12000, 'HP LaserJet Pro M404dn', 'Оргтехника', '31123120'],
+  ['Кондиционер Midea 12', 'Каб.', 38000, 30000, 'Midea MSAG-12HRN1', 'Климатическое оборудование', '31122100'],
+  ['Стол письменный', 'Каб.', 9000, 7000, '', 'Мебель', '31122100'],
+  ['Шкаф для документов', 'Каб.', 12000, 9000, '', 'Мебель', '31122100'],
+  ['Кресло офисное', 'Каб.', 7500, 6000, '', 'Мебель', '31122100'],
+  ['Сейф металлический', 'Архив', 21000, 18000, 'Valberg ASM-90', 'Мебель', '31122100'],
+  ['Проектор Epson EB-X51', 'Конф.-зал', 54000, 42000, 'Epson EB-X51', 'Аудио- и видеотехника', '31122100'],
+  ['Котёл газовый водогрейный', 'Котельная', 1840000, 1200000, 'Viessmann Vitoplex 100', 'Котельное оборудование', '31122100'],
+  ['Насос циркуляционный Grundfos', 'Котельная', 86000, 60000, 'Grundfos UPS 32-80', 'Насосное оборудование', '31122100'],
+  ['Генератор дизельный 30 кВт', 'Гараж', 980000, 640000, 'FG Wilson P33-3', 'Электрооборудование', '31122100'],
+  ['Сварочный аппарат', 'Мастерская', 42000, 30000, 'Ресанта САИ-250', 'Инструмент', '31122100'],
+  ['Станок сверлильный', 'Мастерская', 155000, 98000, 'JET JDP-17F', 'Станки', '31122100'],
 ];
 // Материально ответственное лицо — по отделу (демо).
 const MOL_OF = { 'Администрация': 'Асанова Г. К.', 'Архив': 'Токтогулов Н. А.', 'Хозяйственная служба': 'Мамытов Б. С.' };
@@ -51,7 +54,7 @@ const DEPT_OF = { 'Каб.': 'Администрация', 'Конф.-зал': '
 function makeItems(seed, n, prefix) {
   const r = rng(seed);
   return Array.from({ length: n }, (_, i) => {
-    const [name, place, ci, cb, model, kind] = KINDS[Math.floor(r() * KINDS.length)];
+    const [name, place, ci, cb, model, kind, acc] = KINDS[Math.floor(r() * KINDS.length)];
     const qty = r() < 0.15 ? 2 + Math.floor(r() * 6) : 1;
     const k = 0.6 + r() * 0.4;
     const pr = ci >= 500000 ? 1 : ci >= 40000 ? (r() < 0.6 ? 1 : 2) : r() < 0.3 ? 2 : 3;
@@ -62,7 +65,7 @@ function makeItems(seed, n, prefix) {
       list: pr === 3 ? 'Резерв' : 'Основной', sheet: 'Опись', year: 2012 + Math.floor(r() * 13),
       // Отдел учреждения — из ответа учреждения на нормализованную опись (демо: по месту).
       dept: DEPT_OF[place] || 'Администрация',
-      model, kind, mol: MOL_OF[DEPT_OF[place] || 'Администрация'],
+      model, kind, acc, mol: MOL_OF[DEPT_OF[place] || 'Администрация'],
     };
   });
 }
@@ -99,7 +102,9 @@ export function findInventories(q) {
 // --- отметки позиций ---------------------------------------------------------
 // Ключ — «опись|позиция». Отметка: state — 'seen' (осмотрено) | 'missing'
 // (не найдено на месте); cond — состояние оборудования (Рабочее …, как в
-// карточке механизмов); photos; comment; by, at, assignId.
+// карточке механизмов); off — списано (в описи есть, на месте нет: уже
+// списано; ставит осмотрщик без снимков, 19.11.2026); photos; comment; by, at,
+// assignId.
 const marks = new Map();
 const extras = new Map();   // опись → позиции «Нет в описи»
 const itemDocs = new Map(); // «опись|позиция» → документы позиции (принятые сканы)
@@ -264,14 +269,16 @@ export function allItemDocs() {
 export function progressOf(invId, today = new Date().toISOString().slice(0, 10)) {
   const inv = inventoryById(invId);
   if (!inv) return null;
-  const p = { total: inv.items.length, seen: 0, missing: 0, broken: 0, repair: 0, today: 0, photos: 0, conflicts: 0, extra: extrasOf(invId).length, byPriority: {} };
+  const p = { total: inv.items.length, seen: 0, off: 0, missing: 0, broken: 0, repair: 0, today: 0, photos: 0, conflicts: 0, extra: extrasOf(invId).length, byPriority: {} };
   inv.items.forEach((it) => {
     const m = markOf(invId, it.id);
     const pr = (p.byPriority[it.priority] = p.byPriority[it.priority] || { total: 0, seen: 0 });
     pr.total++;
     if (!m) return;
     p.photos += (m.photos || []).length;
-    if (m.state === 'seen') { p.seen++; pr.seen++; }
+    // Списанное засчитывается осмотром (как в описи у осмотрщика).
+    if (m.state === 'seen' || (m.off && m.state !== 'missing')) { p.seen++; pr.seen++; }
+    if (m.off) p.off++;
     if (m.state === 'missing') p.missing++;
     if (m.cond === 'Нерабочее') p.broken++;
     if (m.cond === 'В ремонте') p.repair++;
@@ -292,7 +299,7 @@ export function inventoryReportSheets(invId) {
   const lists = [...new Set(inv.items.map((it) => it.list))];
   const sumBy = (pick) => {
     const r = rowsOf.filter(pick);
-    const seen = r.filter((x) => x.m.state === 'seen' || x.m.state === 'missing');
+    const seen = r.filter((x) => x.m.state === 'seen' || x.m.state === 'missing' || x.m.off);
     return [r.length, seen.length, r.length - seen.length, r.length ? Math.round((seen.length / r.length) * 100) : 0,
       seen.reduce((n, x) => n + (x.it.costInitial || 0), 0), r.filter((x) => x.m.cond === 'Нерабочее').length,
       r.filter((x) => x.m.state === 'missing').length];
@@ -310,7 +317,7 @@ export function inventoryReportSheets(invId) {
     name: l,
     head,
     rows: rowsOf.filter((x) => x.it.list === l).map(({ it, m }) => [it.no, it.inv, it.name, it.place, it.dept || '', it.qty, it.costInitial, it.costBalance, `П${it.priority}`,
-      m.state === 'seen' ? 'Да' : m.state === 'missing' ? 'Не найдено' : 'Нет', m.cond || '', (m.photos || []).length, itemDocsOf(invId, it.id).length,
+      m.off ? 'Списано' : m.state === 'seen' ? 'Да' : m.state === 'missing' ? 'Не найдено' : 'Нет', m.cond || '', (m.photos || []).length, itemDocsOf(invId, it.id).length,
       m.comment || '', m.by || '', m.at ? `${ddmm(m.at)} ${m.at.slice(11, 16)}` : '', was(m.conflict)]),
     widths: [6, 14, 36, 16, 20, 8, 14, 14, 9, 11, 18, 8, 10, 30, 18, 16, 28],
   }));

@@ -41,7 +41,9 @@ CALLS = Counter()
 def fixture():
     global _fix
     if _fix is None:
-        _fix = json.load(open(FILE, encoding='utf-8'))
+        # Файла нет (fixtures/ — вне git: ответы Кадастра в репозиторий не идут) — пустые ответы портала, как до
+        # записи: сценарий идёт дальше и проваливает только то, что ждёт рамок и слоёв, а не падает целиком.
+        _fix = json.load(open(FILE, encoding='utf-8')) if os.path.exists(FILE) else {'layers': {}, 'exact': [], 'extent_empty': EMPTY_FC}
     return _fix
 
 
