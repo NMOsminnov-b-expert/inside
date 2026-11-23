@@ -1,5 +1,6 @@
 import { stepOf, isBranch, OC_FLOW } from './flow.js';
 import { localIso } from '../fmt.js';
+import { bindEarly } from './early.js';
 
 // Шкала статусов (разметка — kernel/status/flow.view.js).
 //
@@ -64,4 +65,5 @@ export function bindStatusFlow(ctx, { more = null } = {}) {
     },
     after: () => ctx.render(),
   });
+  bindEarly(ctx);
 }

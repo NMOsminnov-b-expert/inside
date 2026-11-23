@@ -20,6 +20,7 @@ import { bindColumnResize, bindColumnReorder, bindColumnsMenu, normalizeOrder, a
 import { previewHTML } from './preview.js';
 import { registerPersisted } from '../../kernel/persist.js';
 import { assignFromRegistry } from '../../kernel/inspections.js';
+import { canSendEarly, sendEarly } from '../../kernel/earlyInspection.js';
 import { geoByEni, eniByAddress, centerOf } from '../../kernel/cadastreGeo.js';
 import { eniCodesOf } from '../../kernel/eniField.js';
 import { localIso } from '../../kernel/fmt.js';
@@ -273,6 +274,7 @@ export function mountOcMenu(host) {
         <span class="reg-bulk-sep"></span>
         ${perms.assignInsp ? '<button class="btn btn-sm" data-bulk="insp">Назначить осмотрщика</button>' : ''}
         ${perms.setStatus ? '<button class="btn btn-sm" data-bulk="status">Сменить статус</button>' : ''}
+        ${perms.early ? '<button class="btn btn-sm" data-bulk="early" title="Флаг «Досрочно направлен на осмотр»: статус не меняется, объект появляется у регионала">Досрочно на осмотр</button>' : ''}
         <button class="btn btn-sm" data-export>Экспорт выбранных</button>
         ${geoRun && geoRun.live ? '' : '<button class="btn btn-sm" data-bulk="geo" title="Рамка и контур участка — по ЕНИ, а без ЕНИ — по адресу">Координаты из Кадастра</button>'}
         <span class="reg-grow"></span>
@@ -693,6 +695,24 @@ export function mountOcMenu(host) {
     if (kind === 'geo') { geoBulk(ids); return; }
     if (kind === 'insp' && !perms.assignInsp) return;
     if (kind === 'status' && !perms.setStatus) return;
+    if (kind === 'early' && !perms.early) return;
+
+    // Досрочно на осмотр (kernel/earlyInspection.js): только записи со статусом до «Направлен на осмотр» и без флага;
+    // остальные пропускаются — их число в итоге.
+    if (kind === 'early') {
+      const ok = await host.confirm({ title: `Досрочно на осмотр (${ids.length})`,
+        text: 'Флаг «Досрочно направлен на осмотр» — весь объект, без комментария. Статус не меняется.',
+        note: 'Пропускаются механизмы, записи со статусом «Направлен на осмотр» и дальше и записи, где флаг уже стоит. ОИ и комментарий — в карточке, на шкале статусов.',
+        okLabel: 'Направить' });
+      if (!ok) return;
+      let sent = 0;
+      ids.forEach(([id, typeId]) => mutate(typeId, id, (api) => {
+        const r = api.loadRecord(id);
+        if (r && canSendEarly(r, typeId)) { sendEarly(r, typeId, {}); sent += 1; }
+      }));
+      const skip = ids.length - sent;
+      host.toast(`Досрочно на осмотр: ${sent}${skip ? ` · пропущено ${skip}` : ''}`, sent ? 'ok' : 'warn');
+    }
 
     if (kind === 'insp') {
       const people = Object.keys(lastFacets.insp || {}).filter(Boolean).sort();

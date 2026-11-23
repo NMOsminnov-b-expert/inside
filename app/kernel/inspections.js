@@ -25,6 +25,7 @@ import { optionsFor } from './dicts.js';
 import {
   SKIP_REASONS, ABSENCE_KINDS, ACTIVITY_KINDS, CAD_DOCS, DEFAULT_DOC_TYPES, CAR_FUELS,
 } from './inspectionsDicts.js';
+import { setEarlyAssigns } from './earlyInspection.js';
 
 // Перечни «Осмотров» — из раздела «Справочники» (группа «Осмотры», решение
 // пользователя 15.10.2026), встроенные — запасные (kernel/inspectionsDicts.js).
@@ -133,6 +134,9 @@ export const assignmentById = (id) => assignments.find((a) => a.id === id) || nu
 export function assignmentsOf(typeId, ocId, { live = true } = {}) {
   return assignments.filter((a) => a.typeId === typeId && a.ocId === ocId && (!live || isLive(a)));
 }
+// Досрочный осмотр (kernel/earlyInspection.js) берёт живые назначения объекта отсюда — регистрацией, без круга импортов.
+setEarlyAssigns((typeId, ocId) => assignmentsOf(typeId, ocId).map((a) => ({ person: a.person, state: a.state, plannedAt: a.plannedAt || '',
+  label: (ASSIGN_STATES.find((x) => x.key === a.state) || {}).label || a.state })));
 
 export function assignmentsOfPerson(person, { live = true } = {}) {
   return assignments.filter((a) => a.person === person && (!live || isLive(a)));

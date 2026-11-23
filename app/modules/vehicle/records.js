@@ -4,6 +4,7 @@ import { tsTitle, whatLabel, tsOf } from './tsModel.js';
 import { registerPersisted, copyTag } from '../../kernel/persist.js';
 import { localIso } from '../../kernel/fmt.js';
 import { createSeed } from './data/seed.js';
+import { earlyFlags } from '../../kernel/earlyInspection.js';
 
 // Демо-записи для осмотра ТС (data/seed.js) — исходные данные; правки
 // пользователя ложатся поверх них сохранением, как у остальных типов ОЦ.
@@ -91,7 +92,7 @@ export function summarize(rec) {
     // Состав для превью реестра: модули на машине.
     composition: { label: 'Модули', items: (rec.vehicle.modules || []).map((m) => ({ name: m.kind || 'Модуль не выбран', sub: (m.f || {}).year || '' })) },
     metrics: { oiCount: 0, area: 0, photos: 0, docs: (rec.docs || []).length, positions: 1, qty: 1, cost: 0, pendingNotes: 0 },
-    flags: {},
+    flags: earlyFlags(rec),
     letters: [],
     updatedAt: rec.updatedAt,
     search: searchOf(rec),

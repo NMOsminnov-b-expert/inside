@@ -1,5 +1,6 @@
 import { esc } from '../dom.js';
 import { OC_FLOW, isBranch, stepOf, nextOf } from './flow.js';
+import { EARLY_STEP, earlyStepHTML, earlyMiniHTML } from './early.js';
 
 // Шкала статусов объекта оценки — в свободном углу Г-образной шапки, справа от
 // вкладок (макет пользователя 21.09.2026, канва «Шапка ОЦ: Г-образный блок»).
@@ -60,6 +61,7 @@ function fullHTML(status, next, o) {
       ${node(name, stateOf(name, status, next, flow), 'st-step', go, o.note)}
       ${branch ? `<span class="st-fork" aria-hidden="true"></span>
         ${node(branch, stateOf(branch, status, next, flow), 'st-branch', go)}` : ''}
+      ${o.aside && o.aside.step === name ? o.aside.html : ''}
     </li>`;
   }).join('');
 
@@ -82,7 +84,7 @@ function miniHTML(status, next, o) {
   return `<div class="st-mini">
     <span class="st-mini-lbl">Статус</span>
     <span class="st-pill ${isBranch(status, flow) ? 'st-pill-branch' : ''}" aria-current="step">
-      <span class="st-pill-dot" aria-hidden="true"></span>${esc(status || 'не задан')}</span>${o.note ? `<span class="st-sub st-sub-mini">${esc(o.note)}</span>` : ''}
+      <span class="st-pill-dot" aria-hidden="true"></span>${esc(status || 'не задан')}</span>${o.note ? `<span class="st-sub st-sub-mini">${esc(o.note)}</span>` : ''}${o.miniAside || ''}
     ${known ? `<span class="st-bar" aria-hidden="true">${bar}</span>
       <span class="st-count">${at + 1} из ${flow.main.length}</span>` : ''}
     ${next.length ? `<span class="st-then"><span class="st-next-lbl">Далее:</span>${btns}</span>`
@@ -97,7 +99,7 @@ function miniHTML(status, next, o) {
 // одном экране не перехватывали нажатия друг друга; collapsed — свёрнута ли.
 export function flowHTML(status, o) {
   const opts = {
-    flow: o.flow, go: `${o.key}-go`, toggle: `${o.key}-toggle`, note: o.note || '',
+    flow: o.flow, go: `${o.key}-go`, toggle: `${o.key}-toggle`, note: o.note || '', aside: o.aside || null, miniAside: o.miniAside || '',
   };
   const next = nextOf(status, o.flow);
   const tid = `${o.key}FlowTitle`;
@@ -109,8 +111,11 @@ export function flowHTML(status, o) {
   </nav>`;
 }
 
-export function statusFlowHTML(rec, ui, note = '') {
+// typeId — тип ОЦ: под шагом «Направлен на осмотр» — отметка досрочного осмотра (kernel/status/early.js).
+export function statusFlowHTML(rec, ui, note = '', typeId = '') {
+  const early = typeId ? earlyStepHTML(rec, typeId) : '';
   return flowHTML(rec.status || '', {
     flow: OC_FLOW, key: 'status', title: 'Статус объекта оценки', collapsed: ui && ui.statusCollapsed, note,
+    aside: early ? { step: EARLY_STEP, html: early } : null, miniAside: typeId ? earlyMiniHTML(rec, typeId) : '',
   });
 }

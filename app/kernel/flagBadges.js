@@ -16,6 +16,9 @@ export const FLAGS = [
   { key: 'specials', icon: '✦', cls: 'spec', title: 'отмечены особенности' },
   { key: 'pendingNotes', icon: '⚑', cls: 'notes', title: 'есть невыполненные заметки' },
   { key: 'defects', icon: '⚠', cls: 'warn', title: 'расхождение ТП и фото' },
+  // Досрочный осмотр (kernel/earlyInspection.js): одновременно поднят только один из двух.
+  { key: 'earlySent', icon: '»', cls: 'early', title: 'досрочно направлен на осмотр' },
+  { key: 'earlyDone', icon: '✓', cls: 'early-done', title: 'осмотр проведён досрочно' },
 ];
 
 // Импорт ML: в данных два поля — ml (импортировано) и mlUnverified (импорт не

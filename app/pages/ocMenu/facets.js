@@ -83,7 +83,8 @@ function optionRows(key, counts, selected) {
 // У движимого нет области (она из ЕНИ) и города, из признаков — только
 // заметки (канва главной 01.10.2026: у каждой вкладки свои фильтры).
 const MOVABLE_SKIP = ['region', 'city'];
-const MOVABLE_FLAGS = ['pendingNotes'];
+// Досрочный осмотр есть и у ТС (kernel/earlyInspection.js).
+const MOVABLE_FLAGS = ['pendingNotes', 'earlySent', 'earlyDone'];
 
 export function facetsHTML(state, facets) {
   const f = state.filter;

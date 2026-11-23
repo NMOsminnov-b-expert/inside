@@ -308,6 +308,8 @@ body[data-module] .reg-badge.ml{background:var(--teal-50);color:var(--teal-700);
    (см. kernel/flagBadges.js). */
 body[data-module] .reg-badge.ml.ml-raw{background:var(--amber-50);color:var(--amber-700);border:1px solid var(--amber-600);border-style:dashed}
 body[data-module] .reg-badge.spec{background:var(--violet-50);color:var(--violet-700);border:1px solid var(--violet-100)}
+body[data-module] .reg-badge.early{background:var(--violet-50);color:var(--violet-700);border:1px solid var(--violet-600)}
+body[data-module] .reg-badge.early-done{background:var(--teal-50);color:var(--teal-700);border:1px solid var(--teal-600)}
 /* Приписка под полем «Количество этажей» (Л2.8): «2 этажа · 96,40 м²». */
 body[data-module] .floors-note{display:block;font-size:10.5px;margin-top:3px}
 /* Способ оценки вспомогательных построек участка: строка над списком —
@@ -1387,3 +1389,41 @@ body[data-module] .grid:has(.resp-insp){align-items:start}
   body[data-module] .st-flow .st-mini{display:flex}
   body[data-module] .st-flow .st-toggle{display:none}
 }
+
+/* --- Досрочный осмотр на шкале (kernel/status/early.js) --------------------
+   Боковой узел под шагом «Направлен на осмотр» — как ветка шкалы: пометка, а не
+   шаг. Пунктир — можно направить; фиолетовый — направлен; бирюзовый — осмотр
+   проведён досрочно. */
+body[data-module] .st-early{margin-top:2px;display:flex;align-items:center;gap:5px;padding:1px 6px;border:0;
+  border-radius:8px;background:none;font:inherit;cursor:pointer;white-space:nowrap;color:inherit}
+body[data-module] .st-early .st-dot{width:11px;height:11px;border-width:1.5px}
+body[data-module] .st-early .st-lbl{font-size:10.5px;white-space:nowrap;display:block;max-width:none}
+body[data-module] .st-early-can .st-dot{border-style:dashed;border-color:var(--violet-600);background:var(--panel)}
+body[data-module] .st-early-can .st-lbl{color:var(--violet-700)}
+body[data-module] .st-early-sent .st-dot{border-color:var(--violet-600);background:var(--violet-600);box-shadow:0 0 0 3px var(--violet-100)}
+body[data-module] .st-early-sent .st-lbl{color:var(--violet-700);font-weight:600}
+body[data-module] .st-early-done .st-dot{border-color:var(--teal-600);background:var(--teal-600);box-shadow:0 0 0 3px var(--teal-100)}
+body[data-module] .st-early-done .st-lbl{color:var(--teal-700);font-weight:600}
+body[data-module] .st-early:hover .st-lbl{text-decoration:underline}
+body[data-module] .st-early:focus-visible,body[data-module] .st-early-chip:focus-visible{outline:2px solid var(--blue-600);outline-offset:2px}
+body[data-module] .st-early-fork{background:var(--violet-600);opacity:.5}
+body[data-module] .st-early-chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:11px;font:inherit;
+  font-size:11px;font-weight:600;cursor:pointer;border:1px solid}
+body[data-module] .st-early-chip.st-early-sent{color:var(--violet-700);background:var(--violet-50);border-color:var(--violet-100)}
+body[data-module] .st-early-chip.st-early-done{color:var(--teal-700);background:var(--teal-50);border-color:var(--teal-100)}
+
+/* Окно досрочного направления. */
+.ea-pop .apop-h-sent{background:var(--violet-50);color:var(--violet-700)}
+.ea-pop .apop-h-done{background:var(--teal-50);color:var(--teal-700)}
+.ea-pop .ea-scope{border:0;margin:0;padding:0;display:flex;flex-direction:column;gap:4px}
+.ea-pop .ea-scope legend,.ea-pop .ea-lbl{font-size:11px;font-weight:700;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);padding:0;margin-bottom:2px}
+.ea-pop .ea-opt{display:flex;align-items:center;gap:8px;min-height:28px;cursor:pointer}
+.ea-pop .ea-ois{list-style:none;margin:0 0 0 22px;padding:0;max-height:180px;overflow:auto}
+.ea-pop .ea-note{width:100%;resize:vertical;min-height:64px}
+.ea-pop .ea-err{margin:0;color:var(--red-600);font-weight:600}
+.ea-pop .ea-facts{margin:0;display:flex;flex-direction:column;gap:6px}
+.ea-pop .ea-row{display:grid;grid-template-columns:120px 1fr;gap:8px}
+.ea-pop .ea-row dt{color:var(--muted)}
+.ea-pop .ea-row dd{margin:0;font-weight:600;color:var(--ink)}
+.ea-pop .ea-ask{margin-right:auto;font-weight:600}
+.ea-pop .ea-off{margin-right:auto}

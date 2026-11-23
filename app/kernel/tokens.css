@@ -584,3 +584,10 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
    области «перетащите файл» к 108px), а прежняя замена целиком рисовала
    новый вид сразу. Переходы от действий человека после отрисовки — как были. */
 .morphing,.morphing *{transition:none !important}
+
+/* Всплывающее окно у места действия (kernel/anchorPop.js): шапка, тело, подвал — как у окна документов-оснований. */
+.apop{position:fixed;z-index:1000;display:flex;flex-direction:column;max-height:calc(100vh - 16px);background:var(--panel);
+  border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--lift-sh);overflow:hidden;font-size:13px}
+.apop-h{padding:10px 14px;background:var(--blue-50);border-bottom:1px solid var(--line);font-weight:700;color:var(--blue-700)}
+.apop-b{padding:12px 14px;overflow:auto;display:flex;flex-direction:column;gap:8px}
+.apop-f{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:8px 12px;border-top:1px solid var(--line)}

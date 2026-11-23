@@ -14,6 +14,7 @@ import { filterRows, sortRows, computeFacets, locateIn } from './data/query.js';
 import { bulkSummaries, bulkCount, setBulkCount, isBulkId, materialize } from './data/bulk.js';
 import { buildBulkRecord } from './data/bulkRecord.js';
 import { partyName } from './card/parties.view.js';
+import { earlyFlags } from '../../kernel/earlyInspection.js';
 
 function areaOf(rec) {
     return rec.oi
@@ -79,6 +80,8 @@ function flagsOf(rec) {
     // Есть ли у объекта особенности — признак записи, по нему будут столбец и
     // фильтр в реестре (Л4.5, пункт E3 в docs/тз/00-tz.md).
     specials: recHasSpecials(rec),
+    // Досрочный осмотр (kernel/earlyInspection.js) — значок и фильтр реестра.
+    ...earlyFlags(rec),
   };
 }
 

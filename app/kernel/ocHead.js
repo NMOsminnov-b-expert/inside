@@ -66,7 +66,7 @@ export function ocHeadHTML(ctx, { meta = [], flags = [], menu = '', actions = nu
     <div class="oc-head-tabs" role="tablist" aria-label="Разделы объекта оценки">
       ${tabs.map(tab).join('')}
     </div>
-    <div class="oc-head-status">${statusFlowHTML(rec, ctx.ui, inspectionStepNote(ctx.manifest.id, rec))}</div>
+    <div class="oc-head-status">${statusFlowHTML(rec, ctx.ui, inspectionStepNote(ctx.manifest.id, rec), ctx.manifest.id)}</div>
   </div>`;
 }
 

@@ -16,6 +16,7 @@ import { bulkSummaries, bulkCount, setBulkCount, isBulkId, materialize } from '.
 import { buildBulkRecord } from './data/bulkRecord.js';
 import { ocTypology } from './card/capSummary.view.js';
 import { UNDEFINED_LABEL } from './card/typology.js';
+import { earlyFlags } from '../../kernel/earlyInspection.js';
 
 // Тип ОЦ в реестре — рассчитанный тип нежилого здания (решение пользователя
 // 28.09.2026: столбец «Тип ОЦ» и фильтр по нему показывают его). Значение
@@ -90,6 +91,8 @@ function flagsOf(rec) {
     // Есть ли у объекта особенности — признак записи, по нему будут столбец и
     // фильтр в реестре (Л4.5, пункт E3 в docs/тз/00-tz.md).
     specials: recHasSpecials(rec),
+    // Досрочный осмотр (kernel/earlyInspection.js) — значок и фильтр реестра.
+    ...earlyFlags(rec),
   };
 }
 
