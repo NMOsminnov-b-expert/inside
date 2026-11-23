@@ -1,5 +1,5 @@
 import { esc } from '../../kernel/dom.js';
-import { emptyFilter, rolePerms, isFilterEmpty } from './state.js';
+import { emptyFilter, rolePerms } from './state.js';
 import { countAll } from './query.js';
 import { finishedObjects, liveObjectsOf } from '../../kernel/inspections.js';
 import { scanWaitObjects } from '../../kernel/scanQueue.js';
@@ -12,6 +12,16 @@ import { scanWaitObjects } from '../../kernel/scanQueue.js';
 // (пользователь: «По категориям свои»).
 //
 // short — подпись в строке, label — полное название (подсказка и чип фильтра).
+//
+// С 23.11.2026 срезы — окном «Срезы» из четырёх групп, как в рабочей системе (снимок пользователя; запись графа
+// maket-v-format-rabochey-sistemy-…): «Моя работа», «Требуют внимания», «Не назначены ответственные»,
+// «Распознавание ML».
+export const SLICE_GROUPS = [
+  { key: 'my', label: 'Моя работа', tone: 'blue' },
+  { key: 'att', label: 'Требуют внимания', tone: 'amber' },
+  { key: 'resp', label: 'Не назначены ответственные', tone: 'red' },
+  { key: 'ml', label: 'Распознавание ML', tone: 'violet' },
+];
 export function sliceDefs(tab) {
   const all = [
     // «Мои осмотры» — только действующие назначения регионала (решение пользователя 06.11.2026
@@ -40,10 +50,18 @@ export function sliceDefs(tab) {
       patch: { flags: ['pendingNotes'] } },
     { key: 'defects', group: 'att', short: 'ТП ≠ фото', label: 'Расхождение ТП и фото', hint: 'площадь по техпаспорту расходится с фото — нужна допроверка', dot: 'red', estate: true,
       patch: { flags: ['defects'] } },
-    { key: 'ml', group: 'att', short: 'ML', label: 'ML без проверки', hint: 'импорт ML не сверен с документами', dot: 'amber', estate: true,
-      patch: { flags: ['mlUnverified'] } },
     { key: 'stale', group: 'att', short: '30+ дн.', label: 'Без движения 30+ дней', hint: 'не менялись больше 30 дней', dot: 'grey',
       patch: { staleDays: 30 } },
+    { key: 'no-cod', group: 'resp', short: 'Не назначен ЦОД', label: 'Не назначен оператор ЦОД', hint: 'у записи нет оператора ЦОД',
+      patch: { noResp: 'cod' } },
+    { key: 'no-insp', group: 'resp', short: 'Не назначен осмотрщик', label: 'Не назначен осмотрщик', hint: 'у записи нет осмотрщика',
+      patch: { noResp: 'insp' } },
+    { key: 'no-appr', group: 'resp', short: 'Не назначен оценщик', label: 'Не назначен оценщик', hint: 'у записи нет оценщика',
+      patch: { noResp: 'appr' } },
+    { key: 'ml', group: 'ml', short: 'ML без проверки', label: 'ML без проверки', hint: 'импорт ML не сверен с документами', dot: 'amber', estate: true,
+      patch: { flags: ['mlUnverified'] } },
+    { key: 'ml-all', group: 'ml', short: 'Импорт ML', label: 'Импорт ML', hint: 'данные записи пришли распознаванием ML', estate: true,
+      patch: { flags: ['ml'] } },
   ];
   return all.filter((d) => !(d.estate && tab !== 'estate'));
 }
@@ -57,6 +75,7 @@ export function filterForSlice(def, person) {
   if (p.flags) f.flags = p.flags.slice();
   if (p.staleDays) f.staleDays = p.staleDays;
   if (p.keys) f.keys = p.keys(person);
+  if (p.noResp) f.noResp = p.noResp;
 
   return f;
 }
@@ -86,29 +105,28 @@ export function invalidateSliceCounts() {
 // (kernel/inspections.js, changed()).
 window.addEventListener('inside:inspections', invalidateSliceCounts);
 
+// Кнопка «Срезы» и окно под ней: группы карточками 2×2, в строке — срез и число. Число на кнопке — сколько срезов
+// «Моя работа» не пусты (как в рабочей системе). Выбранный срез подсвечен; повторное нажатие снимает его.
 export function slicesHTML(state, version) {
   const counts = sliceCounts(state, version);
-  // Срезы «мне…» — только уместные для роли: остальные роли эту работу не
-  // выполняют, и им незачем предлагать её.
+  // Срезы «мне…» — только уместные для роли: остальные роли эту работу не выполняют.
   const allowed = rolePerms(state.role).slices;
   const defs = sliceDefs(state.tab).filter((d) => d.group !== 'my' || allowed.includes(d.key));
-  const allOn = !state.sliceKey && isFilterEmpty(state.filter);
-
-  const my = defs.filter((d) => d.group === 'my').map((d) => `<button class="reg-view ${state.sliceKey === d.key ? 'on' : ''} ${counts[d.key] ? '' : 'zero'}"
+  const busy = defs.filter((d) => d.group === 'my' && counts[d.key]).length;
+  const cur = defs.find((d) => d.key === state.sliceKey);
+  const row = (d) => `<button type="button" class="reg-sl-row ${state.sliceKey === d.key ? 'on' : ''} ${counts[d.key] ? '' : 'zero'}"
       data-slice="${esc(d.key)}" title="${esc(d.label)}: ${esc(d.hint)}" aria-pressed="${state.sliceKey === d.key}">
-      ${esc(d.short)} <em>${counts[d.key].toLocaleString('ru')}</em></button>`).join('');
-
-  const att = defs.filter((d) => d.group === 'att').map((d) => `<button class="reg-att ${state.sliceKey === d.key ? 'on' : ''} ${counts[d.key] ? '' : 'zero'}"
-      data-slice="${esc(d.key)}" title="${esc(d.label)}: ${esc(d.hint)}" aria-pressed="${state.sliceKey === d.key}">
-      <i class="dot-${d.dot}" aria-hidden="true"></i>${esc(d.short)} <b>${counts[d.key].toLocaleString('ru')}</b></button>`).join('');
-
-  return `<div class="reg-views" role="group" aria-label="Мои задачи">
-      <button class="reg-view ${allOn ? 'on' : ''}" data-view-all aria-pressed="${allOn}" title="Все объекты вкладки, без фильтров">Все <em>${counts.all.toLocaleString('ru')}</em></button>
-      ${my}
+      <span class="ell">${esc(d.label)}</span><b>${counts[d.key].toLocaleString('ru')}</b></button>`;
+  const groups = SLICE_GROUPS.map((g) => ({ g, list: defs.filter((d) => d.group === g.key) })).filter((x) => x.list.length);
+  return `<div class="dd reg-slices-dd">
+    <button class="btn btn-ghost reg-slices-btn ${cur ? 'on' : ''}" data-dd-toggle aria-haspopup="true" title="${cur ? `Срез: ${esc(cur.label)}` : 'Именованные отборы: моя работа, требуют внимания, без ответственных, ML'}">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"></path></svg>
+      Срезы${busy ? ` <span class="reg-slices-n">${busy}</span>` : ''} <span aria-hidden="true">▾</span></button>
+    <div class="dd-menu reg-slices-menu" role="menu" aria-label="Срезы">
+      ${groups.map(({ g, list }) => `<section class="reg-sl-g reg-sl-${g.tone}" aria-label="${esc(g.label)}">
+        <h3>${esc(g.label)}</h3>${list.map(row).join('')}</section>`).join('')}
     </div>
-    <div class="reg-views" role="group" aria-label="Требуют внимания">
-      <span class="reg-views-sep" aria-hidden="true"></span><span class="reg-views-label">Внимание</span>${att}
-    </div>`;
+  </div>`;
 }
 
 export function sliceLabel(tab, key) {

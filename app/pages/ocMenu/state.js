@@ -56,16 +56,18 @@ export const COLUMNS = [
   // имущества, свёрнутые по общему началу — «1-47-56-1684-(4120, 4123)»
   // (решение пользователя 05.09.2026). Ширина рассчитана на такую запись; что
   // не поместилось, сокращается многоточием, полное значение — в подсказке.
-  { key: 'eni', label: 'Код ЕНИ', width: 172, minWidth: 134, mono: true, sort: 'eni' },
+  { key: 'eni', label: 'Код ЕНИ', width: 156, minWidth: 134, mono: true, sort: 'eni' },
   // «Объект» — две строки: адрес и под ним тип · учреждение (канва главной
   // 01.10.2026): отдельные столбцы типа и учреждения при ширине 1280–1440
   // сжимали адрес до нечитаемого. Они остаются в меню столбцов.
-  { key: 'title', label: 'Объект', width: 0, sort: 'title' },
+  { key: 'title', label: 'Адрес', width: 0, sort: 'title' },
   // Шире прежнего: к типу приписывается тип земель записи — «Земельный
   // участок · с/х» (уточнение пользователя 05.09.2026).
-  { key: 'typeLabel', label: 'Тип ОЦ', width: 176, minWidth: 140 },
-  // Статус — меткой с точкой; «Удостоверен по документам» помещается целиком.
-  { key: 'status', label: 'Статус', width: 212, minWidth: 120, sort: 'status' },
+  // Тип, статус и учреждение уже прежнего: с 23.11.2026 они в столбцах по умолчанию (вид рабочей системы), и адрес
+  // не должен сжиматься до нечитаемого; длинное — многоточием, полностью — в подсказке.
+  { key: 'typeLabel', label: 'Тип ОЦ', width: 150, minWidth: 120 },
+  // Статус — меткой с точкой.
+  { key: 'status', label: 'Статус', width: 176, minWidth: 120, sort: 'status' },
   { key: 'institution', label: 'Учреждение', width: 150 },
   { key: 'city', label: 'Город / район', width: 130 },
   // Новые столбцы (Л1.5, Л1.8, Л1.9, Л1.10). По умолчанию скрыты — иначе
@@ -87,7 +89,9 @@ export const COLUMNS = [
   { key: 'updatedAt', label: 'Обновлён', width: 98, sort: 'updatedAt' },
 ];
 
-export const DEFAULT_COLUMNS = ['eni', 'title', 'status', 'area', 'oiCount', 'notes', 'insp', 'updatedAt'];
+// По умолчанию — как в рабочей системе (снимок пользователя 23.11.2026): код, адрес, тип, статус, учреждение,
+// площадь, ОИ, заметки, осмотрщик, обновлён; строки — плотные, в одну строку.
+export const DEFAULT_COLUMNS = ['eni', 'title', 'typeLabel', 'status', 'institution', 'area', 'oiCount', 'notes', 'insp', 'updatedAt'];
 
 // Столбцы вкладки «Движимое» (ТС, механизмы и оборудование): у них нет ЕНИ,
 // площади и объектов имущества, зато есть номер, позиции, количество и
@@ -171,11 +175,11 @@ export function createState() {
     columnsMov: DEFAULT_COLUMNS_MOV.slice(),
     colWidthsMov: {},
     // Плотные строки — в одну строку (без типа и учреждения под адресом).
-    dense: false,
+    dense: true,
     tab: 'estate',
     // Панель фильтров по умолчанию закрыта: открывается кнопкой «Фильтры»,
     // применённое видно чипами над таблицей (канва главной 01.10.2026).
-    facetsOpen: false,
+    facetsOpen: true,
     barOpen: { slices: true, recent: true },
     selected: new Map(),
     previewId: null,
@@ -259,5 +263,5 @@ export function hashFor(state) {
 export function isFilterEmpty(f) {
   return !f.q && !f.status.length && !f.typeId.length && !f.city.length && !(f.region || []).length
     && !f.institution.length && !f.insp.length && !f.flags.length
-    && !f.staleDays && !f.mine && !f.keys;
+    && !f.staleDays && !f.mine && !f.keys && !f.noResp;
 }

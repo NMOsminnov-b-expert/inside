@@ -159,9 +159,11 @@ def run(t):
     pg.evaluate("""async ([ty, id]) => { const K = %s; K.assign({ typeId: ty, ocId: id, person: 'Айдай' }); K.finishWork('Айдай', ty, id, true); }""" % KI, pick[:2])
     t.open('#/?x=1', wait='[data-slice="my-cod-insp"]')
     t.open('#/', wait='[data-slice="my-cod-insp"]')
+    # Срезы — в окне под кнопкой «Срезы» (вид рабочей системы, 23.11.2026).
+    pg.click('.reg-slices-btn')
     pg.click('[data-slice="my-cod-insp"]')
     t.ck(t.wait_until("(t) => document.body.innerText.includes(t)", pick[2]), 'объекта с законченным осмотром нет в срезе')
-    n = pg.inner_text('[data-slice="my-cod-insp"]')
+    n = pg.text_content('[data-slice="my-cod-insp"]')
     rows = pg.locator('[data-row], tbody tr').count()
     t.ck(any(ch.isdigit() for ch in n) and int(''.join(ch for ch in n if ch.isdigit())) >= 1, 'счётчик среза не обновился: %s (строк %d)' % (n, rows))
     t.ck('Осмотр закончен' in t.text() or pg.locator('text=Срез: Осмотр закончен').count() > 0, 'нет метки отбора среза')

@@ -108,11 +108,11 @@ export function facetsHTML(state, facets) {
       <span class="reg-facet-n">${facets.flags[flag] || 0}</span>
     </label>`).join('');
 
-  // Сброс — один, в строке применённых фильтров над таблицей; здесь —
-  // закрыть панель.
+  // «Сбросить» — как в рабочей системе (23.11.2026); свернуть панель — полоской «Фильтры» слева.
+  const any = f.q || f.flags.length || f.staleDays || f.mine || f.keys || f.noResp || SECTIONS.some((x) => (f[x.key] || []).length);
   return `<div class="reg-facets-head">
       <b>Фильтры</b>
-      <button class="reg-facets-x" data-facets-close title="Скрыть фильтры" aria-label="Скрыть фильтры">×</button>
+      <button type="button" class="reg-facets-reset" data-facets-reset ${any ? '' : 'disabled'} title="Снять все фильтры и срез">Сбросить</button>
     </div>
     ${sections}
     <div class="reg-facet ${open.flags ? 'open' : ''}">

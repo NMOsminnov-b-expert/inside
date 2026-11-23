@@ -297,3 +297,59 @@ body[data-page="oc-menu"] .reg-geo{display:flex;align-items:center;flex-wrap:wra
 body[data-page="oc-menu"] .reg-geo-why{color:var(--muted)}
 body[data-page="oc-menu"] .reg-geo .btn,body[data-page="oc-menu"] .reg-geo .reg-bulk-link{margin-left:auto}
 body[data-page="oc-menu"] .reg-geo .reg-bulk-link{color:var(--blue-600)}
+
+/* --- Вид рабочей системы (23.11.2026; запись графа maket-v-format-rabochey-sistemy-…) ------------------------------- */
+body[data-page="oc-menu"] .reg-head .reg-bar{min-height:0;flex-wrap:nowrap}
+/* Адрес: значок вида ОЦ и признаки в одной строке с адресом. */
+body[data-page="oc-menu"] .reg-obj-t{display:flex;align-items:center;gap:6px;min-width:0}
+body[data-page="oc-menu"] .reg-obj-t > .ell{min-width:0;display:flex;align-items:center;gap:7px}
+body[data-page="oc-menu"] .reg-ti{display:inline-grid;place-items:center;width:20px;height:20px;flex:none;border-radius:6px;background:var(--violet-50);color:var(--violet-700)}
+body[data-page="oc-menu"] .reg-ti svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+body[data-page="oc-menu"] .reg-ti-land-plot{background:var(--teal-50);color:var(--teal-700)}
+body[data-page="oc-menu"] .reg-ti-apartment,body[data-page="oc-menu"] .reg-ti-residential-house{background:var(--blue-50);color:var(--blue-700)}
+body[data-page="oc-menu"] .reg-ti-vehicle,body[data-page="oc-menu"] .reg-ti-mechanisms{background:var(--amber-50);color:var(--amber-700)}
+
+/* Кнопка «Срезы» и окно: четыре группы карточками 2×2 с цветной шапкой. */
+body[data-page="oc-menu"] .reg-slices-btn{display:inline-flex;align-items:center;gap:6px}
+body[data-page="oc-menu"] .reg-slices-btn.on{background:var(--blue-50);border-color:var(--blue-300);color:var(--blue-700)}
+body[data-page="oc-menu"] .reg-slices-n{display:inline-grid;place-items:center;min-width:18px;height:18px;padding:0 5px;border-radius:9px;background:var(--blue-600);color:#fff;font-size:11px;font-weight:700}
+body[data-page="oc-menu"] .reg-slices-menu{width:min(560px,calc(100vw - 24px));padding:10px;grid-template-columns:1fr 1fr;gap:10px;right:0;left:auto;max-height:none;overflow:visible}
+body[data-page="oc-menu"] .reg-slices-dd.open .reg-slices-menu{display:grid}
+body[data-page="oc-menu"] .reg-sl-g{border:1px solid var(--line);border-top:3px solid var(--t);border-radius:var(--radius);padding:8px 6px 6px;background:linear-gradient(var(--t50),var(--panel) 46px)}
+body[data-page="oc-menu"] .reg-sl-g h3{margin:0 6px 6px;font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--t)}
+body[data-page="oc-menu"] .reg-sl-blue{--t:var(--blue-600);--t50:var(--blue-50)}
+body[data-page="oc-menu"] .reg-sl-amber{--t:var(--amber-600);--t50:var(--amber-50)}
+body[data-page="oc-menu"] .reg-sl-red{--t:var(--red-600);--t50:var(--red-50)}
+body[data-page="oc-menu"] .reg-sl-violet{--t:var(--violet-600);--t50:var(--violet-50)}
+body[data-page="oc-menu"] .reg-sl-row{display:flex;align-items:center;gap:8px;width:100%;padding:6px 6px;border:0;border-radius:8px;background:none;font:inherit;font-size:12.5px;color:var(--ink);text-align:left;cursor:pointer}
+body[data-page="oc-menu"] .reg-sl-row .ell{flex:1;min-width:0}
+body[data-page="oc-menu"] .reg-sl-row b{min-width:24px;height:20px;padding:0 7px;border-radius:10px;display:inline-grid;place-items:center;background:var(--t);color:#fff;font-size:11px;font-variant-numeric:tabular-nums}
+body[data-page="oc-menu"] .reg-sl-row.zero{color:var(--muted)}
+body[data-page="oc-menu"] .reg-sl-row.zero b{background:var(--slate-50);color:var(--muted)}
+body[data-page="oc-menu"] .reg-sl-row:hover{background:var(--t50)}
+body[data-page="oc-menu"] .reg-sl-row.on{background:var(--t50);box-shadow:inset 0 0 0 1px var(--t);font-weight:600}
+
+/* Фильтры — колонкой слева; полоска с вертикальной подписью сворачивает и разворачивает её. */
+body[data-page="oc-menu"] .reg-facets-rail{flex:none;width:22px;display:flex;flex-direction:column;align-items:center;gap:8px;padding:10px 0;
+  border:1px solid var(--line);border-radius:var(--radius);background:var(--panel);color:var(--muted);cursor:pointer;font:inherit}
+body[data-page="oc-menu"] .reg-facets-rail:hover{color:var(--blue-700);border-color:var(--blue-300)}
+body[data-page="oc-menu"] .reg-facets-rail:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
+body[data-page="oc-menu"] .reg-rail-chev{font-size:14px;line-height:1;transition:transform .18s ease}
+body[data-page="oc-menu"] .reg-facets-rail[aria-expanded="false"] .reg-rail-chev{transform:rotate(180deg)}
+body[data-page="oc-menu"] .reg-rail-l{writing-mode:vertical-rl;transform:rotate(180deg);font-size:11px;font-weight:700;letter-spacing:.04em}
+body[data-page="oc-menu"] .reg-rail-n[hidden]{display:none}
+body[data-page="oc-menu"] .reg-rail-n{min-width:16px;height:16px;border-radius:8px;background:var(--blue-600);color:#fff;font-size:10px;display:grid;place-items:center}
+
+/* Обозначения под таблицей: «Признаки» и «Виды ОЦ». */
+body[data-page="oc-menu"] .reg-legend{display:flex;flex-direction:column;gap:4px;padding:6px 4px 0;font-size:11px;color:var(--muted)}
+body[data-page="oc-menu"] .reg-lg-row{display:flex;align-items:center;flex-wrap:wrap;gap:4px 14px}
+body[data-page="oc-menu"] .reg-lg-row > b{font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-label)}
+body[data-page="oc-menu"] .reg-lg-i{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+/* Шапка в одну строку и на 1280: поиск сжимается, кнопки не переносятся. */
+body[data-page="oc-menu"] .reg-head{flex-wrap:nowrap}
+body[data-page="oc-menu"] .reg-head .reg-locator{min-width:180px}
+/* Уже 1180: шапка переносится — заголовок с числом сверху, поиск и кнопки строкой ниже. */
+@media (max-width:1180px){body[data-page="oc-menu"] .reg-head{flex-wrap:wrap}}
+body[data-page="oc-menu"] .reg-facets-reset{border:0;background:none;padding:3px 8px;border-radius:7px;font:inherit;font-size:11.5px;font-weight:600;color:var(--blue-700);cursor:pointer;border:1px solid var(--line)}
+body[data-page="oc-menu"] .reg-facets-reset:hover{background:var(--blue-50)}
+body[data-page="oc-menu"] .reg-facets-reset:disabled{color:var(--muted);cursor:default;background:none}

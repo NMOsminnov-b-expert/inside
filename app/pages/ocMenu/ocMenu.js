@@ -19,6 +19,7 @@ import {
 import { rowH, tableHeadHTML, rowsHTML, columnsMenuHTML, csvOf, tableVarsStyle, activeColumns } from './table.js';
 import { bindColumnResize, bindColumnReorder, bindColumnsMenu, normalizeOrder, applyFit } from '../../kernel/columns.js';
 import { previewHTML } from './preview.js';
+import { legendHTML } from './legend.js';
 import { registerPersisted } from '../../kernel/persist.js';
 import { assignFromRegistry } from '../../kernel/inspections.js';
 import { canSendEarly, sendEarly } from '../../kernel/earlyInspection.js';
@@ -50,7 +51,9 @@ let geoRun = null;
 // второй источник тех же значений разошёлся бы с адресом.
 const UI_KEEP = ['facetsOpen', 'columns', 'colWidths', 'columnsMov', 'colWidthsMov', 'dense'];
 
-registerPersisted('ui.registry', {
+// v2 (23.11.2026): вид рабочей системы — плотные строки, другие столбцы, фильтры открыты; прежние сохранённые
+// настройки не применяются, иначе вид у пользователя не сменился бы.
+registerPersisted('ui.registry.v2', {
   snapshot: () => Object.fromEntries(UI_KEEP.map((k) => [k, state[k]])),
   restore: (saved) => {
     if (!saved || typeof saved !== 'object') return;
@@ -59,6 +62,12 @@ registerPersisted('ui.registry', {
     });
   },
 });
+// Узкий экран (уже 1200): открытая панель фильтров отнимала у таблицы половину ширины — там она свёрнута в полосу,
+// пока её не откроют; выбор на узком экране живёт до перезагрузки и сохранённую настройку широкого экрана не трогает.
+const NARROW = 1200;
+let facetsNarrow = null;
+const isNarrow = () => window.innerWidth < NARROW;
+const facetsShown = () => (isNarrow() ? !!facetsNarrow : state.facetsOpen);
 let dataVersion = 0;      // растёт при изменении данных — сбрасывает кэш срезов
 let cursor = -1;
 // Меню «⋯» держим открытым между перерисовками: состав столбцов меняют сразу
@@ -76,6 +85,7 @@ export function mountOcMenu(host) {
   host.ensureStyle('./app/pages/ocMenu/ocMenu.css');
 
   applyQueryToState(state, host.route.query || {});
+  restoreSlice();
 
   let locatorTimer = null;
   let lastTotal = 0;
@@ -220,17 +230,14 @@ export function mountOcMenu(host) {
   }
 
   function barHTML() {
-    const n = filterCount();
     // Кнопки справа — одной группой, прижатой вправо и при переносе ряда:
     // иначе «Фильтры» и «⋯» уходили в начало второй строки, и меню «⋯»
     // открывалось под боковой панелью (02.11.2026, срез «Осмотр закончен»).
-    return `${slicesHTML(state, dataVersion)}
-      <span class="reg-tools">
+    // Как в рабочей системе (23.11.2026): «Срезы» окном, «Недавние», «Экспорт», «⋯»; фильтры — колонкой слева.
+    return `<span class="reg-tools">
+      ${slicesHTML(state, dataVersion)}
       ${recentHTML()}
-      <button class="btn btn-ghost reg-filter-btn ${state.facetsOpen ? 'on' : ''}" data-facets-toggle aria-expanded="${state.facetsOpen}">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M3 5h18M6 12h12M10 19h4"></path></svg>
-        Фильтры${n ? ` <b>${n}</b>` : ''}
-      </button>
+      <button class="btn btn-ghost" data-export title="Выгрузить ${state.selected.size ? 'выбранные' : 'текущую выборку'} в CSV для Excel">Экспорт</button>
       ${moreMenuHTML()}</span>`;
   }
 
@@ -341,14 +348,17 @@ export function mountOcMenu(host) {
           ${locatorHTML(state)}
           <span class="reg-total" data-region-total>${totalHTML(total)}</span>
           <span class="reg-grow"></span>
+          <div class="reg-bar" data-region-bar>${barHTML()}</div>
           <div data-region-create>${createDdHTML()}</div>
         </div>
 
-        <div class="reg-bar" data-region-bar>${barHTML()}</div>
         <div data-region-chips>${chipsHTML(total)}</div>
 
         <div class="reg-main">
-          <aside class="reg-facets-wrap ${state.facetsOpen ? '' : 'closed'}" data-facets-wrap aria-label="Фильтры">
+          <!-- Фильтры — колонкой слева; свёрнутые — полоской с подписью «Фильтры» (как в рабочей системе). -->
+          <button type="button" class="reg-facets-rail" data-facets-toggle aria-expanded="${facetsShown()}" aria-controls="regFacets"
+            title="${facetsShown() ? 'Свернуть фильтры' : 'Развернуть фильтры'}"><span class="reg-rail-chev" aria-hidden="true">‹</span><span class="reg-rail-l">Фильтры</span><b class="reg-rail-n" data-rail-n ${filterCount() ? '' : 'hidden'}>${filterCount()}</b></button>
+          <aside class="reg-facets-wrap ${facetsShown() ? '' : 'closed'}" data-facets-wrap aria-label="Фильтры" id="regFacets">
             <div class="reg-facets" data-region-facets>${facetsHTML(state, lastFacets)}</div>
           </aside>
 
@@ -364,6 +374,7 @@ export function mountOcMenu(host) {
 
           <aside class="reg-preview ${state.previewId ? '' : 'hidden'}" data-region-preview aria-label="Превью объекта">${previewHTML(state)}</aside>
         </div>
+        <div class="reg-legend" aria-label="Обозначения">${legendHTML(state.tab)}</div>
       </div>`);
 
     bindShell();
@@ -392,6 +403,8 @@ export function mountOcMenu(host) {
 
     const tot = scope.$('[data-region-total]');
     if (tot) tot.innerHTML = totalHTML(total);
+    const railN = scope.$('[data-rail-n]');
+    if (railN) { const n = filterCount(); railN.textContent = String(n); railN.hidden = !n; }
 
     const create = scope.$('[data-region-create]');
     if (create) create.innerHTML = createDdHTML();
@@ -571,6 +584,15 @@ export function mountOcMenu(host) {
     state.sliceKey = null;
     cursor = -1;
     renderData();
+  }
+
+  // Срез из адреса (?slice=) — его отбор: в адресе только имя среза, а отбор по назначениям и «не назначен»
+  // туда не пишется — без этого после перезагрузки срез был подписан, но не отбирал.
+  function restoreSlice() {
+    if (!state.sliceKey) return;
+    const def = sliceDefs(state.tab).find((d) => d.key === state.sliceKey);
+    if (def) state.filter = filterForSlice(def, state.person);
+    else state.sliceKey = null;
   }
 
   // Смена реестра (пункт меню → адрес ?tab=): отбор, выбор и превью — с чистого листа.
@@ -817,11 +839,16 @@ export function mountOcMenu(host) {
   }
 
   function setFacetsOpen(open) {
-    state.facetsOpen = open;
+    if (isNarrow()) facetsNarrow = open; else state.facetsOpen = open;
     const wrap = scope.$('[data-facets-wrap]');
     if (wrap) wrap.classList.toggle('closed', !open);
     const btn = scope.$('[data-facets-toggle]');
-    if (btn) { btn.classList.toggle('on', open); btn.setAttribute('aria-expanded', String(open)); }
+    if (btn) {
+      btn.classList.toggle('on', open);
+      btn.setAttribute('aria-expanded', String(open));
+      btn.title = open ? 'Свернуть фильтры' : 'Развернуть фильтры';
+    }
+    fitColumns();
   }
 
   // Переключатели внутри регионов, которые пересобираются при каждом
@@ -852,9 +879,9 @@ export function mountOcMenu(host) {
     });
 
     const facetsToggle = s.$('[data-facets-toggle]');
-    if (facetsToggle) facetsToggle.onclick = () => setFacetsOpen(!state.facetsOpen);
-    const facetsClose = s.$('[data-facets-close]');
-    if (facetsClose) facetsClose.onclick = () => setFacetsOpen(false);
+    if (facetsToggle) facetsToggle.onclick = () => setFacetsOpen(!facetsShown());
+    const facetsReset = s.$('[data-facets-reset]');
+    if (facetsReset) facetsReset.onclick = resetFilters;
 
     s.$$('[data-facet]').forEach((cb) => cb.onchange = () => {
       const key = cb.dataset.facet;
@@ -1016,6 +1043,7 @@ export function mountOcMenu(host) {
       alive = true;
       const was = state.tab;
       applyQueryToState(state, route.query || {});
+      restoreSlice();
       if (state.tab !== was) resetForTab();
       renderShell();
     },

@@ -6,6 +6,7 @@ import {
   colLabelHTML, columnsMenuHTML as kernelColumnsMenuHTML,
 } from '../../kernel/columns.js';
 import { colDefs, colOrder, colWidths } from './state.js';
+import { typeIconHTML } from './legend.js';
 
 // Порядок статусов для реестра — общий на все типы ОЦ. В гражданском с
 // 21.09.2026 шкала как в рабочей системе (девять шагов и две ветки), у
@@ -60,9 +61,10 @@ function cell(col, s) {
     // тип и учреждение; признаки — значками во второй строке.
     case 'title': {
       const sub = [s.kindLabel || (s.landKind ? `${s.typeLabel} · ${s.landKind}` : s.typeLabel), s.institution].filter(Boolean).join(' · ');
+      // Значок вида ОЦ у адреса — как в рабочей системе (обозначения — в легенде под таблицей, legend.js).
       return `<span class="reg-obj">
-        <span class="reg-obj-t ell" title="${esc(s.title)}">${esc(s.title || '—')}</span>
-        <span class="reg-obj-s"><span class="ell" title="${esc(sub)}">${esc(sub)}</span>${flagBadgesHTML(s.flags)}</span>
+        <span class="reg-obj-t"><span class="ell" title="${esc(s.title)}">${typeIconHTML(s.typeId)}${esc(s.title || '—')}</span>${flagBadgesHTML(s.flags)}</span>
+        <span class="reg-obj-s"><span class="ell" title="${esc(sub)}">${esc(sub)}</span></span>
       </span>`;
     }
     case 'status': return `<span class="reg-status st-${STAGE_INDEX.get(s.status) ?? 'x'}" title="${esc(s.status)}"><i></i><span class="ell">${esc(s.status)}</span></span>`;

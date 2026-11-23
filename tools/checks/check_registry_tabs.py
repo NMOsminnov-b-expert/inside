@@ -65,7 +65,9 @@ def run(t):
     t.ck('Недвижимое' in pg.inner_text('#crumbs'), 'в крошках нет «Недвижимое»')
     t.ck(pg.locator('.reg-tab').count() == 0, 'остались вкладки «Недвижимое / Движимое»')
     estate_heads = pg.evaluate(HEADS)
-    t.ck('КОД ЕНИ' in estate_heads and 'ОБЪЕКТ' in estate_heads, 'у недвижимого нет ЕНИ и объекта: %s' % estate_heads)
+    t.ck(estate_heads[:5] == ['КОД ЕНИ', 'АДРЕС', 'ТИП ОЦ', 'СТАТУС', 'УЧРЕЖДЕНИЕ'], 'столбцы недвижимого не как в рабочей системе: %s' % estate_heads)
+    t.ck(pg.locator('.reg-tr .reg-ti').count() > 0, 'в строке нет значка вида ОЦ')
+    t.ck('Признаки' in pg.text_content('.reg-legend') and 'Виды ОЦ' in pg.text_content('.reg-legend'), 'нет легенды «Признаки / Виды ОЦ»')
     t.ck(pg.locator('.reg-tr .reg-obj-s').count() > 0, 'у объекта нет второй строки (тип · учреждение)')
 
     pg.click('[data-nav="oc-vehicle"]')
@@ -123,23 +125,40 @@ def run(t):
     t.set_bulk(0)
 
     # --- срезы, фильтры, чипы ---------------------------------------------------------------
-    n_notes = int(pg.locator('[data-slice="notes"] b').inner_text().replace('\xa0', ''))
+    # Срезы — во всплывающем окне «Срезы», четыре группы.
+    t.ck(not pg.locator('.reg-slices-menu').is_visible(), 'окно срезов открыто без нажатия')
+    pg.click('.reg-slices-btn')
+    pg.wait_for_selector('.reg-slices-menu', state='visible')
+    groups = pg.locator('.reg-sl-g h3').all_text_contents()
+    t.ck(groups == ['Моя работа', 'Требуют внимания', 'Не назначены ответственные', 'Распознавание ML'], 'группы срезов не те: %s' % groups)
+    n_notes = int(pg.locator('[data-slice="notes"] b').inner_text().replace(' ', '').replace(' ', ''))
     pg.click('[data-slice="notes"]')
     t.wait_until("() => !!document.querySelector('.reg-chip-f')")
     t.ck(pg.locator('.reg-tr').count() == n_notes, 'срез «Заметки» показал не столько, сколько обещал счётчик: %d / %d' % (pg.locator('.reg-tr').count(), n_notes))
     t.ck(pg.locator('.reg-chip-f').count() == 1, 'нет чипа среза')
     pg.click('.reg-chips-reset')
     t.wait_until("() => !document.querySelector('.reg-chip-f')")
+    pg.click('.reg-slices-btn')
+    pg.wait_for_selector('.reg-slices-menu', state='visible')
+    n_ni = int(pg.locator('[data-slice="no-insp"] b').inner_text().replace(' ', '').replace(' ', ''))
+    pg.click('[data-slice="no-insp"]')
+    t.wait_until("() => !!document.querySelector('.reg-chip-f')")
+    t.ck(total() == n_ni, 'срез «Не назначен осмотрщик»: число %s, счётчик %s' % (total(), n_ni))
+    pg.click('.reg-chips-reset')
+    t.wait_until("() => !document.querySelector('.reg-chip-f')")
 
-    pg.click('[data-facets-toggle]')
-    t.wait_until("() => !document.querySelector('[data-facets-wrap]').classList.contains('closed')")
+    # Фильтры — панель слева, открыта; сворачивается в полосу с числом фильтров.
+    t.ck(t.wait_until("() => !document.querySelector('[data-facets-wrap]').classList.contains('closed')"), 'панель фильтров закрыта по умолчанию')
     pg.click('[data-facet-toggle="region"]')
     pg.locator('[data-facet="region"]').first.check()
     t.wait_until("() => location.hash.includes('region=')")
     t.ck(pg.locator('.reg-chip-f').count() == 1 and 'Область' in pg.locator('.reg-chip-f').inner_text(), 'нет чипа области')
-    t.ck(pg.locator('[data-facets-toggle] b').inner_text().strip() == '1', 'на кнопке «Фильтры» нет числа фильтров')
-    pg.click('[data-facets-close]')
-    pg.click('.reg-chips-reset')
+    pg.click('[data-facets-toggle]')
+    t.ck(t.wait_until("() => document.querySelector('[data-facets-wrap]').classList.contains('closed')"), 'полоса «Фильтры» не свернула панель')
+    t.ck(pg.locator('[data-rail-n]').is_visible() and pg.locator('[data-rail-n]').inner_text().strip() == '1', 'на свёрнутой полосе нет числа фильтров')
+    pg.click('[data-facets-toggle]')
+    t.wait_until("() => !document.querySelector('[data-facets-wrap]').classList.contains('closed')")
+    pg.click('[data-facets-reset]')
     t.wait_until("() => !location.hash.includes('region=')")
 
     # --- плотность и «выбрать все» ---------------------------------------------------------
@@ -148,6 +167,7 @@ def run(t):
     t.wait_until("() => Math.round(document.querySelector('.reg-tr').getBoundingClientRect().height) === 36")
     pg.click('[data-dense="0"]')
     t.wait_until("() => Math.round(document.querySelector('.reg-tr').getBoundingClientRect().height) === 48")
+    pg.click('[data-dense="1"]')
     pg.locator('.reg-h1').click()
 
     pg.locator('[data-select]').nth(1).check()
@@ -177,3 +197,18 @@ def run(t):
           ...[...document.querySelectorAll('.reg-head, .reg-bar')].map((e) => e.scrollWidth > e.clientWidth + 1)]""")
         t.ck(not any(over), 'на ширине %d что-то вылезает за край: %s' % (w, over))
     pg.set_viewport_size({'width': 1440, 'height': 900})
+
+    # Уже 1200 панель фильтров открывается свёрнутой (на 1024 открытая отнимала у таблицы половину ширины); на широком
+    # экране после перезагрузки — снова открыта: выбор на узком экране сохранённую настройку не трогает.
+    closed = "() => document.querySelector('[data-facets-wrap]').classList.contains('closed')"
+    pg.set_viewport_size({'width': 1024, 'height': 768})
+    pg.reload()
+    t.wait_for('.reg-tr')
+    t.ck(t.wait_until(closed), 'на 1024 панель фильтров открыта сразу')
+    pg.click('[data-facets-toggle]')
+    t.ck(t.wait_until("() => !(%s)()" % closed), 'на 1024 полоса «Фильтры» не развернула панель')
+    pg.click('[data-facets-toggle]')
+    pg.set_viewport_size({'width': 1440, 'height': 900})
+    pg.reload()
+    t.wait_for('.reg-tr')
+    t.ck(t.wait_until("() => !(%s)()" % closed), 'после узкого экрана панель на широком закрыта')

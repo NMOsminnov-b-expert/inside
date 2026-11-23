@@ -48,6 +48,9 @@ export function matchSummary(s, f, skip) {
     }
   }
 
+  // «Не назначен ЦОД / осмотрщик / оценщик» — срезы реестра, группа «Не назначены ответственные» (23.11.2026).
+  if (skip !== 'noResp' && f.noResp && (s.resp || {})[f.noResp]) return false;
+
   if (skip !== 'q' && f.q && !String(s.search || '').includes(f.q)) return false;
   return true;
 }
