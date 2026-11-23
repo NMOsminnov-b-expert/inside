@@ -72,11 +72,11 @@ body[data-module] .pt-cards {
 }
 
 /* Шапка повторяет сетку блока — иначе подпись уедет от своего поля.
-   Колонки: номер, наименование, доля, ПУД, удаление. ПУД уже наименования и
-   сжимается первым: название документа читают целиком реже, чем имя стороны. */
+   Колонки: номер, наименование, доля, удаление. Документы-основания — под строкой
+   (kernel/partyDocs.js, как на проде, 23.11.2026); прежняя колонка ПУД заменена ими. */
 body[data-module] .pt-head {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 78px minmax(80px, 0.62fr) 22px;
+  grid-template-columns: 18px minmax(0, 1fr) 78px 22px;
   gap: 7px;
   padding: 0 8px;
   font-size: 9.5px;
@@ -91,7 +91,7 @@ body[data-module] .pt-head {
    выше содержимого (замечание пользователя 09.09.2026). */
 body[data-module] .pt-card {
   display: grid;
-  grid-template-columns: 18px minmax(0, 1fr) 78px minmax(80px, 0.62fr) 22px;
+  grid-template-columns: 18px minmax(0, 1fr) 78px 22px;
   gap: 7px;
   align-items: center;
   border: 1px solid var(--line);
@@ -127,22 +127,6 @@ body[data-module] .pt-rm:hover,
 body[data-module] .pt-rm:focus-visible {
   background: var(--red-50, #fef2f2);
   color: var(--red-600, #dc2626);
-}
-
-/* На узкой карточке в строку не помещаются и наименование, и доля, и ПУД:
-   наименование ужималось до 150px и обрезало «Молчанов Кирилл Витальевич».
-   Документ уходит на вторую строку блока — он длиннее прочего и читается
-   отдельной строкой лучше, чем в обрезанной колонке. */
-@container (max-width: 620px) {
-  body[data-module] .pt-head,
-  body[data-module] .pt-card {
-    grid-template-columns: 18px minmax(0, 1fr) 78px 22px;
-  }
-  body[data-module] .pt-head span:nth-child(4) { display: none; }
-  body[data-module] .pt-pud {
-    grid-column: 2 / 4;
-    margin-top: 4px;
-  }
 }
 
 body[data-module] .pt-name { position: relative; }
@@ -502,3 +486,69 @@ body[data-module] .mu-unit-group>.select{flex:0 0 auto;width:auto;min-width:0;
 
 /* Дата — то же поле, что и остальные, только с календарём браузера. */
 body[data-module] .mu-date{font:inherit}
+
+/* Документы-основания под участником (kernel/partyDocs.js): привязанные документы карточки, строки
+   «Не подтверждён документом», «+ ещё документ» и «Документа нет в системе» — как на проде (23.11.2026). */
+body[data-module] .pd{grid-column:2 / -1;display:flex;flex-direction:column;gap:6px;margin-top:2px}
+body[data-module] .pd-chips{display:flex;flex-wrap:wrap;gap:6px}
+body[data-module] .pd-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;padding:3px 4px 3px 6px;border:1px solid var(--blue-200);
+  border-radius:999px;background:var(--blue-50);font-size:12px}
+body[data-module] .pd-chip-t{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--blue-700);cursor:pointer;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:320px}
+body[data-module] .pd-chip-t:hover{text-decoration:underline}
+body[data-module] .pd-chip-d{color:var(--slate-500);white-space:nowrap}
+body[data-module] .pd-ico{display:inline-grid;place-items:center;min-width:26px;height:16px;padding:0 3px;border-radius:4px;background:var(--slate-500);
+  color:#fff;font:700 9px/1 system-ui,sans-serif;font-style:normal;letter-spacing:.02em}
+body[data-module] .pd-ico.is-pdf{background:var(--red-600)}
+body[data-module] .pd-ico.is-img{background:var(--blue-600)}
+body[data-module] .pd-x{width:20px;height:20px;padding:0;border:0;border-radius:50%;background:none;color:var(--slate-400);font-size:14px;line-height:1;cursor:pointer}
+body[data-module] .pd-x:hover,body[data-module] .pd-x:focus-visible{background:var(--red-50);color:var(--red-600)}
+body[data-module] .pd-unc{display:flex;flex-direction:column;gap:6px;padding:8px;border:1px solid var(--amber-100);border-radius:9px;background:var(--amber-50)}
+body[data-module] .pd-badge{align-self:flex-start;display:inline-flex;align-items:center;gap:6px;padding:2px 9px;border:1px solid var(--amber-300);
+  border-radius:999px;background:var(--amber-100);color:var(--amber-700);font-size:12px;font-weight:600}
+body[data-module] .pd-badge::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+body[data-module] .pd-urow{display:grid;grid-template-columns:minmax(110px,1fr) minmax(60px,.6fr) 140px minmax(120px,1.4fr) 20px;gap:6px;align-items:center}
+body[data-module] .pd-acts{display:flex;flex-wrap:wrap;gap:4px 14px}
+body[data-module] .pd-act{border:0;background:none;padding:2px 0;font:inherit;font-size:12px;font-weight:600;color:var(--blue-700);cursor:pointer}
+body[data-module] .pd-act:hover{text-decoration:underline}
+@container (max-width: 620px){
+  body[data-module] .pd{grid-column:1 / -1}
+  body[data-module] .pd-urow{grid-template-columns:1fr 1fr 20px}
+  body[data-module] .pd-urow [data-pd-uk="date"]{grid-column:1}
+  body[data-module] .pd-urow [data-pd-uk="issuer"]{grid-column:2}
+}
+
+/* Окно «Документы-основания» — у кнопки, поверх карточки, без затемнения экрана (правило bez-modalok):
+   перечень документов карточки слева, предпросмотр выбранного справа. */
+.pd-pop{position:fixed;z-index:1000;display:flex;flex-direction:column;max-height:min(560px,calc(100vh - 16px));background:var(--panel,#fff);
+  border:1px solid var(--line);border-radius:var(--radius-lg,14px);box-shadow:var(--lift-sh);overflow:hidden}
+.pd-pop-h{padding:10px 14px;background:var(--blue-50);border-bottom:1px solid var(--line);font-weight:700;color:var(--blue-700);font-size:13px}
+.pd-pop-bar{display:flex;gap:8px;align-items:center;padding:8px 12px;flex-wrap:wrap}
+.pd-tabs{display:flex;gap:2px;padding:2px;border:1px solid var(--line);border-radius:999px;flex-wrap:wrap}
+.pd-tabs button{border:0;background:none;padding:3px 10px;border-radius:999px;font:inherit;font-size:12px;cursor:pointer;color:var(--slate-700)}
+.pd-tabs button[aria-pressed="true"]{background:var(--blue-50);color:var(--blue-700);font-weight:600}
+.pd-q{flex:1;min-width:160px}
+.pd-pop-body{display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:10px;padding:0 12px 10px;min-height:0;flex:1}
+.pd-list{list-style:none;margin:0;padding:0;overflow:auto;display:flex;flex-direction:column;gap:6px;min-height:0}
+.pd-li{display:flex;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:10px;cursor:pointer;
+  transition:background-color var(--dur-fast,.14s) ease,border-color var(--dur-fast,.14s) ease}
+.pd-li:hover{background:var(--slate-50)}
+.pd-li.cur{border-color:var(--blue-300)}
+.pd-li.on{background:var(--blue-50);border-color:var(--blue-500)}
+.pd-li-t{flex:1;min-width:0;display:flex;flex-direction:column;font-size:13px}
+.pd-li-t small{color:var(--slate-500);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pd-li-k{flex:none;padding:2px 8px;border:1px solid var(--line);border-radius:999px;font-size:11.5px;color:var(--slate-700);background:var(--slate-50)}
+.pd-li-none{padding:14px;color:var(--slate-500);font-size:13px}
+.pd-li .pd-ico{display:inline-grid;place-items:center;min-width:26px;height:16px;padding:0 3px;border-radius:4px;background:var(--slate-500);color:#fff;font:700 9px/1 system-ui,sans-serif;font-style:normal}
+.pd-li .pd-ico.is-pdf{background:var(--red-600)}
+.pd-li .pd-ico.is-img{background:var(--blue-600)}
+.pd-pv{display:flex;flex-direction:column;gap:6px;align-items:center;justify-content:flex-start;padding:8px;border:1px solid var(--line);border-radius:10px;
+  background:var(--slate-50);overflow:auto;min-height:0}
+.pd-pv-canvas,.pd-pv-img{width:100%;height:auto;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.15)}
+.pd-pv-none{margin:auto;color:var(--slate-500);font-size:13px;text-align:center}
+.pd-pv-cap{margin:0;font-size:11.5px;color:var(--slate-500);text-align:center}
+.pd-pop-f{display:flex;gap:8px;align-items:center;padding:8px 12px;border-top:1px solid var(--line)}
+.pd-pop-n{flex:1;font-size:12px;color:var(--slate-500)}
+@media (max-width:640px){
+  .pd-pop-body{grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) 180px}
+}

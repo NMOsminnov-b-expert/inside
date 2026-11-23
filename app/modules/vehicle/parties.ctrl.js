@@ -1,6 +1,7 @@
 import { bindPickSearch } from '../../kernel/pickSearch.js';
 import { podvedNamesOf } from '../../kernel/institutions.js';
 import { partiesOf, isFracShare } from './parties.view.js';
+import { bindPartyDocs } from '../../kernel/partyDocs.js';
 
 // Обработчики блока «Учреждение, собственники и ответственные» — копия
 // civil/card/parties.ctrl.js без пользователей (см. parties.view.js).
@@ -93,8 +94,9 @@ export function bindParties(ctx) {
   });
 
   textField('name', 'name');
-  // ПУД — свободный ввод: документ бывает назван раньше, чем его приложили.
-  textField('pud', 'pud');
+  // Документы-основания под собственником — общий механизм ядра (kernel/partyDocs.js, как на проде,
+  // 23.11.2026); прежнее поле ПУД заменено им.
+  bindPartyDocs(ctx, rec, () => ownersOf(rec));
 
   s.$$('[data-pt-share]').forEach((input) => {
     const box = input.closest('[data-pt-share-box]');

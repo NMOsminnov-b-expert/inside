@@ -1,4 +1,5 @@
 import { partiesOf, isFracShare } from './parties.view.js';
+import { bindPartyDocs } from '../../../kernel/partyDocs.js';
 
 // Обработчики собственников и пользователей — один набор на все три экрана,
 // где этот блок показывается: карточка ОЦ, форма ОЦ и форма создания. Раньше
@@ -93,25 +94,9 @@ export function bindParties(ctx, rec) {
     });
   });
 
-  // ПУД — документ, по которому указана доля. Поле со свободным вводом, а не
-  // выбор из списка: документ бывает назван до того, как его приложили к
-  // записи, и запретить его вписать значило бы остановить работу.
-  s.$$('[data-pt-pud]').forEach((input) => {
-    const { kind, i } = parseRef(input.dataset.ptPud);
-    const write = (v) => {
-      const list = listOf(rec, kind);
-      if (!list[i]) return;
-      list[i].pud = v;
-    };
-
-    input.onchange = () => write(input.value.trim());
-
-    bindSuggest(input, input.parentElement.querySelector('[data-pt-sug]'), (v) => {
-      input.value = v;
-      write(v);
-      ctx.render();
-    });
-  });
+  // Документы-основания под участником — общий механизм ядра (kernel/partyDocs.js, как на проде, 23.11.2026);
+  // прежнее поле ПУД заменено им.
+  bindPartyDocs(ctx, rec, listOf);
 
   // Доля есть и у собственника, и у пользователя (уточнение пользователя
   // 09.09.2026), поэтому список берётся из самого поля, а не зашит.

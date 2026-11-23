@@ -3,6 +3,8 @@ import { pickSearchHTML } from '../../kernel/pickSearch.js';
 import { institutionOptions, podvedOptionsOf } from '../../kernel/institutions.js';
 import { PEOPLE } from './data/dictionaries.js';
 import { inspectorsFieldHTML } from '../../kernel/inspectionTab.js';
+import { partyDocsHTML, partyDocTypesHTML } from '../../kernel/partyDocs.js';
+import { DOC_TYPES } from '../../kernel/documentsRegistry.js';
 
 // Блок «Учреждение, собственники и ответственные» — копия блока 01 карточки
 // гражданского здания (civil/card/parties.view.js), но без пользователей
@@ -15,19 +17,13 @@ import { inspectorsFieldHTML } from '../../kernel/inspectionTab.js';
 // Участник — строка (как заводили раньше) или набор полей.
 export function partyOf(x) {
   if (x && typeof x === 'object') {
-    return { name: x.name || '', share: x.share || '', pud: x.pud || '' };
+    // Документы-основания (docs, unconfirmed — kernel/partyDocs.js) и прочее участника сохраняются.
+    return { ...x, name: x.name || '', share: x.share || '', pud: x.pud || '' };
   }
   return { name: String(x || ''), share: '', pud: '' };
 }
 
 export const partiesOf = (list) => (list || []).map(partyOf);
-
-// Подсказки для документа доли — всё, что приложено к записи.
-function docHints(rec) {
-  const seen = new Set();
-  return (rec.docs || []).filter((d) => d && d.name && !seen.has(d.name) && seen.add(d.name))
-    .map((d) => ({ value: d.name, meta: [d.type, d.date].filter(Boolean).join(' · ') }));
-}
 
 // Доля — процентом («50», «33,3»), дробью («1/2») или единицей — вся доля.
 export function parseShare(v) {
@@ -69,7 +65,7 @@ function suggestBox(items, kind = 'name') {
   </div>`;
 }
 
-function partyCard(i, p, names, docs) {
+function partyCard(i, p, names, rec) {
   const title = p.name || 'собственник';
   return `<div class="pt-card" data-pt-row="owner|${i}">
     <span class="pt-n" aria-hidden="true">${i + 1}</span>
@@ -88,15 +84,10 @@ function partyCard(i, p, names, docs) {
       <span class="pt-share-u">%</span>
     </div>
 
-    <div class="pt-pud">
-      <input class="input" data-pt-pud="owner|${i}" value="${esc(p.pud || '')}"
-        placeholder="начните вводить" autocomplete="off" aria-label="Документ, по которому указана доля"
-        title="Документ, по которому указана доля. Начните вводить — предложим уже прикреплённые">
-      ${suggestBox(docs, 'pud')}
-    </div>
 
     <button type="button" class="pt-rm" data-pt-rm="owner|${i}"
       title="Убрать: ${esc(title)}" aria-label="Убрать: ${esc(title)}">×</button>
+    ${partyDocsHTML(rec, 'owner', i, p)}
   </div>`;
 }
 
@@ -104,9 +95,8 @@ function ownersHTML(rec, names) {
   const items = partiesOf(rec.owners);
   const sum = shareSum(rec.owners);
   const bad = items.length > 0 && Math.abs(sum - 100) > 0.01;
-  const docs = docHints(rec);
 
-  return `<div class="pt-wrap"><div class="pt-sec">
+  return `<div class="pt-wrap">${partyDocTypesHTML(DOC_TYPES)}<div class="pt-sec">
     <div class="sec-h pt-sec-h">
       <span>Собственники</span>
       ${items.length ? `<span class="pt-sum ${bad ? 'warn' : ''}">Доли: ${num(sum)}%${
@@ -115,9 +105,9 @@ function ownersHTML(rec, names) {
 
     <div class="pt-cards">
       ${items.length ? `<div class="pt-head" aria-hidden="true">
-        <span></span><span>Наименование</span><span>Доля</span><span>ПУД</span><span></span>
+        <span></span><span>Наименование</span><span>Доля</span><span></span>
       </div>` : ''}
-      ${items.map((p, i) => partyCard(i, p, names, docs)).join('')}
+      ${items.map((p, i) => partyCard(i, p, names, rec)).join('')}
       <button type="button" class="pt-add" data-pt-add="owner">+ Собственник</button>
     </div>
   </div></div>`;
