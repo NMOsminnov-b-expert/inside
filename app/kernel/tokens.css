@@ -589,5 +589,12 @@ input[list]::-webkit-calendar-picker-indicator{display:none !important}
 .apop{position:fixed;z-index:1000;display:flex;flex-direction:column;max-height:calc(100vh - 16px);background:var(--panel);
   border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--lift-sh);overflow:hidden;font-size:13px}
 .apop-h{padding:10px 14px;background:var(--blue-50);border-bottom:1px solid var(--line);font-weight:700;color:var(--blue-700)}
+.apop-drag .apop-h{cursor:move;user-select:none;display:flex;align-items:center;gap:8px;touch-action:none}
+.apop-drag.is-dragging{box-shadow:var(--shadow);transition:none}
+.apop-grip{flex:none;width:10px;height:14px;opacity:.55;background:radial-gradient(circle,currentColor 1.2px,transparent 1.6px) 0 0/5px 5px}
+.apop-x{margin-left:auto;flex:none;width:26px;height:26px;display:grid;place-items:center;border:0;border-radius:6px;background:none;
+  color:inherit;font-size:18px;line-height:1;cursor:pointer;transition:background .12s,transform .12s}
+.apop-x:hover{background:var(--panel);transform:scale(1.08)}
+.apop-x:focus-visible{outline:2px solid var(--blue-600);outline-offset:1px}
 .apop-b{padding:12px 14px;overflow:auto;display:flex;flex-direction:column;gap:8px}
 .apop-f{display:flex;gap:8px;align-items:center;justify-content:flex-end;padding:8px 12px;border-top:1px solid var(--line)}

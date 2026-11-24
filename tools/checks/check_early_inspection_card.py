@@ -9,7 +9,11 @@
 
 Что ловит сценарий:
   * на шкале статусов у записи «В заполнении» нет отметки «Досрочно…», в свёрнутой шкале — кнопки «Досрочно на
-    осмотр…» (пользователь 24.11.2026: «Я не вижу кнопку»), или она не открывает окно; окно не у отметки, выходит за край, затемняет
+    осмотр…» (пользователь 24.11.2026: «Я не вижу кнопку»), или она не открывает окно;
+  * в окне не видно, кого направляют: нет адреса, ЕНИ объекта, у ОИ — подписи и своих сведений (этажность, площадь…)
+    (пользователь 24.11.2026: «Непонятно, кого направляешь...»); окно не переносится за заголовок, закрывается щелчком
+    мимо или не помнит, куда его перенесли («Форма не должна документы перекрывать... лучше перетаскиваемой сделать»);
+  * окно не у отметки, выходит за край, затемняет
     экран; «Выбранные ОИ» без отметок проходит;
   * направление меняет статус; не записаны ОИ, комментарий, кто и когда; нет фиолетовой отметки и значка в свёрнутой
     шкале;
@@ -59,6 +63,40 @@ def run(t):
     t.wait_for('.ea-pop')
     t.ck(pg.evaluate("() => { const r = document.querySelector('.ea-pop').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; }"), 'окно выходит за край экрана')
     t.ck(pg.locator('.overlay, .modal-backdrop, dialog[open]').count() == 0, 'окно затемняет экран')
+    t.ck(pg.evaluate("() => { const v = document.querySelector('.split > .viewer'); if (!v) return true; const a = v.getBoundingClientRect(); const e = document.querySelector('.ea-pop'); return parseFloat(e.style.left) >= a.right; }"),
+         'окно при открытии закрывает просмотрщик документов')
+    t.ck(pg.evaluate("() => [...document.querySelectorAll('.ea-pop *')].filter((e) => /(auto|scroll)/.test(getComputedStyle(e).overflowY) && e.scrollHeight > e.clientHeight + 1).length <= 1"),
+         'в окне больше одной прокрутки')
+    # Кого направляем: объект и сведения каждого ОИ.
+    ob = pg.inner_text('.ea-pop .ea-obj')
+    eni = pg.evaluate("async ([t, id]) => { const r = %s; return r.eni || ''; }" % REC, ['civil', rid])
+    t.ck(len(ob) > 10 and (not eni or eni[-4:] in ob.replace(' ', '').replace('-', '')), 'в окне нет сведений об объекте (адрес, ЕНИ): %r' % ob)
+    ois = pg.eval_on_selector_all('.ea-pop .ea-oi', 'els => els.map((e) => e.innerText)')
+    t.ck(ois and any('м²' in x for x in ois) and any('этаж' in x for x in ois),
+         'у ОИ в окне нет своих сведений (этажность, площадь…): %r' % ois[:4])
+    # Перенос за заголовок; щелчок мимо не закрывает; место запоминается.
+    POS = "() => { const e = document.querySelector('.ea-pop'); return [parseFloat(e.style.left), parseFloat(e.style.top)]; }"
+
+    def drag(dx, dy):
+        h = pg.locator('.ea-pop .apop-h').bounding_box()
+        x, y = h['x'] + 60, h['y'] + h['height'] / 2
+        pg.mouse.move(x, y)
+        pg.mouse.down()
+        pg.mouse.move(x + dx, y + dy, steps=6)
+        pg.mouse.up()
+    p0 = pg.evaluate(POS)
+    drag(-200, 60)
+    p1 = pg.evaluate(POS)
+    t.ck(abs((p0[0] - p1[0]) - 200) < 2 and abs((p1[1] - p0[1]) - 60) < 2, 'окно не переносится за заголовок: %s → %s' % (p0, p1))
+    pg.mouse.click(5, 880)
+    t.ck(pg.locator('.ea-pop').count() == 1, 'щелчок мимо закрыл переносимое окно')
+    pg.click('.ea-pop [data-apop-close]')
+    t.ck(t.wait_until("() => !document.querySelector('.ea-pop')"), '«×» не закрыл окно')
+    pg.click('.st-full .st-early-can[data-early]')
+    t.wait_for('.ea-pop')
+    p2 = pg.evaluate(POS)
+    t.ck(abs(p2[0] - p1[0]) < 2 and abs(p2[1] - p1[1]) < 2, 'окно не помнит, куда его перенесли: %s и %s' % (p1, p2))
+    drag(200, -60)  # назад — дальше сценарий нажимает отметки под окном
     pg.check('.ea-pop [data-ea-scope][value="some"]')
     t.wait_for('.ea-pop [data-ea-oi]')
     pg.click('.ea-pop [data-ea-send]')

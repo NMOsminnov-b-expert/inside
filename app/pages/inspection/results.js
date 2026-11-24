@@ -40,7 +40,7 @@ import { colGroupHTML, colLabelHTML, resizeGripHTML, colVar } from '../../kernel
 import { completeRichDemo } from '../../kernel/inspectionsDemo.js';
 import { sections, setNetsRec } from './form.js';
 import { pwaSections } from '../osmotr/params.js';
-import { oiLabel, ownOis, mechProgress } from './tasks.js';
+import { oiLabel, ownOis, mechProgress, oiBrief, objBrief } from './tasks.js';
 
 ensureStyle('./app/pages/inspection/results.css');
 
@@ -626,4 +626,4 @@ document.addEventListener('click', (e) => {
   focusInspectionOi(typeId, ocId, oiId);
 });
 
-setInspectionTab({ has, render, holder, stepNote, inspectors, oiStrip });
+setInspectionTab({ has, render, holder, stepNote, inspectors, oiStrip, oiBrief, objBrief });

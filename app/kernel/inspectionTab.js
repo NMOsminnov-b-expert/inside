@@ -21,6 +21,12 @@ export const INSPECTION_TAB = { key: 'inspection', label: 'Результаты 
 // Не во всех ОИ»): кто осматривал, где приёмка, сколько значений, расхождений и снимков; «Результаты осмотра»
 // открывают вкладку ОЦ сразу на этом ОИ. Пусто — по ОИ осмотра не было.
 export const inspectionOiStripHTML = (typeId, rec, oi) => (impl && impl.oiStrip && rec && oi ? impl.oiStrip(typeId, rec, oi) : '');
+// Опознавательные сведения для окна досрочного направления (пользователь 24.11.2026: «Непонятно, кого направляешь...
+// Ни назначения не видно, ни ЕНИ, ни иных параметров. Для каждого ОИ свой набор опознавательных нюансов (этажность,
+// площадь, тип и т.д.)»). Объект: { title, sub, eni, facts: [строки] }; ОИ: { eni, facts: [строки] }. Виды ОИ знают
+// общие части осмотров (pages/inspection/tasks.js), поэтому — регистрацией, как вкладка.
+export const inspectionObjBrief = (typeId, rec) => (impl && impl.objBrief && rec ? impl.objBrief(typeId, rec) : null);
+export const inspectionOiBrief = (oi) => (impl && impl.oiBrief && oi ? impl.oiBrief(oi) : { eni: (oi && oi.eni) || '', facts: [] });
 // Какой ОИ выбрать во вкладке при следующем открытии — ставит строка осмотра карточки ОИ.
 let focusOi = null;
 export function focusInspectionOi(typeId, ocId, oiId) { focusOi = { key: `${typeId}|${ocId}`, oiId }; }

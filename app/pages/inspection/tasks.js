@@ -11,6 +11,7 @@
 // модуль типа ОЦ напрямую (см. архитектурные правила в app/README.md).
 import { sortedTypes, getType, migrateLiterKinds, tsName, tsFoundKinds } from '../../kernel/registry.js';
 import { session } from '../../kernel/session.js';
+import { plural } from '../../kernel/fmt.js';
 import { hereNow } from '../../kernel/geoHere.js';
 import { tasksOf, allAssignments, isLive, assignmentsOf, workDone, startWork } from '../../kernel/inspections.js';
 import { resultsOf, valuesOf, saveResults, addResultPhoto, addResultScan, replaceScanPages, addResultVoice, markDone } from '../../kernel/inspectionResults.js';
@@ -321,6 +322,56 @@ export function oiLabel(oi) {
   }
 
   return name || 'Объект имущества';
+}
+
+// Опознавательные сведения ОИ — чем его отличают на месте: для литеры назначение, этажность, площадь, год; для квартиры
+// номер, комнаты, этаж; для участка назначение и площадь; для ТС категория, марка, госномер, год, VIN; для механизмов
+// число единиц. Окно досрочного направления (kernel/status/early.js; пользователь 24.11.2026: «Для каждого ОИ свой
+// набор опознавательных нюансов (этажность, площадь, тип и т.д.)»).
+const m2 = (v) => {
+  const n = parseFloat(String(v || '').replace(/\s/g, '').replace(',', '.'));
+  return n > 0 ? `${n.toLocaleString('ru-RU', { maximumFractionDigits: 2 })} м²` : '';
+};
+const cnt = (n, one, few, many) => (Number(n) > 0 ? `${n} ${plural(Number(n), one, few, many)}` : '');
+const yearOf = (y) => (/^\d{4}$/.test(String(y || '').trim()) ? `${String(y).trim()} г.` : '');
+export function oiBrief(oi) {
+  if (!oi) return { eni: '', facts: [] };
+  const a = oi.areas || {};
+  let facts = [];
+  if (oi.card === 'building' || oi.card === 'aux') {
+    facts = [oi.purposeFact || oi.purposeTP || '', cnt(oi.floors, 'этаж', 'этажа', 'этажей'), m2(a.fact || a.tp || a.pud), yearOf(oi.year)];
+  } else if (oi.card === 'apartment') {
+    const ap = oi.apartment || {};
+    const floor = ap.floor ? `этаж ${ap.floor}${ap.buildingFloors ? ` из ${ap.buildingFloors}` : ''}` : '';
+    facts = [cnt(ap.rooms, 'комната', 'комнаты', 'комнат'), floor, m2(a.fact || a.tp || a.pud), yearOf(oi.year)];
+  } else if (oi.card === 'land') {
+    facts = [oi.purpose || '', oi.landType || '', m2(a.fact || a.pravo)];
+  } else if (oi.card === 'vehicle') {
+    const v = oi.vehicle || {};
+    const f = v.f || {};
+    facts = [v.category || '', f.make || '', f.plate || '', yearOf(f.year), f.vin ? `VIN ${f.vin}` : ''];
+  } else if (oi.card === 'mech') {
+    facts = [cnt((oi.units || []).length, 'единица', 'единицы', 'единиц')];
+  } else if (oi.card === 'movable') {
+    const kind = oi.kind === 'ОФИС' ? 'Офисная техника' : oi.kind === 'ТС' ? 'Транспортное средство' : 'Механизм';
+    facts = [kind, oi.serial ? `зав. № ${oi.serial}` : '', yearOf(oi.year)];
+  }
+  const label = oiLabel(oi);
+  return { eni: oi.eni || '', facts: facts.filter((x) => x && !label.includes(x)) };
+}
+
+// Сведения об объекте оценки для того же окна — из сводки реестра: адрес, тип, учреждение, ЕНИ, площадь, число ОИ.
+export function objBrief(typeId, rec) {
+  const T = getType(typeId);
+  const s = (T && T.records.getSummary && T.records.getSummary(rec.id)) || {};
+  const m = s.metrics || {};
+  const n = (rec.oi || []).length;
+  return {
+    title: s.title || rec.address || '',
+    sub: [s.typeLabel || (T && T.manifest && T.manifest.label) || '', s.institution || rec.institution || ''].filter(Boolean).join(' · '),
+    eni: s.eniAll || s.eni || rec.eni || '',
+    facts: [m2(m.area), m.landArea ? `участок ${m2(m.landArea)}` : '', cnt(n, 'объект имущества', 'объекта имущества', 'объектов имущества')].filter(Boolean),
+  };
 }
 
 // Список ОИ записи для выбора: к чему привязать снимок.
