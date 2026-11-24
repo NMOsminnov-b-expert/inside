@@ -1409,6 +1409,8 @@ body[data-module] .st-early:focus-visible,body[data-module] .st-early-chip:focus
 body[data-module] .st-early-fork{background:var(--violet-600);opacity:.5}
 body[data-module] .st-early-chip{display:inline-flex;align-items:center;height:22px;padding:0 9px;border-radius:11px;font:inherit;
   font-size:11px;font-weight:600;cursor:pointer;border:1px solid}
+body[data-module] .st-early-chip.st-early-can{color:var(--violet-700);background:var(--panel);border-style:dashed;border-color:var(--violet-600)}
+body[data-module] .st-early-chip.st-early-can:hover{background:var(--violet-50)}
 body[data-module] .st-early-chip.st-early-sent{color:var(--violet-700);background:var(--violet-50);border-color:var(--violet-100)}
 body[data-module] .st-early-chip.st-early-done{color:var(--teal-700);background:var(--teal-50);border-color:var(--teal-100)}
 

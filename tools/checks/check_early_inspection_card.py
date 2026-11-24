@@ -8,7 +8,8 @@
 карточки, (ЦОД)».
 
 Что ловит сценарий:
-  * на шкале статусов у записи «В заполнении» нет отметки «Досрочно…»; окно не у отметки, выходит за край, затемняет
+  * на шкале статусов у записи «В заполнении» нет отметки «Досрочно…», в свёрнутой шкале — кнопки «Досрочно на
+    осмотр…» (пользователь 24.11.2026: «Я не вижу кнопку»), или она не открывает окно; окно не у отметки, выходит за край, затемняет
     экран; «Выбранные ОИ» без отметок проходит;
   * направление меняет статус; не записаны ОИ, комментарий, кто и когда; нет фиолетовой отметки и значка в свёрнутой
     шкале;
@@ -43,8 +44,18 @@ def run(t):
     t.open('#/oc/civil/' + rid, wait='[data-oc-head]')
 
     # --- направить: выбранные ОИ ---
-    t.ck(t.wait_until("() => !!document.querySelector('.st-early-can[data-early]')"), 'у записи «В заполнении» нет отметки «Досрочно…» на шкале')
-    pg.click('.st-early-can[data-early]')
+    # Свёрнутая шкала: кнопка рядом со статусом и открывает то же окно.
+    if pg.locator('.st-flow.is-collapsed').count() == 0:
+        pg.click('.st-full [data-status-toggle]')
+    t.ck(t.wait_until("() => { const b = document.querySelector('.st-mini .st-early-chip.st-early-can[data-early]'); return !!b && b.offsetParent !== null; }"),
+         'в свёрнутой шкале нет кнопки «Досрочно на осмотр…»')
+    pg.click('.st-mini .st-early-can[data-early]')
+    t.ck(t.wait_for('.ea-pop', timeout=4000), 'кнопка в свёрнутой шкале не открыла окно')
+    pg.keyboard.press('Escape')
+    t.wait_until("() => !document.querySelector('.ea-pop')")
+    pg.click('.st-mini [data-status-toggle]')
+    t.ck(t.wait_until("() => !!document.querySelector('.st-full .st-early-can[data-early]')"), 'у записи «В заполнении» нет отметки «Досрочно…» на шкале')
+    pg.click('.st-full .st-early-can[data-early]')
     t.wait_for('.ea-pop')
     t.ck(pg.evaluate("() => { const r = document.querySelector('.ea-pop').getBoundingClientRect(); return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight; }"), 'окно выходит за край экрана')
     t.ck(pg.locator('.overlay, .modal-backdrop, dialog[open]').count() == 0, 'окно затемняет экран')

@@ -38,8 +38,11 @@ export function earlyStepHTML(rec, typeId) {
 
 export function earlyMiniHTML(rec, typeId) {
   const m = markOf(rec, typeId);
-  if (!m || m.cls === 'can') return '';
-  return `<button type="button" class="st-early-chip st-early-${m.cls}" data-early aria-haspopup="dialog" title="${esc(m.label)}">${esc(m.short)}</button>`;
+  if (!m) return '';
+  // «Можно направить» — и в свёрнутой шкале (пользователь 24.11.2026: «не выполнена ранняя отправка. Я не вижу кнопку»):
+  // шкала обычно свёрнута, и боковой узел под «Направлен на осмотр» не виден.
+  const text = m.cls === 'can' ? 'Досрочно на осмотр…' : m.short;
+  return `<button type="button" class="st-early-chip st-early-${m.cls}" data-early aria-haspopup="dialog" title="${esc(m.label)}">${esc(text)}</button>`;
 }
 
 // --- окно ---------------------------------------------------------------------------------------------------------------
