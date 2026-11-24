@@ -60,6 +60,9 @@ body[data-module] .ir-only { display: inline-flex; align-items: center; gap: 6px
 
 /* «Что осмотрено»: строка выбирает. */
 body[data-module] .ir-nav-tbl tbody tr { cursor: pointer; }
+/* Список «Что осмотрено» — своя прокрутка: сверка выбранного видна сразу под ним (аудит этапа 1, 23.11.2026). */
+body[data-module] .ir-nav .ir-frame { max-height: 236px; overflow: auto; }
+body[data-module] .ir-nav .card-head .ir-all { margin-left: auto; }
 body[data-module] .ir-nav-tbl tbody tr:hover td { background: var(--blue-50) !important; }
 body[data-module] .ir-nav-tbl tbody tr.on td { background: var(--blue-100) !important; }
 body[data-module] .ir-nav-tbl tbody tr.on td.ir-f { box-shadow: inset 3px 0 0 var(--blue-600); }
@@ -110,3 +113,13 @@ body[data-module] .ir-ret-form textarea { width: 100%; min-height: 54px; resize:
 }
 /* Механизмы — ход по описи под отметкой приёмки (решение 04.11.2026 «Истина - опись»). */
 .ir-mech{display:block;margin-top:3px;font-size:11.5px;white-space:normal}
+
+/* Строка осмотра в шапке карточки ОИ (kernel/inspectionTab.js, inspectionOiStripHTML). */
+body[data-module] .ir-oistrip { flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; margin-top: 6px; padding: 6px 10px;
+  border-radius: 8px; background: var(--teal-50); border: 1px solid var(--line-soft); font-size: 12.5px; color: var(--ink); }
+body[data-module] .ir-oistrip-h { font-size: 10.5px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--teal-700); }
+body[data-module] .ir-oistrip-f { color: var(--muted); }
+body[data-module] .ir-oistrip-go { margin-left: auto; }
+/* Сверка — текст в ячейках переносится, решение «В карточку» — под пометкой. */
+body[data-module] .ir-cmp td { white-space: normal; overflow-wrap: break-word; hyphens: auto; vertical-align: top; }
+body[data-module] .ir-cmp .ir-chk { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }

@@ -17,6 +17,15 @@ export const hasInspection = (typeId, ocId) => !!(impl && impl.has(typeId, ocId)
 
 export const INSPECTION_TAB = { key: 'inspection', label: 'Результаты осмотра' };
 
+// Строка осмотра в шапке карточки ОИ (аудит этапа 1, 23.11.2026: «на этапе 1 далеко не везде есть результаты осмотра.
+// Не во всех ОИ»): кто осматривал, где приёмка, сколько значений, расхождений и снимков; «Результаты осмотра»
+// открывают вкладку ОЦ сразу на этом ОИ. Пусто — по ОИ осмотра не было.
+export const inspectionOiStripHTML = (typeId, rec, oi) => (impl && impl.oiStrip && rec && oi ? impl.oiStrip(typeId, rec, oi) : '');
+// Какой ОИ выбрать во вкладке при следующем открытии — ставит строка осмотра карточки ОИ.
+let focusOi = null;
+export function focusInspectionOi(typeId, ocId, oiId) { focusOi = { key: `${typeId}|${ocId}`, oiId }; }
+export function takeInspectionFocus(key) { if (!focusOi || focusOi.key !== key) return ''; const id = focusOi.oiId; focusOi = null; return id; }
+
 // Подпись под текущим шагом шкалы ОЦ — где осмотр внутри шага (решение пользователя 06.11.2026
 // «Шаг — по приёмке ЦОД»: «В работе» и «закончен» шаги не двигают — подписью под шагом).
 export const inspectionStepNote = (typeId, rec) => (impl && impl.stepNote ? impl.stepNote(typeId, rec) : '');

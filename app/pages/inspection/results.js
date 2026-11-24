@@ -26,7 +26,7 @@ import { ensureStyle } from '../../kernel/css.js';
 import { allAssignments, ASSIGN_STATES, coversOi, logEvent, changed, returnOis, DONE_STATUS, SENT_STATUS } from '../../kernel/inspections.js';
 import { peekResults, reviewOf, setReview } from '../../kernel/inspectionResults.js';
 import { getValue } from '../../kernel/fieldSchema.js';
-import { setInspectionTab } from '../../kernel/inspectionTab.js';
+import { setInspectionTab, focusInspectionOi, takeInspectionFocus } from '../../kernel/inspectionTab.js';
 // «Запросить документы» в карточке ОЦ регистрируется при загрузке (kernel/partyDocs.js, setDocRequestCard).
 import '../../kernel/docRequests.js';
 import { scanKey, scanStateLabel } from '../../kernel/scanQueue.js';
@@ -39,6 +39,7 @@ import { OI_FLOW, stageOf as oiStageOf } from '../../kernel/oiStage.js';
 import { colGroupHTML, colLabelHTML, resizeGripHTML, colVar } from '../../kernel/columns.js';
 import { completeRichDemo } from '../../kernel/inspectionsDemo.js';
 import { sections, setNetsRec } from './form.js';
+import { pwaSections } from '../osmotr/params.js';
 import { oiLabel, ownOis, mechProgress } from './tasks.js';
 
 ensureStyle('./app/pages/inspection/results.css');
@@ -87,10 +88,31 @@ function has(typeId, ocId) {
 // Сверка по ОИ: поля осмотра, где есть значение осмотра; group — раздел формы
 // (у механизмов — единица перечня); path — где поле лежит в карточке (есть у
 // полей, взятых из карточки как есть, — их можно перенести «В карточку»).
+//
+// Поля — по схеме, которой заполняет осмотрщик (pages/osmotr/params.js; аудит этапа 1, 23.11.2026: «А где в результатах
+// осмотров посмотреть, собственно а что принимаем? Значения, фото… Земельные участки недоработаны»): прежде сверка
+// строилась по схеме прежнего экрана осмотрщика (form.js), и значения, внесённые по новой схеме (тип участка,
+// с/х характеристики, санузел, комментарий), во вкладку не попадали. Значение карточки — от поля прежней схемы с тем же
+// ключом (там известен путь в карточке) или от одноимённого поля ОИ. Значения, внесённые по прежней схеме и в новой
+// не названные, тоже показываются — введённое не теряется.
+const ownDoc = (oi, key) => (!String(key).includes('.') && oi && Object.prototype.hasOwnProperty.call(oi, key)
+  ? Object.assign((o) => { const v = o && o[key]; return Array.isArray(v) ? v.filter(Boolean).join(', ') : v == null ? '' : String(v); }, { path: key })
+  : null);
+function compareSections(typeId, oi, values) {
+  const old = sections(typeId, oi);
+  const pwa = pwaSections(oi).filter((sec) => !sec.fixed);
+  if (!pwa.length) return old;
+  const byKey = new Map(old.flatMap((sec) => sec.fields).map((f) => [f.key, f]));
+  const out = pwa.map((sec) => ({ title: sec.title, fields: sec.fields.filter((f) => !f.visible || f.visible(values))
+    .map((f) => ({ key: f.key, label: f.label, multi: !!f.multi, doc: (byKey.get(f.key) || {}).doc || ownDoc(oi, f.key) })) }));
+  const named = new Set(pwa.flatMap((sec) => sec.fields.map((f) => f.key)));
+  const rest = old.map((sec) => ({ title: sec.title, fields: sec.fields.filter((f) => !named.has(f.key)) })).filter((sec) => sec.fields.length);
+  return [...out, ...rest];
+}
 function compareOf(typeId, rec, oi, r) {
   setNetsRec(rec);
   const values = (r && r.assets && r.assets[oi.id]) || {};
-  return sections(typeId, oi).flatMap((s) => s.fields.map((f) => {
+  return compareSections(typeId, oi, values).flatMap((s) => s.fields.map((f) => {
     const insp = shown(getValue(values, f.key));
     const card = typeof f.doc === 'function' ? shown(f.doc(oi)) : '';
     const row = { group: s.title || '', label: f.label, insp, card, multi: !!f.multi, path: (f.doc && f.doc.path) || '', diff: !!(insp && card && norm(insp) !== norm(card)) };
@@ -199,27 +221,34 @@ function summaryHTML(rec, list, items, r) {
 // состояние вкладки (v.colW[таблица]), во время перетаскивания — переменные
 // --cw-* на рамке.
 const NAV_COLS = [
-  { key: 'n-obj', label: 'Объект', width: 220 },
-  { key: 'n-st', label: 'Приёмка', width: 150 },
-  { key: 'n-val', label: 'Знач.', width: 62, num: true, title: 'Значений осмотра' },
-  { key: 'n-ph', label: 'Снимков', width: 76, num: true },
-  { key: 'n-vo', label: 'Голос.', width: 62, num: true, title: 'Голосовые заметки' },
-  { key: 'n-diff', label: 'Расх.', width: 62, num: true, title: 'Расхождений с карточкой' },
+  { key: 'n-obj', label: 'Объект', width: 180 },
+  { key: 'n-st', label: 'Приёмка', width: 132 },
+  { key: 'n-val', label: 'Знач.', width: 58, num: true, title: 'Значений осмотра' },
+  { key: 'n-ph', label: 'Снимк.', width: 62, num: true, title: 'Снимков' },
+  { key: 'n-vo', label: 'Голос.', width: 58, num: true, title: 'Голосовые заметки' },
+  { key: 'n-diff', label: 'Расх.', width: 56, num: true, title: 'Расхождений с карточкой' },
 ];
+// Четыре столбца в ширину правой панели (аудит этапа 1, 23.11.2026: «На осмотре» обрезалось, «В карточку» уходило за
+// край): решение — в столбце «Сверка» под пометкой.
 const CMP_COLS = [
-  { key: 'c-f', label: 'Поле', width: 230 },
-  { key: 'c-card', label: 'В карточке', width: 200 },
-  { key: 'c-insp', label: 'На осмотре', width: 200 },
-  { key: 'c-chk', label: 'Сверка', width: 120 },
-  { key: 'c-act', label: 'Действие', width: 120 },
+  { key: 'c-f', label: 'Поле', width: 170 },
+  { key: 'c-card', label: 'В карточке', width: 150 },
+  { key: 'c-insp', label: 'На осмотре', width: 150 },
+  { key: 'c-chk', label: 'Сверка', width: 124 },
 ];
 const headHTML = (cols) => `<thead><tr>${cols.map((c, i) => `<th data-col="${c.key}" class="${c.num ? 'num' : ''}"${c.title ? ` title="${esc(c.title)}"` : ''}>${colLabelHTML(c)}${resizeGripHTML(c, i === cols.length - 1)}</th>`).join('')}</tr></thead>`;
 
 // «Что осмотрено» — таблица, строка выбирает (кнопка в первой ячейке — для
 // клавиатуры, щелчок по строке — для мыши).
-function navHTML(items, sel, v) {
+// ОИ без назначения и без внесённого — скрыты, пока не попросят («Все ОИ»): иначе у объекта с десятком литер список
+// вытеснял сверку выбранного за край экрана (аудит этапа 1, 23.11.2026). Выбранный виден всегда.
+const untouched = (x) => x.kind === 'oi' && !x.by.length && !x.values && !x.photos.length && !(x.voices || []).length;
+function navHTML(all, sel, v) {
+  const quiet = all.filter((x) => untouched(x) && x.id !== sel).length;
+  const items = v.allOi ? all : all.filter((x) => !untouched(x) || x.id === sel);
   return `<section class="card t-blue ir-nav" aria-label="Что осмотрено">
-    <div class="card-head"><h3>Что осмотрено</h3><span class="hint">${items.length}</span></div>
+    <div class="card-head"><h3>Что осмотрено</h3><span class="hint">${items.length}</span>
+      ${quiet ? `<button type="button" class="btn btn-ghost btn-sm ir-all" data-ir-all aria-pressed="${!!v.allOi}">${v.allOi ? 'Только осмотренные' : `Все ОИ · ещё ${quiet} без осмотра`}</button>` : ''}</div>
     <div class="card-pad"><div class="ir-frame" data-ir-tbl="nav"><table class="tbl ir-tbl ir-nav-tbl">${colGroupHTML(NAV_COLS, v.colW.nav)}${headHTML(NAV_COLS)}
       <tbody>${items.map((x) => {
     const st = x.kind === 'oi' ? stagePill(x.stage) + (x.mech && x.mech.total ? `<span class="ir-muted ir-mech">по описи: осмотрено ${x.mech.seen + x.mech.missing} из ${x.mech.total}${x.mech.missing ? ` · не найдено ${x.mech.missing}` : ''}${x.mech.broken ? ` · нерабочих ${x.mech.broken}` : ''}${x.mech.repair ? ` · в ремонте ${x.mech.repair}` : ''}</span>` : '') : x.kind === 'found' ? '<span class="pill ir-st ir-st-warn">выявлено</span>' : `<span class="ir-muted">${esc(x.sub)}</span>`;
@@ -264,9 +293,9 @@ function compareHTML(cmp, v) {
   return `<div class="ir-cmp-head"><p class="ir-sub">Сверка <b>${cmp.length}</b>${diffs ? ` · <span class="ir-diff-n">расхождений ${diffs}</span>` : ''}</p>
       <label class="ir-only"><input type="checkbox" data-ir-only ${v.only ? 'checked' : ''} ${diffs ? '' : 'disabled'}> только расхождения</label></div>
     <div class="ir-frame" data-ir-tbl="cmp"><table class="tbl ir-tbl ir-cmp">${colGroupHTML(CMP_COLS, v.colW.cmp)}${headHTML(CMP_COLS)}
-      <tbody>${rows.map(([x, i], k) => `${grouped && (k === 0 || rows[k - 1][0].group !== x.group) ? `<tr class="ir-grp"><th colspan="5" scope="colgroup">${esc(x.group)}</th></tr>` : ''}<tr class="${x.diff ? 'diff' : ''}">
+      <tbody>${rows.map(([x, i], k) => `${grouped && (k === 0 || rows[k - 1][0].group !== x.group) ? `<tr class="ir-grp"><th colspan="4" scope="colgroup">${esc(x.group)}</th></tr>` : ''}<tr class="${x.diff ? 'diff' : ''}">
         <td class="ir-f" data-l="Поле">${esc(x.label)}</td><td data-l="В карточке">${x.card ? esc(x.card) : '<span class="ir-muted">—</span>'}</td><td data-l="На осмотре"><b>${esc(x.insp)}</b></td>
-        <td data-l="Сверка">${chk(x)}</td><td data-l="Действие">${act(x, i)}</td></tr>`).join('') || '<tr><td colspan="5" class="ir-muted">Расхождений нет.</td></tr>'}</tbody>
+        <td data-l="Сверка"><div class="ir-chk">${chk(x)}${act(x, i)}</div></td></tr>`).join('') || '<tr><td colspan="4" class="ir-muted">Расхождений нет.</td></tr>'}</tbody>
     </table></div>`;
 }
 
@@ -352,6 +381,9 @@ function render(typeId, rec) {
   // Демо объекта среза: значения и снимки по ОИ — когда карточка собрана.
   if (completeRichDemo(r, rec)) scheduleSave();
   const items = itemsOf(typeId, rec, r, list);
+  // Пришли из карточки ОИ («Результаты осмотра» в строке осмотра) — выбран этот ОИ.
+  const focus = takeInspectionFocus(key);
+  if (focus && items.some((x) => x.id === focus)) Object.assign(v, { sel: focus, returning: false, reason: '', msg: '' });
   if (!items.some((x) => x.id === v.sel)) {
     v.sel = (items.find((x) => x.kind === 'oi' && x.stage.key === 'wait') || items.find((x) => x.kind === 'oi' && (x.values || x.photos.length)) || items[0] || {}).id || '';
   }
@@ -437,6 +469,8 @@ document.addEventListener('click', (e) => {
   let n;
   if ((n = hit('[data-ir-sel]') || (!hit('button, a, input, select, textarea') && hit('[data-ir-row]')))) {
     Object.assign(v, { sel: n.dataset.irSel || n.dataset.irRow, returning: false, reason: '', msg: '' });
+  } else if (hit('[data-ir-all]')) {
+    v.allOi = !v.allOi;
   } else if ((n = hit('[data-ir-apply]'))) {
     const row = c.item && c.item.cmp[+n.dataset.irApply];
     if (!row) return;
@@ -572,4 +606,24 @@ function inspectors(rec) {
   return [...by].map(([p, ois]) => `${p} — ${ois.join(', ')}`);
 }
 
-setInspectionTab({ has, render, holder, stepNote, inspectors });
+// Строка осмотра в шапке карточки ОИ (kernel/inspectionTab.js, inspectionOiStripHTML).
+function oiStrip(typeId, rec, oi) {
+  const r = peekResults(typeId, rec.id);
+  const x = itemsOf(typeId, rec, r, assignsOf(typeId, rec.id)).find((it) => it.kind === 'oi' && it.id === oi.id);
+  if (!x || untouched(x)) return '';
+  const who = x.by.map((a) => `<b>${esc(a.person)}</b> ${statePill(a)}${a.doneAt ? ` <span class="ir-muted">${esc(ddmm(a.doneAt))}</span>` : ''}`).join(' ');
+  const facts = [x.values ? `значений <b>${num(x.values)}</b>` : '', x.diffs ? `<span class="ir-diff-n">расхождений ${num(x.diffs)}</span>` : '',
+    x.photos.length ? `снимков <b>${num(x.photos.length)}</b>` : '', (x.voices || []).length ? `голосовых <b>${num(x.voices.length)}</b>` : ''].filter(Boolean).join(' · ');
+  return `<div class="ir-oistrip" role="group" aria-label="Осмотр ОИ">
+    <span class="ir-oistrip-h">Осмотр</span>${who || '<span class="ir-muted">не назначен</span>'} ${stagePill(x.stage)}
+    ${facts ? `<span class="ir-oistrip-f">${facts}</span>` : ''}
+    <a class="btn btn-ghost btn-sm ir-oistrip-go" href="#/oc/${esc(typeId)}/${esc(rec.id)}?tab=inspection" data-ir-goto="${esc(typeId)}|${esc(rec.id)}|${esc(oi.id)}">Результаты осмотра →</a></div>`;
+}
+document.addEventListener('click', (e) => {
+  const a = e.target.closest('[data-ir-goto]');
+  if (!a) return;
+  const [typeId, ocId, oiId] = a.dataset.irGoto.split('|');
+  focusInspectionOi(typeId, ocId, oiId);
+});
+
+setInspectionTab({ has, render, holder, stepNote, inspectors, oiStrip });

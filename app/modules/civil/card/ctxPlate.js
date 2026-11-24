@@ -3,6 +3,7 @@ import { recFlags } from '../records.js';
 import { fmtEni } from '../../../kernel/fmt.js';
 import { esc } from '../../../kernel/dom.js';
 import { bindOiStage, oiFlowHTML } from '../../../kernel/oiStage.js';
+import { inspectionOiStripHTML } from '../../../kernel/inspectionTab.js';
 import { cardMeta } from '../oi/registry.js';
 
 // Контекстная плашка над карточкой. Данные для чипов даёт метаданные
@@ -45,6 +46,7 @@ export function ctxPlate(ctx) {
           <button class="ctx-act" data-back title="Отмена — вернуться к объекту оценки">${ICON_BACK}</button>
         </span>
         ${oiFlowHTML(oi, ctx.ui)}
+        ${inspectionOiStripHTML(ctx.manifest.id, ctx.rec, oi)}
       </div>`;
   }
 

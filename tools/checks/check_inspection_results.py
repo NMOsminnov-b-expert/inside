@@ -79,10 +79,12 @@ def run(t):
     t.ck(pg.locator('.ir-foot [data-ir-accept-all]').is_visible(), 'подвал решений не на экране')
     pg.click('[data-ir-accept-all]')
     t.ck(t.wait_until("() => /Не приняты/.test((document.querySelector('.ir-msg') || {}).textContent || '')"), '«Принять осмотр» не назвал непринятые ОИ')
-    n0 = pg.locator('.ir-cmp tr.diff').count()
-    if t.ck(n0 > 0, 'у выбранного ОИ нет расхождения для «В карточку»'):
-        pg.locator('.ir-cmp tr.diff [data-ir-apply]').first.click()
-        t.ck(t.wait_until("([n]) => document.querySelectorAll('.ir-cmp tr.diff').length === n - 1", [n0]), '«В карточку» не сняло расхождение')
+    # «В карточку» — у расходящегося значения и у значения, которого в карточке нет (демо — поля осмотрщика, в карточке
+    # литеры их почти нет); после переноса у строки кнопки нет.
+    n0 = pg.locator('.ir-cmp [data-ir-apply]').count()
+    if t.ck(n0 > 0, 'у выбранного ОИ нет значений для «В карточку»'):
+        pg.locator('.ir-cmp [data-ir-apply]').first.click()
+        t.ck(t.wait_until("([n]) => document.querySelectorAll('.ir-cmp [data-ir-apply]').length === n - 1", [n0]), '«В карточку» не перенесло значение')
     pg.click('[data-ir-accept]')
     t.ck(t.wait_until("() => /принят/.test(document.querySelector('.ir-nav-tbl tr.on').textContent)"), 'ОИ не принят')
     pg.locator('[data-ir-sel]').nth(1).click()

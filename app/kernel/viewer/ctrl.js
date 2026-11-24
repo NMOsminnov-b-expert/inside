@@ -17,7 +17,7 @@ import { can } from './deps.js';
 import { showMenu } from './menu.js';
 import { showKeysHelp } from './keysHelp.js';
 import { bindTabs } from './tabs.js';
-import { docListFor, photoPages, pushDocPageLog, ensureDocPages, attachedFileFrom } from './deps.js';
+import { docListFor, photoPages, pushDocPageLog, ensureDocPages, attachedFileFrom, isInspCat } from './deps.js';
 
 // Поворот и зум — функции уровня модуля, а не замыкания внутри bindViewer: их
 // зовут и кнопки панели, и горячие клавиши (которые навешиваются однократно, см.
@@ -604,6 +604,8 @@ function bindViewerSurface(ctx) {
     const pages = photoPages(src);
     const cur = pages[Math.min(st ? st.page : 1, pages.length) - 1];
     if (!cur) return;
+    // Снимок осмотрщика (kernel/viewer/deps.js, isInspCat) не переносится: он принадлежит осмотру.
+    if (isInspCat(cur.cat)) { mv.value = ''; ctx.toast('Снимок с осмотра не переносится — он остаётся в результатах осмотра', 'warn'); return; }
 
     // Фото хранится счётчиком в категории: минус у источника, плюс у получателя.
     src.photos[cur.cat] = (src.photos[cur.cat] || 0) - 1;

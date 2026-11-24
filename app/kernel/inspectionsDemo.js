@@ -432,13 +432,13 @@ function demoTsResults(recs, partial, assignments, today) {
   const stamp = (d) => `${two(d.getDate())}.${two(d.getMonth() + 1)}.${d.getFullYear()} ${two(d.getHours())}:${two(d.getMinutes())}`;
   const has = (id) => recs.some((r) => r.typeId === 'vehicle' && r.ocId === id);
   if (has('oc-vehicle-d2')) {
-    const at = dayAt(today, 0, 10);
     out.push({
       typeId: 'vehicle', ocId: 'oc-vehicle-d2',
+      // Поля — как у осмотрщика ТС (pages/osmotr/params.js, vehicle): показания, руль, топливо, состояние, комментарий;
+      // госномер, VIN и адрес осмотрщик не вносит (пользователь 16 и 17.11.2026).
       assets: { ts: {
-        ts: { addr: 'г. Бишкек, ул. Демонстрационная, 7 (стоянка у склада)',
-          place: { lat: 42.8751, lon: 74.6049, acc: 9, at: at.toISOString() } },
-        f: { plate: '02KG201DEM', vin: 'XTC43118000000002', chassisNo: 'XTC43118000000002', mileage: '214000', engineHours: '6100' },
+        f: { mileage: '214000', 'mileage@unit': 'км', engineHours: '6100', wheel: 'Левый', fuel: 'Дизель', generalState: 'Условно пригодное' },
+        note: 'Стоит на стоянке у склада, течь масла из-под двигателя',
       } },
     });
   }
@@ -761,19 +761,22 @@ function demoAssignDetails(names, assignments, recs, profiles, today) {
 // остального демо — прежняя история не сдвигается. Данные вымышленные.
 //
 // ДЛЯ СЕРВЕРНОЙ ВЕРСИИ: демо-результатов нет — их вносит осмотрщик.
+// Значения осмотра в демо — ровно то, что заполняет осмотрщик (пользователь 23.11.2026: «демо данные должны
+// соответствовать тому, что РЕАЛЬНО заполняет осмотрщик!»): ключи, поля и значения из перечней схемы приложения
+// «Осмотр» (pages/osmotr/params.js; ядро её не импортирует — она у страниц, поэтому значения повторены здесь, сверка —
+// проверка check_demo_values_match_inspector). Тип ОИ осмотрщик не заполняет — он из состава объекта.
+const BUILDING_VALUES = { bathroom: ['Внутри', 'Снаружи'], electricity: 'Подведены', centralWater: 'Подведены', sewerage: 'Подведена центральная',
+  gasification: 'Проходят рядом', centralHeating: 'Автономное', note: 'Фасад требует покраски, кровля без видимых протечек' };
 const DEMO_VALUES = {
-  land: { location: 'На окраине населенного пункта', roadLocation: 'Вблизи междугородней трассы (до 300 м)', corner: 'Угловой',
-    encumbrance: 'Нет', form: 'Прямоугольная', relief: 'Ровный', electricity: 'Подведены', centralWater: 'Подведены',
-    gasification: 'Проходят рядом', improvementRank: 'Частично благоустроен', note: 'Участок огорожен, въезд с улицы, покрытие частично асфальт' },
-  apartment: { aptFloor: '4', aptBuildingFloors: '9', aptRooms: '3', aptSeries: 'Серия 97', aptLocation: 'Угловое',
-    electricity: 'Подведены', centralHeating: 'Подведены', bathroom: ['Внутри'], note: 'Окна заменены, в одной комнате следы протечки на потолке' },
-  building: { buildType: 'Отдельностоящее', floorsN: '2', electricity: 'Подведены', centralWater: 'Подведены',
-    sewerage: 'Подведены', gasification: 'Проходят рядом', centralHeating: 'Подведены', bathroom: ['Внутри', 'Снаружи'], note: 'Фасад требует покраски, кровля без видимых протечек' },
-  vehicle: { 'ts.addr': 'Во дворе объекта, у гаражей', 'f.plate': '01KG123DEM', 'f.mileage': '187400' },
-};
-const LIT_VALUES = {
-  civil: { litKind: 'Гражданская', purposeFact_civil: 'Административно-офисное', cap_civil_arch: 'Современная', cap_civil_constr: 'Капитальная' },
-  prod: { litKind: 'Производственно-складская', purposeFact_prod: 'Склад', cap_prod_crane: 'Нет' },
+  land: { landType: 'Несельскохозяйственный', locationFeatures: 'Угловой участок, въезд с двух улиц', form: 'Прямоугольная', relief: 'Ровный',
+    electricity: 'Подведены', centralWater: 'Подведены', sewerage: 'Септик', gasification: 'Проходят рядом', centralHeating: 'Автономное', railway: 'Нет',
+    improvementRank: 'Частично благоустроен', improvementNote: 'Асфальт у въезда, ограждение по периметру', note: 'Участок огорожен, въезд с улицы' },
+  apartment: { bathroom: ['Внутри'], electricity: 'Подведены', centralWater: 'Подведены', sewerage: 'Подведена центральная',
+    gasification: 'Отсутствуют в районе', centralHeating: 'Подведены', note: 'Окна заменены, в одной комнате следы протечки на потолке' },
+  building: BUILDING_VALUES,
+  aux: { ...BUILDING_VALUES, bathroom: ['Снаружи'], note: 'Хозяйственная постройка, кровля шиферная' },
+  vehicle: { 'f.mileage': '187400', 'f.mileage@unit': 'км', 'f.wheel': 'Левый', 'f.fuel': 'Дизель', 'f.generalState': 'Рабочее',
+    note: 'На ходу, следы коррозии на порогах' },
 };
 const PHOTO_CATS_DEMO = {
   building: ['Фасад', 'Внутр. помещения', 'Кровля'], land: ['Земельный участок'], apartment: ['Внутр. помещения', 'Фасад'],
@@ -804,13 +807,11 @@ function oiValues(oi, part = 1) {
   const base = oi.card === 'mech' ? {} : (DEMO_VALUES[oi.card] || {});
   const keys = Object.keys(base);
   keys.slice(0, Math.max(1, Math.round(keys.length * part))).forEach((k) => setPath(v, k, base[k]));
-  if (oi.card === 'building' && LIT_VALUES[oi.litKind]) Object.entries(LIT_VALUES[oi.litKind]).forEach(([k, x]) => { v[k] = x; });
   if (oi.card === 'mech') {
     oi.units.slice(0, Math.max(1, Math.round(oi.units.length * part))).forEach((u, i) => {
+      // Как отмечает осмотрщик по описи (pages/osmotr/osmotr.js, markSet): найдено, у второй единицы — «Нерабочее».
       setPath(v, `u.${u}.found`, 'Найдено');
-      setPath(v, `u.${u}.inv`, `ИНВ-00${i + 1}24`);
-      setPath(v, `u.${u}.serial`, `SN-DEMO-${4410 + i}`);
-      setPath(v, `u.${u}.state`, i ? 'Условно пригодное' : 'Рабочее');
+      if (i === 1) setPath(v, `u.${u}.state`, 'Нерабочее');
     });
   }
   return v;
@@ -938,7 +939,7 @@ function demoResultsTab(prev, recs, assignments, events, today, next, me, names)
 // Версия демо-результатов: сохранённое в браузере демо прежней версии
 // заменяется новым (kernel/inspectionResults.js, seedDemoResults); введённое
 // руками не трогается. Поднимать при изменении демо-результатов.
-const DEMO_RESULTS_VER = '2026-11-02-санузел';
+const DEMO_RESULTS_VER = '2026-11-23-поля-осмотрщика';
 
 // Объект среза ЦОД «Осмотр закончен — проверить» — «в боевом режиме»
 // (пользователь 02.11.2026: «Заполни детальными тестовыми данными. Снимками и
