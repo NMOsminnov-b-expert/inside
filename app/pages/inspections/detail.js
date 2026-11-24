@@ -17,7 +17,8 @@ import { build } from '../../kernel/router.js';
 import { plural } from '../../kernel/fmt.js';
 import { eventsOf, isLive, profileOf, whatsappLink, dayReport, reportTime, activitiesOn, activityKind, activityKinds, absenceKinds, absenceOn, absenceLabel } from '../../kernel/inspections.js';
 import { ENI_REGIONS } from '../../kernel/fmt.js';
-import { tripsOfDay, stateLabel, isOverdue, EVENT_LABELS, objectContents } from './model.js';
+import { tripsOfDay, stateLabel, isOverdue, EVENT_LABELS, objectContents, earlyDrift } from './model.js';
+import { earlyOf } from '../../kernel/earlyInspection.js';
 import { inventoryById, progressOf, partLabel } from '../../kernel/inventories.js';
 import { peekResults } from '../../kernel/inspectionResults.js';
 import { ownOis, mechProgress, oiLabel as taskOiLabel } from '../inspection/tasks.js';
@@ -102,6 +103,22 @@ function activitiesHTML(person, day) {
   };
 }
 
+// Досрочное направление (этап 1): кто и когда направил, какие ОИ, примечание; расхождение состава с назначением
+// (ЦОД меняет состав и после назначения — аудит 24.11.2026).
+function earlyHTML(a, c) {
+  const rec = c && c.rec;
+  const e = rec && earlyOf(rec);
+  if (!e || !a.early) return '';
+  const names = e.oiIds.length && c ? c.oi.filter((o) => e.oiIds.includes(o.id)).map((o) => o.label) : ['объект целиком'];
+  const d = earlyDrift(a.typeId, a.ocId);
+  return `<section class="ip-sec ip-early"><h3>Досрочно направлен</h3>
+      <div class="ip-dp-line"><span>Направил</span><span class="ip-dp-v">${esc(e.by || '—')}, ${esc(fmtDate(e.at))}</span></div>
+      ${e.note ? `<div class="ip-dp-line"><span>Примечание</span><span class="ip-dp-v">${esc(e.note)}</span></div>` : ''}
+      <div class="ip-dp-line"><span>ОИ</span><span class="ip-dp-v">${names.map(esc).join('; ')}</span></div>
+      ${d ? `<p class="ip-warn">ЦОД изменил состав${d.at ? ` ${esc(fmtDate(d.at))}` : ''}: ${d.added.length ? `добавлены — ${esc(d.addedNames.join('; '))} (не назначены)` : ''}${d.added.length && d.removed.length ? '; ' : ''}${d.removed.length ? `убраны — ${esc(d.removedNames.join('; '))} (ещё в назначении)` : ''}.</p>` : ''}
+    </section>`;
+}
+
 // Назначение — сводка: кто, когда, что, документы, события; правка — в
 // «Назначениях» (кнопка), здесь только чтение: панель помогает понять, а не
 // заменяет рабочее место.
@@ -118,6 +135,7 @@ function assignHTML(all, a, canBack) {
       ${a.note ? `<div class="ip-dp-line"><span>Комментарий</span><span class="ip-dp-v">${esc(a.note)}</span></div>` : ''}
     </section>
     <section class="ip-sec"><h3>Объекты имущества</h3>${oi.map((l) => `<p class="ip-line">${esc(l)}</p>`).join('')}</section>
+    ${earlyHTML(a, c)}
     ${(a.inventories || []).length ? `<section class="ip-sec"><h3>Описи</h3>${(a.inventories || []).map((id) => {
     const inv = inventoryById(id);
     const pr = progressOf(id);

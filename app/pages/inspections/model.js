@@ -8,10 +8,11 @@ import { eniRegion } from '../../kernel/fmt.js';
 import {
   allAssignments, assignmentsOf, isLive, isDefaultDoc, ASSIGN_STATES, eventsOf, regionsOf,
   workdayOf, absenceOn, profileOf, profileNames, absenceLabel, deadlineOf, stallOf,
-  dayReport, reportTime, activitiesOn, activityKind, planOf, allCadRequests,
+  dayReport, reportTime, activitiesOn, activityKind, planOf, allCadRequests, SENT_STATUS,
 } from '../../kernel/inspections.js';
-import { inspectorsInData, oiLabel, READY_STATUS, inQueueStatus, inQueue, isEarlySent, loadTask } from '../inspection/tasks.js';
+import { inspectorsInData, oiLabel, oiBrief, READY_STATUS, inQueueStatus, inQueue, isEarlySent, loadTask } from '../inspection/tasks.js';
 import { earlyOf } from '../../kernel/earlyInspection.js';
+import { statusSince } from '../../kernel/statusStamp.js';
 import { institutionChain } from '../../kernel/contacts.js';
 import { inventoriesForRecord, progressOf } from '../../kernel/inventories.js';
 import { hasResults } from '../../kernel/inspectionResults.js';
@@ -105,42 +106,7 @@ export const COVERAGE = [
   { key: 'inspected', label: 'Частично осмотрены' },
 ];
 
-// Очередь «К назначению» (ТЗ 3.2): объекты в статусе «Удостоверен по
-// документам» или уже «Направлен на осмотр» (назначена часть ОИ), у которых есть свободные ОИ. Фильтр f.cov — по покрытию.
-export function queueRows(all, f) {
-  const q = (f.q || '').trim().toLowerCase();
-  const out = [];
-  all.forEach((s) => {
-    if (!inQueue(s)) return;
-    if (f.type && s.typeId !== f.type) return;
-    if (f.region && regionOf(s) !== f.region) return;
-    if (q && !`${s.eniAll || s.eni} ${s.title} ${s.institution} ${s.city}`.toLowerCase().includes(q)) return;
-    const cov = coverageOf(s.typeId, s.id);
-    if (cov.state === 'full') return;
-    if (f.cov && cov.state !== f.cov) return;
-    // Осмотр начат и снят (переназначение — «Передать новому», ответ
-    // пользователя 30.10.2026): введённое ждёт нового осмотрщика.
-    out.push({ ...s, cov, partial: hasResults(s.typeId, s.id) });
-  });
-  return out.sort((a, b) => String(b.updatedAt).localeCompare(String(a.updatedAt)));
-}
 
-// Значения фильтров — из самих данных, а не перечнем в коде (правило
-// «не подгонять под нынешние данные»).
-export function queueFacets(all) {
-  const types = new Map();
-  const regions = new Map();
-  all.forEach((s) => {
-    if (!inQueue(s)) return;
-    types.set(s.typeId, s.typeLabel);
-    const r = regionOf(s);
-    if (r) regions.set(r, (regions.get(r) || 0) + 1);
-  });
-  return {
-    types: [...types.entries()].map(([id, label]) => ({ id, label })),
-    regions: [...regions.keys()].sort((a, b) => a.localeCompare(b, 'ru')),
-  };
-}
 
 // --- «Назначено» -----------------------------------------------------------------
 
@@ -218,7 +184,11 @@ export function objectContents(typeId, ocId) {
   return {
     rec,
     // card — вид ОИ: у ТС в назначении есть «Передать другому осмотрщику».
-    oi: (rec.oi || []).map((o) => ({ id: o.id, label: oiLabel(o), card: o.card || '' })),
+    // brief — опознавательные сведения ОИ (ЕНИ, этажность, площадь, год, госномер…; аудит 24.11.2026).
+    // early — ОИ, направленные досрочно (пометка в списке; назначать можно и остальные — ответ пользователя 24.11.2026
+    // «Может»).
+    oi: (rec.oi || []).map((o) => ({ id: o.id, label: oiLabel(o), card: o.card || '', brief: oiBrief(o),
+      early: !!(earlyOf(rec) && earlyOf(rec).state === 'sent' && earlyOf(rec).oiIds.includes(o.id)) })),
     groups,
     // Описи — из базы описей учреждения записи (этап Б2; kernel/inventories.js),
     // а не документы карточки: отметки позиций живут у описи, счёт общий.
@@ -250,27 +220,14 @@ function workdays(from, count, dir) {
   return dir < 0 ? out.reverse() : out;
 }
 
-const oiCount = (a) => (a.oiIds && a.oiIds.length) || 1;
 
 
 
-// Итог за период: ОИ, объекты, снимки, заметки, расхождения, выявленное.
-export function periodTotals(person, sinceDay) {
-  const t = { oi: 0, objects: new Set(), photos: 0, notes: 0, mismatch: 0, found: 0 };
-  eventsOf({ person }).forEach((e) => {
-    if (dayOf(e.at) < sinceDay) return;
-    if (e.kind === 'done') { const a = allAssignments().find((x) => x.id === e.assignId); t.oi += a ? oiCount(a) : 1; t.objects.add(e.typeId + '|' + e.ocId); }
-    if (e.kind === 'photos') t.photos += e.count || 0;
-    if (e.kind === 'note') t.notes += 1;
-    if (e.kind === 'mismatch') t.mismatch += 1;
-    if (e.kind === 'found') t.found += 1;
-  });
-  return { ...t, objects: t.objects.size };
-}
 
 
 export const EVENT_LABELS = {
   assigned: 'назначен на осмотр', updated: 'назначение изменено', progress: 'начал осмотр',
+  earlySent: 'досрочно направил на осмотр', earlyEdited: 'изменил досрочное направление', earlyCancelled: 'отозвал досрочное направление',
   done: 'закончил осмотр', removed: 'назначение снято', restored: 'снятие назначения отменено', moved: 'перенесена дата',
   photos: 'загрузил снимки', note: 'внёс заметку', mismatch: 'отметил расхождение', found: 'отметил выявленное',
   transferred: 'ОИ передан другому осмотрщику', received: 'ОИ передан от другого осмотрщика',
@@ -281,12 +238,52 @@ export const EVENT_LABELS = {
   outcome: 'осмотр не состоялся',
   // Перенос выезда осмотрщиком с подтверждением регионала (решение 06.11.2026).
   moveRequested: 'запросил перенос выезда', moveAllowed: 'перенос разрешён', moveRefused: 'перенос отклонён',
+  // День осмотрщика в приложении «Осмотр» (аудит 24.11.2026: в «Журнале» выводились ключом и не отбирались).
+  skipped: 'снял с дня', unskipped: 'вернул на день', taken: 'взял не по плану', carried: 'остаток перенесён',
 };
 
 // История: события новыми сверху; фильтр — осмотрщик, вид, день, поиск.
+// Досрочное направление (этап 1, kernel/earlyInspection.js): ЦОД может менять состав ОИ и после назначения —
+// added — ОИ направления, не вошедшие в назначения; removed — ОИ в досрочных назначениях, которых в направлении
+// больше нет (аудит 24.11.2026: регионал этого не видел). null — расхождения нет.
+export function earlyDrift(typeId, ocId) {
+  const t = getType(typeId);
+  const rec = t && t.records.loadRecord(ocId);
+  const e = rec && earlyOf(rec);
+  if (!e || e.state !== 'sent') return null;
+  const live = assignmentsOf(typeId, ocId).filter((a) => a.early && isLive(a));
+  if (!live.length) return null;
+  const all = (rec.oi || []).map((o) => o.id);
+  const scope = new Set(e.oiIds.length ? e.oiIds : all);
+  const covered = new Set(live.some((a) => !(a.oiIds || []).length) ? all : live.flatMap((a) => a.oiIds || []));
+  const added = [...scope].filter((id) => !covered.has(id));
+  const removed = [...covered].filter((id) => !scope.has(id));
+  if (!added.length && !removed.length) return null;
+  const name = (id) => { const o = (rec.oi || []).find((x) => x.id === id); return o ? oiLabel(o) : id; };
+  return { added, removed, addedNames: added.map(name), removedNames: removed.map(name), at: ((e.log || []).filter((x) => x.kind === 'edited').pop() || {}).at || '' };
+}
+
+// События досрочного направления (направлено, изменено, отозвано) — в «Журнал» вместе с событиями назначений:
+// журнал записи (rec.early.log и прежние rec.earlyLog), автор — сотрудник ЦОД.
+const EARLY_KINDS = { sent: 'earlySent', edited: 'earlyEdited', cancelled: 'earlyCancelled' };
+function earlyEvents(all) {
+  const out = [];
+  all.forEach((s) => {
+    const fl = s.flags || {};
+    if (!fl.earlySent && !fl.earlyCancelledAt) return;
+    const t = getType(s.typeId);
+    const rec = t && t.records.loadRecord(s.id);
+    if (!rec) return;
+    [...(rec.earlyLog || []), ...((rec.early && rec.early.log) || [])].forEach((x) => {
+      if (EARLY_KINDS[x.kind]) out.push({ kind: EARLY_KINDS[x.kind], at: x.at, person: x.by || 'ЦОД', who: x.by || '', typeId: s.typeId, ocId: s.id, assignId: '', text: x.text || '' });
+    });
+  });
+  return out;
+}
+
 export function historyRows(all, f) {
   const q = (f.q || '').trim().toLowerCase();
-  return eventsOf({ person: f.person || '' })
+  return [...eventsOf({ person: f.person || '' }), ...(f.person ? [] : earlyEvents(all))]
     .filter((e) => (!f.kind || e.kind === f.kind) && (!f.day || dayOf(e.at) === f.day))
     .map((e) => ({ e, s: all.get(e.typeId + '|' + e.ocId) }))
     .filter(({ e, s }) => s && (!q || `${s.eniAll || s.eni} ${s.title} ${e.person} ${e.text || ''}`.toLowerCase().includes(q)))
@@ -446,6 +443,14 @@ export function dueOf(date) {
 }
 
 // Строки очереди с местом, сроком и покрытием — до фильтров (для счётчиков).
+// Когда объект направлен на осмотр: досрочно — дата направления; обычный — когда стал «Удостоверен по документам»
+// (с него объект в очереди) или «Направлен на осмотр» (kernel/statusStamp.js). У засева времени смены нет — ''.
+function sentAtOf(s) {
+  const rec = loadTask(s.typeId, s.id);
+  const e = rec && earlyOf(rec);
+  if (e && e.state === 'sent' && e.at) return String(e.at).slice(0, 10);
+  return String(statusSince(rec, READY_STATUS) || statusSince(rec, SENT_STATUS) || '').slice(0, 10);
+}
 export function queueBase(all) {
   const out = [];
   all.forEach((s) => {
@@ -453,7 +458,9 @@ export function queueBase(all) {
     const cov = coverageOf(s.typeId, s.id);
     if (cov.state === 'full') return;
     const deadline = deadlineOf(s.typeId, s.id);
-    out.push({ ...s, cov, deadline, due: dueOf(deadline), place: placeOf(s), early: isEarlySent(s) });
+    // partial — осмотр начат и снят (переназначение — «Передать новому», ответ пользователя 30.10.2026): введённое ждёт
+    // нового осмотрщика; метка «осмотр начат ранее» (до 24.11.2026 метку ставила только неиспользуемая queueRows).
+    out.push({ ...s, cov, deadline, due: dueOf(deadline), place: placeOf(s), early: isEarlySent(s), sentAt: sentAtOf(s), partial: hasResults(s.typeId, s.id) });
   });
   return out;
 }
@@ -491,6 +498,9 @@ const EARLY_ORDER = [{ key: 'early', label: 'Досрочно' }, { key: 'usual'
 export const QUEUE_FACETS = [
   { key: 'early', title: 'Направление', val: (s) => (s.early ? 'early' : 'usual'), order: EARLY_ORDER },
   { key: 'due', title: 'Срок', val: (s) => s.due, order: DUE },
+  // Статус карточки — отбор по признакам вместо приоритета досрочных (ответ пользователя 24.11.2026: «фильтр
+  // сделать по признакам. По статусам например»).
+  { key: 'status', title: 'Статус ОЦ', val: (s) => s.status || '' },
   { key: 'cov', title: 'Покрытие ОИ', val: (s) => s.cov.state, order: COVERAGE.filter((c) => c.key) },
   { key: 'region', title: 'Область', val: (s) => regionOf(s) },
   { key: 'district', title: 'Район', val: districtOf },
@@ -512,6 +522,7 @@ function queueKitOf(s) {
 }
 export const QUEUE_RANGES = [
   { key: 'deadline', title: 'Срок осмотра', kind: 'date', val: (s) => s.deadline },
+  { key: 'sent', title: 'Направлен на осмотр', kind: 'date', val: (s) => s.sentAt },
   { key: 'area', title: 'Площадь, м²', kind: 'number', val: (s) => (s.metrics && s.metrics.area) || 0 },
   { key: 'free', title: 'Свободных ОИ', kind: 'number', val: (s) => s.cov.free },
 ];
@@ -578,9 +589,13 @@ export function applyFilter(rows, facets, ranges, f, text, skip = '') {
     })
     && (!q || textOf(r).toLowerCase().includes(q)));
 }
+// Строка поиска списка: ЕНИ (и одними цифрами), адрес, учреждение, город, состав (литеры и ОИ — у ТС в названии
+// марка и госномер; у отдельной карточки ТС — госномер и VIN в сводке), у назначения — осмотрщик (аудит 24.11.2026:
+// подсказка обещала меньше, чем искалось, а госномер не находился).
 function textOf(r) {
   const s = r.s || r;
-  return `${s.eniAll || s.eni} ${s.title} ${s.institution} ${s.city || ''} ${r.a ? r.a.person : ''}`;
+  const eni = `${s.eniAll || s.eni || ''}`;
+  return `${eni} ${eni.replace(/\D/g, '')} ${s.title} ${s.institution} ${s.city || ''} ${s.search || ''} ${r.a ? r.a.person : ''}`;
 }
 
 // Значения фасетов со счётчиками: [{ key, title, items: [[значение, подпись, число]] }].
@@ -622,34 +637,7 @@ export function filterChips(f, facets, ranges, labelOf) {
   return out;
 }
 
-// Фильтры очереди: f.q, f.due, f.cov, f.region, f.type, f.inst. skip — какой
-// фильтр не применять (счётчик фасета считается без самого фасета).
-export function queueFilter(rows, f, skip = '') {
-  const q = (f.q || '').trim().toLowerCase();
-  return rows.filter((s) => (skip === 'due' || !f.due || s.due === f.due)
-    && (skip === 'cov' || !f.cov || s.cov.state === f.cov)
-    && (skip === 'region' || !f.region || regionOf(s) === f.region)
-    && (skip === 'type' || !f.type || s.typeId === f.type)
-    && (skip === 'inst' || !f.inst || s.institution === f.inst)
-    && (!q || `${s.eniAll || s.eni} ${s.title} ${s.institution} ${s.city}`.toLowerCase().includes(q)));
-}
 
-// Счётчики фасетов — значения из данных.
-export function queueCounts(rows, f) {
-  const count = (key, valOf) => {
-    const m = new Map();
-    queueFilter(rows, f, key).forEach((s) => { const v = valOf(s); if (v) m.set(v, (m.get(v) || 0) + 1); });
-    return m;
-  };
-  return {
-    due: count('due', (s) => s.due),
-    cov: count('cov', (s) => s.cov.state),
-    region: count('region', (s) => regionOf(s)),
-    type: count('type', (s) => s.typeId),
-    typeLabel: new Map(rows.map((s) => [s.typeId, s.typeLabel])),
-    inst: count('inst', (s) => s.institution),
-  };
-}
 
 // Группы «выезд по месту»: горящие сверху (ближайший срок), затем по числу
 // свободных ОИ. Внутри — по сроку.
@@ -713,15 +701,6 @@ export function onSiteContacts(typeId, ocId) {
   return [...own, ...chain].filter((c) => c && (c.name || c.phone));
 }
 
-// Быстрые отборы «Назначено».
-export const ASSIGNED_PICKS = [
-  { key: '', label: 'Все' },
-  { key: 'late', label: 'Просрочено' },
-  { key: 'stall', label: 'Зависли' },
-  { key: 'today', label: 'Сегодня' },
-  { key: 'week', label: 'На неделе' },
-  { key: 'away', label: 'План на отсутствие' },
-];
 export function assignedPickOf(a) {
   const out = new Set();
   const today = todayIso();

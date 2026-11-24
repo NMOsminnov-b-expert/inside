@@ -11,7 +11,7 @@
 body[data-page="dicts"] .dc{display:flex;height:100%;overflow:hidden;background:var(--bg)}
 
 /* ============ список слева ============ */
-body[data-page="dicts"] .dc-list{width:328px;flex:0 0 328px;display:flex;flex-direction:column;
+body[data-page="dicts"] .dc-list{width:var(--dc-list-w,328px);flex:0 0 var(--dc-list-w,328px);display:flex;flex-direction:column;
   border-right:1.5px solid var(--line);background:var(--panel)}
 
 body[data-page="dicts"] .dc-list-head{padding:12px;display:flex;flex-direction:column;gap:9px;
@@ -348,7 +348,7 @@ body[data-page="dicts"] .muted{color:var(--muted)}
 
 /* Узкое окно: список сжимается, но остаётся — без него не переключиться. */
 @media (max-width: 1180px) {
-  body[data-page="dicts"] .dc-list{width:250px;flex-basis:250px}
+  body[data-page="dicts"] .dc-list{width:var(--dc-list-w,250px);flex-basis:var(--dc-list-w,250px)}
   body[data-page="dicts"] .dc-item-q{width:140px}
   body[data-page="dicts"] .dc-metrics{width:100%}
 }

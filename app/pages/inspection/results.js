@@ -41,6 +41,7 @@ import { completeRichDemo } from '../../kernel/inspectionsDemo.js';
 import { sections, setNetsRec } from './form.js';
 import { pwaSections } from '../osmotr/params.js';
 import { oiLabel, ownOis, mechProgress, oiBrief, objBrief } from './tasks.js';
+import { setRecStatus } from '../../kernel/statusStamp.js';
 
 ensureStyle('./app/pages/inspection/results.css');
 
@@ -448,7 +449,7 @@ function acceptAll(c) {
   const at = STATUS_MAIN.indexOf(c.rec.status);
   const to = STATUS_MAIN.indexOf(DONE_STATUS);
   if (at >= to) return say(c.v, `Все ОИ приняты. Статус уже «${c.rec.status}» — дальше по шкале, менять не нужно.`, 'ok');
-  c.rec.status = DONE_STATUS;
+  setRecStatus(c.rec, DONE_STATUS);
   c.rec.updatedAt = localIso();
   scheduleSave();
   logEvent('inspection-accepted', null, { typeId: c.typeId, ocId: c.rec.id });

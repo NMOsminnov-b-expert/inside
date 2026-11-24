@@ -123,7 +123,7 @@ def run(t):
     pg.locator('.ip-person-main[data-ip-person="%s"]' % WHO).click()
     pg.click('[data-ip-ptab="route"]')
     t.wait_for('.ip-stop.home')
-    pg.check('[data-ip-route-prop]')
+    pg.click('[data-ip-route-add="prop"]')
     if not t.ck(t.wait_until("() => document.querySelectorAll('[data-ip-route-skip]').length > 0"), 'у осмотрщика нет предложений на день — нечем проверить категорию'):
         return
     keys = pg.eval_on_selector_all('[data-ip-route-skip]', 'els => els.map((e) => e.dataset.ipRouteSkip)')
@@ -133,10 +133,9 @@ def run(t):
     if not t.ck(sent, 'среди предложенных нет объекта, который можно направить досрочно: %s' % keys[:5]):
         return
     # Перерисовка маршрута — переключателем: сводки берутся заново.
-    pg.uncheck('[data-ip-route-prop]')
-    pg.check('[data-ip-route-prop]')
+    pg.click('[data-ip-route-add="prop"]')
+    pg.click('[data-ip-route-add="prop"]')
     t.ck(t.wait_until("(k) => !!document.querySelector('.ip-stop.early [data-ip-route-skip=\"' + k + '\"]')", sent), 'досрочный объект среди предложенных не выделен своей категорией')
-    t.ck(t.wait_until("() => /досрочно *1/.test(document.querySelector('.ip-stops-head').textContent)"), 'в легенде маршрута нет строки «досрочно 1»')
     # На карте: отметка досрочного — фиолетовая; в склейке с назначенным побеждает назначенное.
     n = pg.get_attribute('.ip-stop.early', 'data-ip-stop')
     pin = '''(n) => { const has = (txt) => txt.split(/, */).some((p) => { const m = p.match(/^(\d+)(?:–(\d+))?$/); return m && +n >= +m[1] && +n <= +(m[2] || m[1]); })

@@ -329,6 +329,7 @@ function eventText(e) {
   if (e.kind === 'photos') return `${base}: ${e.count}`;
   // Приёмка ЦОД (вкладка «Результаты осмотра»): причина возврата, принятый ОИ,
   // перенесённое в карточку значение — словами из события.
+  if (e.kind === 'earlySent' || e.kind === 'earlyEdited') return `${base}${e.text ? `: ${e.text}` : ''}`;
   if (e.kind === 'note' || e.kind === 'found' || e.kind === 'returned' || e.kind === 'accepted' || e.kind === 'applied' || e.kind === 'outcome') return `${base}: ${e.text || ''}`;
   if (e.kind === 'mismatch') return `${base}: ${e.field || ''}`;
   // Перенос, изменение, переназначение, снятие — «было → стало» словами события.
@@ -336,6 +337,9 @@ function eventText(e) {
 }
 
 // История — по дням, новые сверху; строка выбирает назначение в панели.
+// Строка журнала открывает назначение; событие досрочного направления (без назначения) — объект.
+const rowKey = (e) => e.assignId || `${e.typeId}|${e.ocId}`;
+
 export function historyHTML(all, f, current, limit) {
   const rows = historyRows(all, f);
   if (!rows.length) {
@@ -347,7 +351,7 @@ export function historyHTML(all, f, current, limit) {
   const html = `<div class="icols ip-cols"><div class="ip-scroll ipc-hist">
     ${[...groups.entries()].map(([day, list]) => `<section class="ipc-day">
       <h3 class="ipc-day-h">${esc(dayTitle(day))} <span>${list.length}</span></h3>
-      <ul>${list.map(({ e, s }) => `<li class="ipc-ev ${current === e.assignId ? 'cur' : ''}" data-ip-row="${esc(e.assignId)}">
+      <ul>${list.map(({ e, s }) => `<li class="ipc-ev ${current === rowKey(e) ? 'cur' : ''}" data-ip-row="${esc(rowKey(e))}">
         <time datetime="${esc(e.at)}" title="${esc(new Date(e.at).toLocaleString('ru-RU'))}">${fmtTime(e.at)}</time>
         <span class="ipc-ev-who">${esc(e.person)}</span>
         <span class="ipc-ev-what k-${esc(e.kind)}">${esc(eventText(e))}${e.who && e.who !== e.person ? `<i class="ipc-ev-by" title="Кто сделал"> · ${esc(e.who)}</i>` : ''}</span>

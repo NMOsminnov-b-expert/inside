@@ -16,6 +16,7 @@ import { bulkSummaries, bulkCount, setBulkCount, isBulkId, materialize } from '.
 import { buildBulkRecord } from './data/bulkRecord.js';
 import { partyName } from './card/parties.view.js';
 import { earlyFlags } from '../../kernel/earlyInspection.js';
+import { setRecStatus } from '../../kernel/statusStamp.js';
 
 function areaOf(rec) {
     // У участкового ОЦ считаем площадь земли, а не строений.
@@ -359,7 +360,7 @@ export function createRecord() {
 export function setStatus(id, status) {
   const rec = loadRecord(id);
   if (!rec) return null;
-  rec.status = status;
+  setRecStatus(rec, status);
   rec.updatedAt = localIso();
   return rec;
 }

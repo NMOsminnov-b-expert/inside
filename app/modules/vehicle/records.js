@@ -6,6 +6,7 @@ import { registerPersisted, copyTag } from '../../kernel/persist.js';
 import { localIso } from '../../kernel/fmt.js';
 import { createSeed } from './data/seed.js';
 import { earlyFlags } from '../../kernel/earlyInspection.js';
+import { setRecStatus } from '../../kernel/statusStamp.js';
 
 // Демо-записи для осмотра ТС (data/seed.js) — исходные данные; правки
 // пользователя ложатся поверх них сохранением, как у остальных типов ОЦ.
@@ -140,7 +141,7 @@ export function createRecord() {
   return rec;
 }
 
-export function setStatus(id, status) { const rec = loadRecord(id); if (rec) rec.status = status; return rec; }
+export function setStatus(id, status) { const rec = loadRecord(id); if (rec) setRecStatus(rec, status); return rec; }
 export function assignResponsible(id, role, person) { const rec = loadRecord(id); if (rec) rec.resp[role] = person; return rec; }
 export function setInstitution(id, { institution = '', podved = '', nodeId = '' } = {}) { const rec = loadRecord(id); if (rec) Object.assign(rec, { institution, podved, institutionId: nodeId }); return rec; }
 export function takeRecord(id) { const i = records.findIndex((rec) => rec.id === id); return i < 0 ? null : records.splice(i, 1)[0]; }

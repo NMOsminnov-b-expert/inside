@@ -7,6 +7,7 @@ import {
   mechUnits, createMechOi, syncMechName, totalQty, totalCost, hasCost, unitClassPath, migrateMechHolder, mechListLabel,
 } from './form/model.js';
 import { createSeed } from './data/seed.js';
+import { setRecStatus } from '../../kernel/statusStamp.js';
 
 // Записи ОЦ «Механизмы и оборудование». Устроены как у ОЦ «Транспортные
 // средства» (ответ пользователя 28.09.2026): стороны у самой записи, перечень
@@ -161,7 +162,7 @@ export function createRecord() {
   return rec;
 }
 
-export function setStatus(id, status) { const rec = loadRecord(id); if (rec) rec.status = status; return rec; }
+export function setStatus(id, status) { const rec = loadRecord(id); if (rec) setRecStatus(rec, status); return rec; }
 export function assignResponsible(id, role, person) { const rec = loadRecord(id); if (rec) rec.resp[role] = person; return rec; }
 export function setInstitution(id, { institution = '', podved = '', nodeId = '' } = {}) { const rec = loadRecord(id); if (rec) Object.assign(rec, { institution, podved, institutionId: nodeId }); return rec; }
 export function takeRecord(id) { const i = records.findIndex((rec) => rec.id === id); return i < 0 ? null : records.splice(i, 1)[0]; }

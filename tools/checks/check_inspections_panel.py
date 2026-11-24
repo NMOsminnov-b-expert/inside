@@ -147,10 +147,13 @@ def run(t):
     pg.locator('[data-ip-row="%s"] td:nth-child(2)' % mine).click()
     t.wait_for('tr.cur[data-ip-row="%s"]' % mine)
     t.ck(pg.input_value('[data-ip-f-person]') == person, 'панель назначения не показала действующее назначение')
+    # Одиночное «Снять назначение» — тоже сразу, с «Отменить» (аудит экрана регионала 24.11.2026).
     pg.click('[data-ip-remove]')
-    t.wait_for('[data-ip-remove-yes]')
-    t.ck(pg.locator('.modal-back').count() == 0, 'подтверждение снятия — модальным окном')
-    pg.click('[data-ip-remove-yes]')
+    t.ck(t.wait_until("() => document.querySelector('.toast.has-act .toast-act')"), 'после снятия назначения нет «Отменить»')
+    t.ck(pg.evaluate("async (k) => ((await import('./app/kernel/inspections.js')).assignmentById(k) || {}).state", mine) == 'removed', '«Снять назначение» не сняло сразу')
+    pg.click('.toast.has-act .toast-act')
+    t.ck(t.wait_until("async (k) => ((await import('./app/kernel/inspections.js')).assignmentById(k) || {}).state !== 'removed'", mine), '«Отменить» не вернуло снятое назначение')
+    pg.evaluate("async (k) => (await import('./app/kernel/inspections.js')).unassignMany([k])", mine)
     pg.click('[data-ip-section="assign"]'); pg.click('[data-ip-team="queue"]')
     t.ck(t.wait_for('[data-ip-row="%s"]' % key), 'снятое назначение не вернуло объект в «К назначению»')
 

@@ -129,6 +129,18 @@ input,select,textarea{font:inherit;color:inherit}
 /* Цель переноса подсвечивается по левому краю — столбец встанет ПЕРЕД ней. */
 [data-col].col-drop{box-shadow:inset 2px 0 0 var(--blue-600)}
 .col-resizing{cursor:col-resize;user-select:none}
+/* Ручка ширины боковой панели (kernel/sideResize.js; правило «боковые панели расширяются и сжимаются», 24.11.2026):
+   полоса у внутреннего края, внутри панели — панели обрезают свисающее (overflow:hidden). */
+.side-resizable{position:relative}
+.side-grip{position:absolute;top:0;bottom:0;width:8px;cursor:col-resize;z-index:6;touch-action:none}
+.side-grip-right{right:0}
+.side-grip-left{left:0}
+.side-grip::after{content:"";position:absolute;top:calc(50% - 16px);height:32px;width:3px;border-radius:2px;background:var(--line);transition:background .12s,top .12s,height .12s}
+.side-grip-right::after{right:2px}
+.side-grip-left::after{left:2px}
+.side-grip:hover::after,.side-grip:focus-visible::after{top:0;height:100%;background:var(--blue-600)}
+.side-grip:focus-visible{outline:none}
+@media (prefers-reduced-motion:reduce){.side-grip::after{transition:none}}
 .col-label{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 
 /* Меню состава и порядка столбцов.

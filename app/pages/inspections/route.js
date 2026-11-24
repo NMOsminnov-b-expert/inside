@@ -399,6 +399,9 @@ export function recommendAssign(all, people, targets, date = '', { days = 10 } =
   const insts = new Set(targets.map((t) => (all.get(t.typeId + '|' + t.ocId) || {}).institution).filter(Boolean));
   const deadline = targets.map((t) => deadlineOf(t.typeId, t.ocId)).filter(Boolean).sort()[0] || '';
   const today = isoOf(new Date());
+  // Области объектов — для доводов «другая область» и «командировка: …» (были в подборе до 52c011ab, возвращены
+  // 24.11.2026: регионал видит словами, почему человек дальше).
+  const regions = new Set(targets.map((t) => all.get(t.typeId + '|' + t.ocId)).filter(Boolean).map(regionOf).filter(Boolean));
   return people.filter((p) => !p.fired).map((p) => {
     const window = [];
     for (const d = new Date(today + 'T00:00:00'); window.length < days; d.setDate(d.getDate() + 1)) {
@@ -436,6 +439,14 @@ export function recommendAssign(all, people, targets, date = '', { days = 10 } =
     else if (best) reasons.push({ ok: true, text: `${date ? 'в этот день' : ddmm(best.day)} · +${best.add} мин дороги` });
     else reasons.push({ ok: false, text: date ? 'в этот день не помещается' : 'не помещается', tip: date ? '' : `в ближайшие ${window.length} раб. дн. не помещается` });
     if (km !== null) reasons.push({ ok: km <= 45, text: `от дома ${km} км` });
+    // Область: командировка туда на выбранный день — плюс; область профиля не та — «другая область».
+    const tripHere = date && activitiesOn(p.name, date).some((a) => a.kind === 'trip' && regions.has(a.region));
+    const regionOk = !regions.size || !(p.regions || []).length || [...regions].some((r) => p.regions.includes(r));
+    if (tripHere) reasons.push({ ok: true, text: `командировка: ${[...regions].join(', ')}` });
+    else if (!regionOk) reasons.push({ ok: false, text: 'другая область', tip: `области осмотрщика: ${p.regions.join(', ')}` });
+    // Уже назначено на этот день — сколько.
+    const sameDay = date ? mine.filter((a) => isLive(a) && a.plannedAt === date).length : 0;
+    if (sameDay) reasons.push({ ok: true, text: `уже ${sameDay} на ${ddmm(date)}` });
     if (deadline && deadline < today) reasons.push({ ok: false, text: `срок ${ddmm(deadline)} прошёл` });
     // «Не успевает к сроку» при «не помещается» — повтор: не пишется.
     else if (deadline && best) reasons.push({ ok: best.meets, text: best.meets ? `успевает к ${ddmm(deadline)}` : `не успевает к ${ddmm(deadline)}` });

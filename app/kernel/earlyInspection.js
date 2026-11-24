@@ -27,7 +27,12 @@ const ROLES = new Set(['any', 'cod', 'rm', 'admin']);
 export const earlyOf = (rec) => (rec && rec.early && EARLY_STATES[rec.early.state] ? rec.early : null);
 export const earlyLabel = (rec) => { const e = earlyOf(rec); return e ? EARLY_STATES[e.state].label : ''; };
 // Признаки для значков и фасета реестра (kernel/flagBadges.js; модули кладут их в flags сводки).
-export const earlyFlags = (rec) => { const e = earlyOf(rec); return { earlySent: !!e && e.state === 'sent', earlyDone: !!e && e.state === 'done' }; };
+// earlyCancelledAt — когда направление последний раз отозвали: уведомление регионалу (аудит 24.11.2026).
+export const earlyFlags = (rec) => {
+  const e = earlyOf(rec);
+  const off = [...((rec && rec.earlyLog) || [])].reverse().find((x) => x.kind === 'cancelled');
+  return { earlySent: !!e && e.state === 'sent', earlyDone: !!e && e.state === 'done', earlyCancelledAt: !e && off ? off.at : '' };
+};
 
 export const earlyAllowedType = (typeId) => !NO_EARLY.has(typeId);
 export const canManageEarly = () => ROLES.has(session.state.role);

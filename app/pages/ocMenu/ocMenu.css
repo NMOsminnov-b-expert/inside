@@ -34,7 +34,7 @@ body[data-page="oc-menu"] .reg-locator-clear:hover{background:var(--blue-50);col
 body[data-page="oc-menu"] .reg-locator-clear.hidden{display:none}
 
 /* --- фасеты: сворачиваемая панель, по аналогии с ящиком заметок в карточке --- */
-body[data-page="oc-menu"] .reg-facets-wrap{flex-shrink:0;width:238px;overflow:hidden;transition:width .18s ease}
+body[data-page="oc-menu"] .reg-facets-wrap{flex-shrink:0;width:var(--facets-w,238px);overflow:hidden;transition:width .18s ease}
 body[data-page="oc-menu"] .reg-facets-wrap.closed{width:0}
 body[data-page="oc-menu"] .reg-facets{width:238px;height:100%;overflow:auto;background:#fff;border:1.5px solid var(--line);border-radius:9px;box-shadow:var(--shadow);padding:8px 10px}
 body[data-page="oc-menu"] .reg-facets-head{display:flex;align-items:center;gap:8px;padding-bottom:7px;border-bottom:1px solid var(--line-soft);margin-bottom:4px}
@@ -116,7 +116,9 @@ body[data-page="oc-menu"] .reg-empty b,body[data-page="oc-menu"] .reg-toobig b{c
 body[data-page="oc-menu"] .reg-empty span,body[data-page="oc-menu"] .reg-toobig span{font-size:12px;max-width:460px}
 
 /* --- превью --- */
-body[data-page="oc-menu"] .reg-preview{width:322px;flex-shrink:0;overflow:auto;background:#fff;border:1.5px solid var(--line);border-left:4px solid var(--blue-600);border-radius:9px;box-shadow:var(--shadow);padding:11px 13px}
+body[data-page="oc-menu"] .reg-preview{width:var(--preview-w,322px);flex-shrink:0;overflow:hidden;display:flex;flex-direction:column;background:#fff;border:1.5px solid var(--line);border-left:4px solid var(--blue-600);border-radius:9px;box-shadow:var(--shadow)}
+/* Прокрутка превью — во внутреннем слое: ручка ширины на краю не уезжает с прокруткой. */
+body[data-page="oc-menu"] .reg-preview-in{flex:1 1 auto;min-height:0;overflow:auto;padding:11px 13px}
 body[data-page="oc-menu"] .reg-preview.hidden{display:none}
 body[data-page="oc-menu"] .reg-peek-h{display:flex;align-items:center;gap:7px}
 body[data-page="oc-menu"] .reg-peek-h b{font-size:13px;color:var(--blue-700);flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}

@@ -44,6 +44,7 @@ import { buildCube, summarize as parcelSum, parcelsHTML } from './parcels.js';
 import { dossierHTML, patchesOf, pickPatches, dossierSheets, terrainOf } from './dossier.js';
 import { downloadXlsx } from '../../kernel/xlsx.js';
 import { go } from '../../kernel/router.js';
+import { sideResize } from '../../kernel/sideResize.js';
 
 const SEARCH_ICON = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>';
 // Типы ОЦ с участком (у ТС и механизмов земли нет).
@@ -1027,6 +1028,13 @@ export function mountAnalytics(host) {
       <button type="button" class="an-dfab" data-ad-unfold hidden aria-label="Развернуть досье" title="Развернуть досье"><span aria-hidden="true">‹</span> Досье: <b></b></button>
       ${legendHTML()}
     </div>`);
+  // Ширина списка аймаков — за край (правило «боковые панели расширяются и сжимаются», 24.11.2026); карта и отборы
+  // отсчитываются от --list-w.
+  {
+    const page = scope.root.querySelector('.an-page');
+    sideResize(scope.root.querySelector('.an-list'), { key: 'an-list', edge: 'right', min: 300, max: 760, label: 'Ширина списка аймаков',
+      apply: (px) => { if (px) page.style.setProperty('--list-w', `${px}px`); else page.style.removeProperty('--list-w'); } });
+  }
 
   // --- «Участки»: сводка со срезами (pages/analytics/parcels.js) ---
   // Таблица участков строится один раз на набор аймаков (отбор страницы — область,

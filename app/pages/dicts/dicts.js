@@ -29,6 +29,7 @@ import {
   slotsWithOwners, linkedDicts, diffWith, addItemTo, removeItemFrom, renameItemIn,
 } from '../../kernel/dicts.js';
 import { persistView, persistSizes } from '../../kernel/viewState.js';
+import { sideResize } from '../../kernel/sideResize.js';
 
 // Вид навигации. По умолчанию «столбцы»: они не требуют опыта с деревом —
 // три списка рядом, выбрал слева — справа появилось следующее, и ничего не
@@ -985,6 +986,10 @@ export function mountDicts(host) {
   function render() {
     scope.setHTML(viewHTML());
     bind();
+    // Ширина списка справочников — за край (правило «боковые панели расширяются и сжимаются», 24.11.2026).
+    const list = scope.$('.dc-list');
+    if (list) sideResize(list, { key: 'dc-list', edge: 'right', min: 220, max: 560, label: 'Ширина списка справочников',
+      apply: (px) => { if (px) scope.root.style.setProperty('--dc-list-w', `${px}px`); else scope.root.style.removeProperty('--dc-list-w'); } });
   }
 
   // Меню вида закрывается кликом мимо — как все выпадающие меню проекта.

@@ -27,6 +27,7 @@ import { canSendEarly, sendEarly } from '../../kernel/earlyInspection.js';
 import { geoByEni, eniByAddress, centerOf } from '../../kernel/cadastreGeo.js';
 import { eniCodesOf } from '../../kernel/eniField.js';
 import { localIso } from '../../kernel/fmt.js';
+import { sideResize } from '../../kernel/sideResize.js';
 
 // Главная — реестр объектов оценки (канва и решения 01.10.2026, задача графа
 // glavnaya-vkladki-nedvizhimoe-dvizhimoe, практика reestr-vkladki-vidy-filtry):
@@ -374,7 +375,7 @@ export function mountOcMenu(host) {
             </div>
           </section>
 
-          <aside class="reg-preview ${state.previewId ? '' : 'hidden'}" data-region-preview aria-label="Превью объекта">${previewHTML(state)}</aside>
+          <aside class="reg-preview ${state.previewId ? '' : 'hidden'}" aria-label="Превью объекта"><div class="reg-preview-in" data-region-preview>${previewHTML(state)}</div></aside>
         </div>
         <div class="reg-legend" aria-label="Обозначения">${legendHTML(state.tab)}</div>
       </div>`);
@@ -382,6 +383,11 @@ export function mountOcMenu(host) {
     bindShell();
     bindData();
     bindPreview();
+    // Ширина «Фильтров» и превью — за край (правило «боковые панели расширяются и сжимаются», 24.11.2026).
+    const reg = scope.$('.reg');
+    const v = (name) => (px) => { if (px) reg.style.setProperty(name, `${px}px`); else reg.style.removeProperty(name); fitColumns(); };
+    sideResize(scope.$('.reg-facets-wrap'), { key: 'reg-facets', edge: 'right', min: 200, max: 480, apply: v('--facets-w'), label: 'Ширина фильтров' });
+    sideResize(scope.$('.reg-preview'), { key: 'reg-preview', edge: 'left', min: 260, max: 640, apply: v('--preview-w'), label: 'Ширина превью' });
 
     const vp = scope.$('[data-viewport]');
     if (vp) vp.scrollTop = scrollTop;
@@ -536,7 +542,7 @@ export function mountOcMenu(host) {
   function updatePreview() {
     const box = scope.$('[data-region-preview]');
     if (!box) return;
-    box.classList.toggle('hidden', !state.previewId);
+    box.parentElement.classList.toggle('hidden', !state.previewId);
     box.innerHTML = previewHTML(state);
     bindPreview();
   }

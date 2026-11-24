@@ -256,6 +256,7 @@ export { fieldLabel, fieldValue } from './audit/fieldLabels.js';
 // куда открыть объект имущества после смены типа ОЦ (kernel/typeChange.js).
 export { OI_CARDS as oiCards } from './oi/registry.js';
 import { REALTY_OI_TYPES, MOVABLE_OI_TYPES } from './data/rules.js';
+import { setRecStatus } from '../../kernel/statusStamp.js';
 // У этого модуля виды ОИ разделены на недвижимость и движимое —
 // ядру отдаём объединённый список (kernel/typeChange.js).
 export const oiTypes = [...REALTY_OI_TYPES, ...MOVABLE_OI_TYPES];
@@ -375,7 +376,7 @@ export function createRecord() {
 export function setStatus(id, status) {
   const rec = loadRecord(id);
   if (!rec) return null;
-  rec.status = status;
+  setRecStatus(rec, status);
   rec.updatedAt = localIso();
   return rec;
 }

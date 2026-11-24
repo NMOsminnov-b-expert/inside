@@ -33,12 +33,13 @@ def run(t):
     pg.click('.ip-slice [data-ip-mode="all"]')
     base = pg.evaluate(COUNTS, ['', ''])
     t.ck(len(base['insts']) > 1 and len(base['regions']) > 1, 'в демо очереди одно учреждение или одна область — срезу нечего сужать')
-    # Учреждение — по части названия: первое слово самого частого учреждения.
-    inst = sorted(base['insts'], key=lambda n: -sum(1 for x in base['insts'] if x == n))[0].split(' ')[0]
+    # Учреждение — из общего поиска (24.11.2026: «2 поиска не имеют смысла»): пункт «учреждение · отобрать…»
+    # ставит отбор полным названием.
+    inst = sorted(base['insts'], key=lambda n: -sum(1 for x in base['insts'] if x == n))[0]
     want = pg.evaluate(COUNTS, [inst, ''])
     t.ck(0 < want['queue'] < base['all'], 'учреждение «%s» не сужает очередь в данных: %s' % (inst, want))
-    pg.fill('[data-ip-inst]', inst)
-    pg.press('[data-ip-inst]', 'Enter')
+    pg.fill('[data-ip-jump]', inst)
+    pg.locator('.ip-jump-list [data-ip-jump-i]:has-text("учреждение · отобрать")').first.click()
     t.ck(t.wait_until("([q, l]) => { const n = (" + SW + ")(); return n[0] === q && n[1] === l; }", [want['queue'], want['live']]),
          'числа «К назначению · Назначено» не по учреждению: %s, ждали %s' % (pg.evaluate(SW), [want['queue'], want['live']]))
     shown = pg.eval_on_selector_all('[data-ip-row]', 'els => els.length')
@@ -53,7 +54,7 @@ def run(t):
     # Переход и возврат — срез держится; перезагрузка — из адреса.
     pg.click('[data-ip-section="people"]')
     t.wait_for('.ip-person-main')
-    t.ck(pg.input_value('[data-ip-inst]') == inst, 'срез сбросился при переходе в «Люди»')
+    t.ck(pg.locator('.ip-inst-pill[title="%s"]' % inst.replace('"', '\\"')).count() == 1, 'срез сбросился при переходе в «Люди»')
     pg.click('[data-ip-section="assign"]')
     t.wait_for('.ip-qswitch')
     pg.reload()

@@ -10,9 +10,10 @@
 // прокрутки панели. По умолчанию отмечены кадастровый и поэтажный план
 // (ТЗ рабочего дня осмотрщика, пункт 6.1).
 import { esc } from '../../kernel/dom.js';
+import { fmtEni } from '../../kernel/fmt.js';
 import { build } from '../../kernel/router.js';
 import { assign, unassign, isLive, eventsOf, deadlineOf, workdayOf, inventoryHolders } from '../../kernel/inspections.js';
-import { objectContents, todayIso, stateLabel, EVENT_LABELS, freeOiIds, earlyScopeOf } from './model.js';
+import { objectContents, todayIso, stateLabel, EVENT_LABELS, freeOiIds, earlyScopeOf, earlyDrift } from './model.js';
 import { PART_KINDS, partValues, partLabel } from '../../kernel/inventories.js';
 import { earlyOf } from '../../kernel/earlyInspection.js';
 
@@ -96,6 +97,14 @@ function oiState(c, id, prev) {
     : `назначен · ${esc(x.a.person)}${x.a.plannedAt ? `, план ${fmtD(x.a.plannedAt)}` : ''}`;
 }
 
+// Опознавательные сведения ОИ под подписью: ЕНИ ОИ и свои у каждого вида (аудит 24.11.2026 — «для каждого ОИ свой
+// набор опознавательных нюансов»).
+const briefHTML = (o) => {
+  const b = o.brief || { eni: '', facts: [] };
+  const parts = [b.eni ? `<span class="mono">${esc(fmtEni(b.eni) || b.eni)}</span>` : '', ...b.facts.map(esc)].filter(Boolean);
+  return parts.length ? `<small class="ip-oi-brief">${parts.join(' · ')}</small>` : '';
+};
+
 function contentsHTML(c, pick, prev) {
   const whole = !pick.oi.size;
   const oi = c.oi.length ? `<section class="ip-sec">
@@ -104,7 +113,7 @@ function contentsHTML(c, pick, prev) {
       <label class="ip-check"><input type="checkbox" data-ip-f-whole ${whole ? 'checked' : ''} ${c.cov && c.cov.state !== 'none' && !prev ? 'disabled title="Часть ОИ уже назначена или осмотрена — отметьте свободные ниже"' : ''}> Объект целиком</label>
       <div class="ip-oi" ${whole ? 'hidden' : ''}>
         ${c.oi.map((o) => { const st = oiState(c, o.id, prev); return `<label class="ip-check ${st ? 'taken' : ''}"><input type="checkbox" data-ip-f-oi="${esc(o.id)}" ${pick.oi.has(o.id) ? 'checked' : ''} ${st ? `disabled title="${esc(String(st).replace(/<[^>]+>/g, ''))}"` : ''}>
-          <span>${esc(o.label)}${st ? `<em>${st}</em>` : ''}</span></label>`; }).join('')}
+          <span>${esc(o.label)}${o.early ? ' <span class="ip-flag early" title="Этот ОИ направлен досрочно">досрочно</span>' : ''}${briefHTML(o)}${st ? `<em>${st}</em>` : ''}</span></label>`; }).join('')}
       </div>
     </section>` : '';
   // Документы и описи — свёрнуты, в заголовке — сколько отмечено: по
@@ -143,7 +152,7 @@ function contentsHTML(c, pick, prev) {
 // prev — действующее назначение.
 // plan — вставки планирования (inspections.js planHTML): «Кого назначить»,
 // полоса доступности, срок, контакты на месте; date — выбранная плановая дата.
-export function paneHTML({ mode, people, person, date = '', target, targets = [], prev = null, confirmRemove = false, plan = null, transfer = null, layout = null }) {
+export function paneHTML({ mode, people, person, date = '', target, targets = [], prev = null, plan = null, transfer = null, layout = null }) {
   if (mode === 'none') {
     return `<aside class="ip-pane ip-pane-none" aria-label="Назначение"><div class="ip-pane-body"><p class="ip-hint">Выберите объект в списке.</p></div></aside>`;
   }
@@ -212,7 +221,7 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
       ${prev ? `<p class="ip-pane-meta"><span class="ip-state st-${esc(prev.state)}">${esc(stateLabel(prev))}</span>
         назначил ${esc(prev.by || '—')} ${esc(fmtDate(prev.at))}</p>` : ''}
       ${others.length ? `<p class="ip-pane-meta">Ещё назначено: ${othersText(others)}</p>` : ''}
-      ${early && early.state === 'sent' ? earlyHTML(early, c) : ''}
+      ${early && early.state === 'sent' ? earlyHTML(early, c, prev && prev.early ? earlyDrift(target.typeId, target.ocId) : null) : ''}
     </header>
     <div class="ip-pane-body">
       ${whoWhen(people, (prev && prev.person) || person, date || (prev && prev.plannedAt), plan, [target])}
@@ -222,12 +231,10 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
       ${note(prev && prev.note)}
     </div>
     <footer class="ip-pane-foot"><span class="ip-err" data-ip-err role="alert"></span>
-      ${prev ? (confirmRemove
-        ? `<span class="ip-confirm">Снять назначение?</span>
-           <button class="btn btn-ghost" data-ip-remove-no>Нет</button>
-           <button class="btn btn-danger" data-ip-remove-yes="${esc(prev.id)}">Снять</button>`
-        : `<button class="btn btn-ghost" data-ip-remove>Снять назначение</button>
-           <button class="btn btn-primary" data-ip-f-ok>Сохранить</button>`)
+      ${prev
+        // Снятие — сразу, с «Отменить» после (решение пользователя 05.11.2026, аудит 24.11.2026).
+        ? `<button class="btn btn-ghost" data-ip-remove>Снять назначение</button>
+           <button class="btn btn-primary" data-ip-f-ok>Сохранить</button>`
         : '<button class="btn btn-primary" data-ip-f-ok>Назначить</button>'}
     </footer>
   </aside>`;
@@ -247,7 +254,7 @@ function tsPassHTML(c, prev, people, transfer) {
     ${list.map((o) => {
     const open = transfer && transfer.oiId === o.id;
     return `<div class="ip-ts-row">
-      <span class="ip-ts-l">${esc(o.label)}</span>
+      <span class="ip-ts-l">${esc(o.label)}${briefHTML(o)}</span>
       ${open ? '' : `<button class="btn btn-ghost btn-sm" data-ip-ts-pass="${esc(o.id)}">Передать другому осмотрщику</button>`}
     </div>
     ${open ? `<div class="ip-ts-form">
@@ -319,9 +326,14 @@ export { unassign };
 
 // Досрочное направление (kernel/earlyInspection.js) — кто направил, что осмотреть, комментарий ЦОД; статус карточки при
 // назначении не меняется.
-function earlyHTML(e, c) {
+// drift — ЦОД изменил состав после назначения (model.earlyDrift): что добавлено и что убрано; «Привести к составу»
+// отмечает в «Что осмотреть» ОИ направления, сохраняет регионал кнопкой панели (аудит 24.11.2026).
+function earlyHTML(e, c, drift) {
   const names = e.oiIds.map((id) => (c.oi.find((o) => o.id === id) || {}).label).filter(Boolean);
+  const d = drift ? [drift.added.length ? `добавлены — ${esc(drift.addedNames.join('; '))}` : '', drift.removed.length ? `убраны — ${esc(drift.removedNames.join('; '))}` : ''].filter(Boolean).join('; ') : '';
   return `<div class="ip-early" role="note"><b>Досрочно направлен на осмотр</b>
     <span>${esc([e.by, fmtDate(e.at)].filter(Boolean).join(', '))} · ${names.length ? esc(names.join('; ')) : 'весь объект'}</span>
-    ${e.note ? `<span class="ip-early-note">${esc(e.note)}</span>` : ''}</div>`;
+    ${e.note ? `<span class="ip-early-note">${esc(e.note)}</span>` : ''}
+    ${d ? `<span class="ip-early-drift">ЦОД изменил состав${drift.at ? ` ${esc(fmtDate(drift.at))}` : ''}: ${d}.
+      <button type="button" class="btn btn-ghost btn-sm" data-ip-early-sync="${esc(e.oiIds.join(','))}">Привести к составу</button></span>` : ''}</div>`;
 }

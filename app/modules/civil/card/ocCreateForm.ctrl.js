@@ -8,6 +8,7 @@ import { ENI_LENGTHS } from '../../../kernel/fmt.js';
 import { openDocViewer } from '../../../kernel/viewer/state.js';
 import { bindParties } from './parties.ctrl.js';
 import { bindCadastre, ADDR_PARTS, setAddrField } from '../../../kernel/cadastreForm.ctrl.js';
+import { setRecStatus } from '../../../kernel/statusStamp.js';
 
 // Контроллер экрана создания ОЦ. Сознательно отдельный файл от
 // ocForm.ctrl.js — см. ocCreateForm.view.js.
@@ -48,7 +49,7 @@ export function bindOcCreate(ctx) {
   // Кнопка «Сохранить» остаётся: она проверяет ЕНИ, пересобирает адрес и
   // возвращает к карточке — то есть завершает правку, а не начинает её.
   const LIVE = {
-    '#fStatus': (v) => { rec.status = v; },
+    '#fStatus': (v) => { setRecStatus(rec, v); },
     '#fRegion': (v) => { rec.region = v; },
     '#fDistrict': (v) => { rec.district = v; },
     '#fCity': (v) => { rec.city = v; },
@@ -86,7 +87,7 @@ export function bindOcCreate(ctx) {
     }
 
     rec.purposeTP = s.$('#fPurpose').value;
-    rec.status = s.$('#fStatus').value;
+    setRecStatus(rec, s.$('#fStatus').value);
     // Кодов может быть несколько: eni — первый (его читают архив и
     // документы), eniList — все.
     const eniCodes = eniCodesOf(s.$('#fEni').value);

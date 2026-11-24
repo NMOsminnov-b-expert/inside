@@ -228,6 +228,9 @@ export function assign({ typeId, ocId, person, oiIds = [], docs, inventories = [
     // «Было → стало» (решение пользователя 05.11.2026 на вопрос «Автор и «было → стало» в истории назначений»).
     const diff = changesOf(a, { oiIds, docs, inventories, plannedAt, note });
     Object.assign(a, { oiIds: [...oiIds], docs: [...docs], inventories: [...inventories], invParts: { ...invParts }, plannedAt, note, updatedAt: now() });
+    // Пометка досрочного — и при правке (аудит 24.11.2026: ставилась только при создании назначения).
+    const recs0 = recordsOf(typeId);
+    if (!a.early && recs0 && earlySent(recs0.loadRecord(ocId))) a.early = true;
     logEvent('updated', a, diff ? { text: diff } : {});
   } else {
     a = {
@@ -519,6 +522,12 @@ export function saveProfile(name, patch) {
   let p = profiles.find((x) => x.id === name);
   if (!p) { p = blankProfile(name); profiles.push(p); }
   const wasFired = !!p.fired;
+  // Передача осмотрщика другому регионалу — в журнал профиля: новому регионалу нужна сводка по нему (пользователь
+  // 24.11.2026: «за осмотрщиками закреплены свои регионалы… если только его не передали. Вот тогда понадобится по нему
+  // сводка»). Первое закрепление (было пусто) — не передача.
+  if ('manager' in patch && (patch.manager || '') !== (p.manager || '') && p.manager && patch.manager) {
+    p.managerLog = [...(p.managerLog || []), { from: p.manager, to: patch.manager, at: now(), by: session.state.person }].slice(-20);
+  }
   Object.assign(p, patch, { updatedAt: now(), updatedBy: session.state.person });
   if (p.fired && !wasFired) releaseFired(name, p.firedDate);
   changed();
@@ -546,9 +555,17 @@ export function addAbsence(name, { kind, from, to, note = '' }) {
   return item;
 }
 
+// Возвращает удалённое — для «Отменить» (restoreAbsence).
 export function removeAbsence(name, id) {
   const p = profileOf(name);
+  const was = p.absences.find((a) => a.id === id) || null;
   saveProfile(name, { absences: p.absences.filter((a) => a.id !== id) });
+  return was;
+}
+export function restoreAbsence(name, item) {
+  const p = profileOf(name);
+  if (!item || p.absences.some((a) => a.id === item.id)) return;
+  saveProfile(name, { absences: [...p.absences, item].sort((a, b) => a.from.localeCompare(b.from)) });
 }
 
 // Отсутствие на день или null.
@@ -864,9 +881,18 @@ export function addCustomField({ label, kind = 'text', options = [], required = 
   changed();
   return f;
 }
+// Возвращает [поле, место] — для «Отменить» после удаления (решение пользователя 05.11.2026: «Отмена после действия»).
 export function removeCustomField(id) {
   const i = customFields.findIndex((f) => f.id === id);
-  if (i >= 0) { customFields.splice(i, 1); changed(); }
+  if (i < 0) return null;
+  const [f] = customFields.splice(i, 1);
+  changed();
+  return [f, i];
+}
+export function restoreCustomField(was) {
+  if (!was || customFields.some((f) => f.id === was[0].id)) return;
+  customFields.splice(Math.min(was[1], customFields.length), 0, was[0]);
+  changed();
 }
 
 // Доверенность: дней до окончания (отрицательно — истекла) или null.

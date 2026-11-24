@@ -9,6 +9,7 @@ import { gpsError } from '../../../kernel/gps.js';
 import { openDocViewer } from '../../../kernel/viewer/state.js';
 import { bindParties } from './parties.ctrl.js';
 import { bindCadastre, ADDR_PARTS, setAddrField } from '../../../kernel/cadastreForm.ctrl.js';
+import { setRecStatus } from '../../../kernel/statusStamp.js';
 
 export function bindOcForm(ctx) {
   const s = ctx.scope;
@@ -87,7 +88,7 @@ export function bindOcForm(ctx) {
   // Кнопка «Сохранить» остаётся: она проверяет ЕНИ, пересобирает адрес и
   // возвращает к карточке — то есть завершает правку, а не начинает её.
   const LIVE = {
-    '#fStatus': (v) => { rec.status = v; },
+    '#fStatus': (v) => { setRecStatus(rec, v); },
     '#fRegion': (v) => { rec.region = v; },
     '#fDistrict': (v) => { rec.district = v; },
     '#fCity': (v) => { rec.city = v; },
@@ -125,7 +126,7 @@ export function bindOcForm(ctx) {
     }
 
     rec.purposeTP = s.$('#fPurpose').value;
-    rec.status = s.$('#fStatus').value;
+    setRecStatus(rec, s.$('#fStatus').value);
     // Кодов может быть несколько: eni — первый (его читают архив и
     // документы), eniList — все.
     const eniCodes = eniCodesOf(s.$('#fEni').value);

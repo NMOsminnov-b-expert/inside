@@ -8,7 +8,8 @@
   * маршрут дня не строится от дома и обратно, нет карты;
   * точка дома не ставится щелчком по карте;
   * убранный из предложений объект остаётся в маршруте;
-  * «Назначить предложенные» не создаёт назначений на этот день;
+  * «Назначить выбранные» доступна без отметок, назначает неотмеченные предложенные или не назначает отмеченный;
+  * щелчок по предложенному не раскрывает сводку «ОЦ + ОИ» или в ней не все ОИ с состоянием;
   * правка нормы осмотра не меняет расчёт маршрута; прогноз времени осмотра
     снова виден на экране (убран 13.10.2026);
   * в консоли ошибки.
@@ -106,18 +107,18 @@ def run(t):
          'точка дома не сохранилась щелчком по карте')
 
     # Предложения на день скрыты по умолчанию (29.10.2026 «По умолчанию пускай
-    # будет скрыто») — включаются переключателем; пробег без них — только по назначенным.
+    # будет скрыто») — вкладка «Предложено» под маршрутом (24.11.2026: «Вкладкой, на карте — при открытой»).
     t.wait_for('.ip-stop.home')
-    t.ck(pg.locator('.ip-stop.prop').count() == 0 and not pg.is_checked('[data-ip-route-prop]'), 'предложения на день видны по умолчанию')
-    pg.check('[data-ip-route-prop]')
-    t.ck(t.wait_until("() => document.querySelectorAll('.ip-stop.prop').length > 0"), 'переключатель не показал предложения на день')
+    t.ck(pg.locator('.ip-stop.cand.prop').count() == 0, 'предложения на день видны по умолчанию')
+    pg.click('[data-ip-route-add="prop"]')
+    t.ck(t.wait_until("() => document.querySelectorAll('.ip-stop.cand.prop').length > 0"), 'вкладка «Предложено» не показала предложения на день')
     # Список прокручивается колесом (замечание 29.10.2026), шапка на месте.
-    lst = pg.locator('.ip-route-side > .ip-stops')
-    if pg.viewport_size['width'] > 1100 and pg.evaluate("() => { const l = document.querySelector('.ip-route-side > .ip-stops'); return l.scrollHeight > l.clientHeight; }"):
+    lst = pg.locator('.ip-route-side')
+    if pg.viewport_size['width'] > 1100 and pg.evaluate("() => { const l = document.querySelector('.ip-route-side'); return l.scrollHeight > l.clientHeight; }"):
         bb = lst.bounding_box()
         pg.mouse.move(bb['x'] + 40, bb['y'] + 40)
         pg.mouse.wheel(0, 300)
-        t.ck(t.wait_until("() => document.querySelector('.ip-route-side > .ip-stops').scrollTop > 0"), 'список остановок не прокручивается колесом')
+        t.ck(t.wait_until("() => document.querySelector('.ip-route-side').scrollTop > 0"), 'список остановок не прокручивается колесом')
     # убрать предложенное
     skip = pg.locator('[data-ip-route-skip]')
     if skip.count():
@@ -125,15 +126,28 @@ def run(t):
         skip.first.click()
         t.ck(t.wait_until("(k) => !document.querySelector('[data-ip-route-skip=\"' + k + '\"]')", key), 'убранный объект остался в маршруте')
 
-    # назначить предложенные
+    # Предложенное выбирают, а не назначают всё (пользователь 24.11.2026: «выбрали - добавили»); щелчок по названию —
+    # сводка «ОЦ + ОИ» под строкой.
     if pg.locator('[data-ip-route-assign]').count():
+        t.ck(pg.is_disabled('[data-ip-route-assign]'), '«Поставить на …» доступна, хотя ничего не отмечено')
+        first = pg.locator('.ip-stop.cand.prop [data-ip-route-open]').first
+        okey = first.get_attribute('data-ip-route-open')
+        first.click()
+        t.ck(t.wait_until("(k) => !!document.querySelector('[data-ip-stop-more=\"' + k + '\"] .ip-sum-oc')", okey), 'щелчок по предложенному не раскрыл сводку по объекту')
+        more = pg.inner_text('[data-ip-stop-more="%s"]' % okey)
+        nois = pg.evaluate("async (k) => { const [ty, id] = k.split('|'); return ((await import('./app/kernel/registry.js')).getType(ty).records.loadRecord(id).oi || []).length; }", okey)
+        t.ck(pg.locator('[data-ip-stop-more="%s"] .ip-sum-ois li' % okey).count() == nois and ('свободен' in more or 'назначен' in more or nois == 0),
+             'в сводке не все ОИ объекта или нет их состояния (ОИ %s): %r' % (nois, more[:300]))
         rday = pg.input_value('[data-ip-route-set]')
-        n0 = pg.evaluate("async ([w, d]) => (await %s).allAssignments().filter((a) => a.person === w && a.plannedAt === d && a.state !== 'removed').length" % K, [WHO, rday])
-        # С 29.10.2026 число предложенных — в легенде над списком, а не на кнопке.
-        want = pg.locator('.ip-stop.prop').count()
+        cnt = "async ([w, d]) => (await %s).allAssignments().filter((a) => a.person === w && a.plannedAt === d && a.state !== 'removed').length" % K
+        n0 = pg.evaluate(cnt, [WHO, rday])
+        props = pg.locator('[data-ip-route-pick]').count()
+        pg.locator('[data-ip-route-pick]').first.check()
+        t.ck(t.wait_until("() => !document.querySelector('[data-ip-route-assign]').disabled && /· 1/.test(document.querySelector('[data-ip-route-assign]').textContent)"),
+             'после отметки кнопка не «Поставить на … · 1»')
         pg.click('[data-ip-route-assign]')
-        t.ck(t.wait_until("async ([w, d, n]) => (await %s).allAssignments().filter((a) => a.person === w && a.plannedAt === d && a.state !== 'removed').length === n" % K, [WHO, rday, n0 + want]),
-             '«Назначить предложенные» не создало %s назначений на %s' % (want, rday))
+        t.ck(t.wait_until("async ([w, d, n]) => (await %s).allAssignments().filter((a) => a.person === w && a.plannedAt === d && a.state !== 'removed').length === n" % K, [WHO, rday, n0 + 1]),
+             '«Поставить на …» назначило не один отмеченный объект на %s (было %s, предложено %s): %s' % (rday, n0, props, pg.evaluate(cnt, [WHO, rday])))
     else:
         t.ck(False, 'в маршруте дня нет предложенных объектов (демо)')
 
@@ -160,7 +174,10 @@ def run(t):
         pg.press('[data-ip-norm="%s"][data-k="base"]' % k, 'Tab')
         t.wait_until("(k) => document.querySelector('[data-ip-norm=\"' + k + '\"][data-k=\"base\"]').value === '120'", k)
     pg.locator('.ip-person-main[data-ip-person="%s"]' % WHO).click()
-    pg.click('[data-ip-ptab="route"]')
+    # Карточка открывается на последней вкладке — маршрут уже открыт, тогда «Маршрут →» в ней нет.
+    t.wait_until("() => !!document.querySelector('[data-ip-ptab=\"route\"], .ip-week')")
+    if pg.locator('[data-ip-ptab="route"]').count():
+        pg.click('[data-ip-ptab="route"]')
     t.wait_for('.ip-stop:not(.home) .ip-stop-leg')
     after = pg.evaluate(INSP, WHO)
     t.ck(pg.locator('.toast').filter(has_text='не сохранил').count() == 0, 'правка норм не сохранилась: %s' % pg.locator('.toast').all_inner_texts())
