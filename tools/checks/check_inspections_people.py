@@ -50,6 +50,13 @@ def run(t):
     y2 = pg.evaluate("() => document.querySelector('.ip-card-head').getBoundingClientRect().top")
     t.ck(abs(y2 - head_y) < 2, 'переключение раздела сдвинуло страницу: шапка %s → %s' % (head_y, y2))
 
+    # «Люди» из верхней строки — карточка на «Личной карточке», а не на последнем разделе (26.11.2026).
+    pg.click('[data-ip-section="today"]')
+    pg.click('[data-ip-section="people"]')
+    pg.locator('.ip-person-main[data-ip-person="%s"]' % WHO).click()
+    t.ck(t.wait_until("() => { const b = [...document.querySelectorAll('[data-ip-block]')].map((e) => e.dataset.ipBlock); return b.length === 1 && b[0] === 'profile'; }"),
+         '«Люди» открыли карточку не на «Личной карточке»: %s' % pg.eval_on_selector_all('[data-ip-block]', 'els => els.map((e) => e.dataset.ipBlock)'))
+
     # «Авто» и «Личная карточка» — свои черновики; при несохранённой правке раздел не меняется.
     pg.click('.ip-jumps [data-ip-ptab="car"]')
     t.wait_for('[data-ip-block="car"] [data-ip-car="make"]')

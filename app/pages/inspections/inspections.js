@@ -64,7 +64,7 @@ const view = {
   section: 'assign',     // assign | people | history
   tab: 'queue',          // в «Назначениях»: queue | assigned
   person: '',            // в «Осмотрщиках»: выбранный; пусто — все
-  personTab: 'trips',    // подраздел карточки: trips | reports | stats | assigns | profile | car
+  personTab: 'profile',  // раздел карточки: profile | car | trips | plan | assigns | reports | stats | route; по умолчанию — личная карточка (26.11.2026)
   allTab: 'summary',     // подраздел «Все осмотрщики»: summary | reports | stats | fields («Загрузка» — в Планировании)
   center: 'grid',        // Планирование, центр: grid — сетка «осмотрщик × день», map — карта (ТЗ 17.11.2026)
   layer: 'plan',         // слой сетки: plan — назначено и загрузка, fact — отчёты, пробег, пропуски
@@ -2757,8 +2757,8 @@ export function mountInspections(host) {
     add('Статистика', 'Осмотрщики · все', () => nav({ section: 'people', person: '', allTab: 'stats' }), 'графики');
     add('Журнал', 'события осмотров', () => nav({ section: 'history' }), 'история');
     people.forEach((p) => {
-      add(p.name, 'осмотрщик · выезды', () => nav({ section: 'people', person: p.name, personTab: 'trips' }), (p.regions || []).join(' '));
-      PERSON_TABS.forEach(([k, l]) => { if (k !== 'trips') add(`${p.name} · ${l}`, 'карточка осмотрщика', () => nav({ section: 'people', person: p.name, personTab: k })); });
+      add(p.name, 'осмотрщик · личная карточка', () => nav({ section: 'people', person: p.name, personTab: 'profile' }), (p.regions || []).join(' '));
+      PERSON_TABS.forEach(([k, l]) => { if (k !== 'profile') add(`${p.name} · ${l}`, 'карточка осмотрщика', () => nav({ section: 'people', person: p.name, personTab: k })); });
     });
     allCadRequests().forEach((r) => add(`${cadKindLabel(r.kind)} № ${r.no}`, r.person, () => nav({ section: 'cadastre', cadSel: r.id })));
     const words = q.trim().toLowerCase().split(/\s+/).filter(Boolean);
@@ -3139,7 +3139,12 @@ export function mountInspections(host) {
   };
 
   // --- разделы и вкладки ---
-  scope.on('click', '[data-ip-section]', (e, b) => { view.section = b.dataset.ipSection; detail = []; resetList(); render(); });
+  scope.on('click', '[data-ip-section]', (e, b) => {
+    view.section = b.dataset.ipSection;
+    // «Люди» открывают карточку на личной карточке, а не на последнем разделе (пользователь 26.11.2026).
+    if (view.section === 'people') view.personTab = 'profile';
+    detail = []; resetList(); render();
+  });
   scope.on('click', '[data-ip-tab]', (e, b) => {
     view.qs = { ...view.qs, [view.tab]: view.q };
     view.tab = b.dataset.ipTab; view.q = view.qs[view.tab] || ''; reassignGroup = ''; setNaming = false; resetList(); render();
