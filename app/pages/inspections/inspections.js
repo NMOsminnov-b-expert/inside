@@ -2080,7 +2080,12 @@ export function mountInspections(host) {
     } else {
       splitSaved[which] = 0;
     }
-    page.setAttribute('style', splitStyle());
+    // Только ширины панелей: прежняя перезапись всего style стирала --scene-top, и островки сцены
+    // скакали при перетаскивании границы (замечание 26.11.2026 «Подвинул блок справа и перерисовка — привет»).
+    for (const [k, v] of [['--list-w', 'list'], ['--pane-w', 'pane']]) {
+      if (splitSaved[v]) page.style.setProperty(k, `clamp(${SPLIT_MIN[v]}px,${splitSaved[v]}px,${SPLIT_MAX_SHARE[v] * 100}%)`);
+      else page.style.removeProperty(k);
+    }
     const sep = scope.$(`[data-ip-split="${which}"]`);
     if (sep) {
       const [min, max] = splitRange(which);

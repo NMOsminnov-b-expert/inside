@@ -167,6 +167,20 @@ def run(t):
     t.ck(t.wait_for('.ip-board .ip-load-tbl') and pg.locator('[data-ip-section="assign"][aria-selected="true"]').count() == 1,
          'прежний адрес «Загрузки» не открыл сетку Планирования')
 
+    # Граница правой панели (26.11.2026 «Подвинул блок справа и перерисовка — привет»): шире панель — уже сетка,
+    # островки сцены не прыгают по высоте (перезапись style стирала --scene-top).
+    sep = pg.locator('[data-ip-split="pane"]')
+    if t.ck(sep.count() == 1, 'нет границы правой панели'):
+        box = "() => { const b = document.querySelector('.ip-board').getBoundingClientRect(), c = document.querySelector('.ip-cview').getBoundingClientRect(); return [Math.round(b.top), Math.round(b.right), Math.round(c.top)]; }"
+        was = pg.evaluate(box)
+        sep.focus()
+        for _ in range(3):
+            pg.keyboard.press('Shift+ArrowLeft')
+        now = pg.evaluate(box)
+        t.ck(now[0] == was[0] and now[2] == was[2] and now[1] < was[1],
+             'граница панели: сетка сдвинулась по высоте или не сузилась: было %s, стало %s' % (was, now))
+        sep.dblclick()
+
     for w in (1100, 760):
         pg.set_viewport_size({'width': w, 'height': 900})
         pg.wait_for_timeout(200)
