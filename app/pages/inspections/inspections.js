@@ -1885,7 +1885,7 @@ export function mountInspections(host) {
         <tbody>${body}</tbody>
       </table></div>
       <p class="ip-load-legend">${factLayer
-    ? '<span class="ip-fx ok">У</span> сдан <span class="ip-fx no">У</span> не сдан <span class="ip-fx wait">У</span> ещё не сдан <span class="is-off">не работает</span>'
+    ? '<span class="ip-lg-fx"><i class="ip-fx ok">У</i>сдан</span><span class="ip-lg-fx"><i class="ip-fx no">У</i>не сдан</span><span class="ip-lg-fx"><i class="ip-fx wait">У</i>ещё не сдан</span><span class="is-off">не работает</span>'
     : '<span class="is-free">свободен</span><span class="is-some">есть объекты</span><span class="is-full">80–100%</span><span class="is-over">перегруз</span><span class="is-off">не работает</span><span class="is-fit">подходит</span>'}</p>
     </div>`;
   }

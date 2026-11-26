@@ -1787,7 +1787,8 @@ body[data-page="inspections"] .ip-fx.no{background:#fde2e2;color:var(--danger)}
 body[data-page="inspections"] .ip-fx.wait{background:var(--slate-50);color:var(--ink-dim)}
 body[data-page="inspections"] .ip-ld.is-bad .ip-ld-b{background:#fff5f5}
 body[data-page="inspections"] .ip-ld.is-ahead .ip-ld-b{opacity:.55}
-body[data-page="inspections"] .ip-load-legend .ip-fx{margin:0 3px 0 10px}
+/* Легенда слоя «Факт»: значок и подпись — одной парой, без полоски-образца легенды загрузки (26.11.2026). */
+body[data-page="inspections"] .ip-load-legend .ip-lg-fx::before{content:none}
 body[data-page="inspections"] .ip-qgroup{height:32px;width:auto;flex:none}
 body[data-page="inspections"] .ip-grp-where{color:var(--muted);font-size:11.5px}
 body[data-page="inspections"] .ip-dp-acts{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}

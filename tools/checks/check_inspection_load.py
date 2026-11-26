@@ -40,7 +40,7 @@ def run(t):
     pg = t.page
     pg.set_viewport_size({'width': 1600, 'height': 950})
     t.open('#/inspections?s=people', wait='.ip-page')
-    menu = pg.eval_on_selector_all('.ip-sections [data-ip-section]', 'els => els.map((e) => [e.dataset.ipSection, e.textContent.trim()])')
+    menu = pg.eval_on_selector_all('.ip-sections [data-ip-section]', "els => els.map((e) => [e.dataset.ipSection, e.textContent.replace(/\\s*\\d+\\s*$/, '').trim()])")  # «Журнал» — с числом событий
     t.ck(menu == [['today', 'Сегодня'], ['assign', 'Планирование'], ['people', 'Люди'], ['cadastre', 'Кадастр'], ['history', 'Журнал']],
          'меню не «Сегодня · Планирование · Люди · Кадастр · Журнал»: %s' % menu)
     t.ck(pg.locator('[data-ip-team]').count() == 0, 'у «Людей» осталась полоса режимов')
@@ -152,6 +152,11 @@ def run(t):
     pg.click('[data-ip-layer="fact"]')
     t.ck(t.wait_for('.ip-ld.is-fact'), 'в слое «Факт» нет клеток прошедших дней')
     t.ck(pg.locator('.ip-ld.is-fact .ip-fx').count() >= 2, 'в слое «Факт» нет отметок «У» и «В»')
+    # Легенда «Факт» (26.11.2026 «Поплыло»): значок и подпись — одной парой, в одну строку, без полоски-образца в значке.
+    leg = pg.evaluate("""() => [...document.querySelectorAll('.ip-load-legend .ip-lg-fx')].map((s) => ({
+      one: Math.abs(s.querySelector('.ip-fx').getBoundingClientRect().top - s.getBoundingClientRect().top) < 6 && s.getBoundingClientRect().height < 26,
+      bar: getComputedStyle(s, '::before').content !== 'none' }))""")
+    t.ck(len(leg) == 3 and all(x['one'] and not x['bar'] for x in leg), 'легенда «Факт» поплыла: %s' % leg)
     pg.click('[data-ip-layer="plan"]')
 
     # «Карта» — без сетки; прежний адрес «Загрузки» — в сетку.
