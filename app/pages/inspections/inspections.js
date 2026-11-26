@@ -2792,7 +2792,14 @@ export function mountInspections(host) {
   }
   function applyRoute(route) {
     const q = (route && route.query) || {};
-    if (!q.s) return false;
+    // Пункт «Регионалы» в меню — адрес без раздела: начальный вид (как при первом входе — «Планирование»,
+    // «К назначению»), а не последний открытый (пользователь 26.11.2026: «нажимаю на регионалы — открывается
+    // люди → маршруты»).
+    if (!q.s) {
+      if (view.tab !== 'queue') { view.qs = { ...view.qs, [view.tab]: view.q }; view.q = view.qs.queue || ''; }
+      Object.assign(view, { section: 'assign', tab: 'queue', person: '', aPerson: '' });
+      return true;
+    }
     view.section = q.s;
     view.peopleMode = q.m === 'mine' ? 'mine' : 'all';
     view.region = q.r || '';

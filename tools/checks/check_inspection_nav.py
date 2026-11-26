@@ -63,7 +63,15 @@ def run(t):
     t.ck(t.wait_for('.kg td[data-r="0"]'), '«Назад» не показал таблицу')
     pg.go_forward()
     t.ck(t.wait_until("() => location.hash.includes('t=route')"), '«Вперёд» не вернул к маршруту')
-    t.ck(t.wait_for('[data-ip-ptab="route"][aria-current="true"]'), '«Вперёд» — адрес маршрута, а подраздел не тот')
+    # На маршруте ряда разделов карточки нет — только «‹ Карточка» (карточка разделами, 26.11.2026).
+    t.ck(t.wait_for('.ip-back[data-ip-ptab="profile"]'), '«Вперёд» — адрес маршрута, а подраздел не тот')
+
+    # Пункт «Регионалы» в меню (адрес без раздела) — начальный вид, а не последний открытый
+    # (пользователь 26.11.2026: «нажимаю на регионалы — открывается люди → маршруты»).
+    pg.click('[data-nav="insp"]')
+    t.ck(t.wait_for('[data-ip-section="assign"][aria-selected="true"]'), '«Регионалы» в меню открыл не «Планирование», а последний вид: %s' % pg.evaluate('location.hash'))
+    t.ck(t.wait_for('[data-ip-team="queue"][aria-selected="true"]'), '«Регионалы» в меню открыл не «К назначению»')
+    t.ck(pg.locator('[data-ip-ptab="route"]').count() == 0, '«Регионалы» в меню оставил маршрут осмотрщика')
 
     # Открытие по ссылке
     t.open('#/inspections?s=assign&t=assigned', wait='[data-ip-section]')
