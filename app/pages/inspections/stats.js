@@ -359,5 +359,5 @@ export function historyHTML(all, f, current, limit) {
       </li>`).join('')}</ul>
     </section>`).join('')}
   </div></div>`;
-  return { html, total: rows.length, shownN: shown.length, keys: shown.map((r) => r.e.assignId) };
+  return { html, total: rows.length, shownN: shown.length, keys: shown.map((r) => rowKey(r.e)) };
 }

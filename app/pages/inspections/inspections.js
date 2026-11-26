@@ -485,9 +485,9 @@ export function mountInspections(host) {
       <td class="c-check"><input type="checkbox" data-ip-acheck="${esc(a.id)}" ${checked.has(a.id) ? 'checked' : ''} aria-label="Отметить"></td>
       <td class="num ${picks.has('late') ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
       <td>${obj}</td>
-      <td>${oiScope(a, s)}${driftFlag(a)}</td>
+      <td>${oiScope(a, s)}</td>
       <td class="num ip-td-docs" title="Выдано осмотрщику: документов ${(a.docs || []).length}, описей ${(a.inventories || []).length}">${(a.docs || []).length + (a.inventories || []).length || '—'}</td>
-      <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a))}</span>
+      <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a))}</span>${driftFlag(a)}
         ${stall ? `<span class="ip-flag" title="Зависло">${esc(stall)}</span>` : ''}
         ${picks.has('away') ? `<span class="ip-flag away" title="Плановая дата — нерабочий день осмотрщика">${esc(workdayOf(a.person, a.plannedAt).reason)}</span>` : ''}</td>
     </tr>`;
@@ -781,8 +781,8 @@ export function mountInspections(host) {
       <tbody>${rows.map((a) => { const s = all.get(a.typeId + '|' + a.ocId) || {}; return `<tr data-ip-dp-open="assign:${esc(a.id)}" class="${sel === a.id ? 'cur' : ''}">
         <td class="num ${isOverdue(a) ? 'ip-late' : ''}">${esc(fmtDate(a.plannedAt) || '—')}</td>
         <td>${objCell(s, [s.typeLabel, s.institution].filter(Boolean).join(' · '))}</td>
-        <td>${oiScope(a, s)}${driftFlag(a)}</td>
-        <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a))}</span></td></tr>`; }).join('')}</tbody>
+        <td>${oiScope(a, s)}</td>
+        <td><span class="ip-state st-${esc(a.state)}">${esc(stateLabel(a))}</span>${driftFlag(a)}</td></tr>`; }).join('')}</tbody>
     </table></div></div>`;
   }
 
@@ -1985,6 +1985,14 @@ export function mountInspections(host) {
   }
 
   // --- панель назначения (разделы «Назначения» и «История») -------------------------
+  // Назначение панели в «Журнале» и «Назначено». Событие досрочного направления в «Журнале» — без назначения, ключ
+  // строки — объект: его живое назначение, а нет его — панель назначения объекта, как в очереди.
+  function paneAssign() {
+    if (view.section !== 'history' && view.tab !== 'assigned') return null;
+    const byId = allAssignments().find((x) => x.id === current);
+    if (byId || view.section !== 'history' || !current.includes('|')) return byId || null;
+    return allAssignments().find((x) => x.typeId + '|' + x.ocId === current && isLive(x)) || null;
+  }
   function pane() {
     const ensureDraft = (key, person, date) => { if (draft.key !== key) draft = { key, person: person || '', date: date || '' }; };
     if (view.section === 'assign' && view.tab === 'queue' && checked.size > 1) {
@@ -1999,8 +2007,9 @@ export function mountInspections(host) {
         layout: draft.person ? draft.lay : null });
     }
     if (view.section === 'assign' && view.tab === 'assigned' && !view.aPerson) return peekHTML();
-    if (view.section === 'history' || view.tab === 'assigned') {
-      const a = allAssignments().find((x) => x.id === current);
+    const objKey = view.section === 'history' && current.includes('|') ? current : '';
+    if ((view.section === 'history' || view.tab === 'assigned') && (!objKey || paneAssign())) {
+      const a = paneAssign();
       const t = a && target(a.typeId + '|' + a.ocId);
       if (!t) return paneHTML({ mode: 'none' });
       ensureDraft('a:' + a.id, a.person, a.plannedAt);
@@ -4034,7 +4043,7 @@ export function mountInspections(host) {
   // Крайний срок — в черновик; ставится вместе с «Назначить» / «Сохранить» (аудит 24.11.2026: сохранялся сразу при
   // выборе даты, без кнопки и без отмены).
   const deadlineKeys = () => (view.tab === 'queue' && checked.size > 1 ? [...checked.keys()]
-    : (() => { const a = view.section === 'history' || view.tab === 'assigned' ? allAssignments().find((x) => x.id === current) : null; return [a ? a.typeId + '|' + a.ocId : current]; })());
+    : (() => { const a = paneAssign(); return [a ? a.typeId + '|' + a.ocId : current]; })());
   scope.on('change', '[data-ip-f-deadline]', (e, el) => { draft.deadline = el.value; });
   scope.on('change', '[data-ip-hperson]', (e, el) => { view.histPerson = el.value; view.shown = STEP; render(); });
   scope.on('change', '[data-ip-kind]', (e, el) => { view.histKind = el.value; view.shown = STEP; render(); });
@@ -4072,7 +4081,7 @@ export function mountInspections(host) {
   });
   scope.on('click', '[data-ip-f-ok]', () => {
     const paneEl = scope.$('.ip-pane');
-    const prev = view.section === 'history' || view.tab === 'assigned' ? allAssignments().find((x) => x.id === current) : null;
+    const prev = paneAssign();
     const targets = prev ? [target(prev.typeId + '|' + prev.ocId)]
       : checked.size > 1 ? [...checked.values()] : [target(current)];
     // Срок и его объекты — до назначения: assign перерисовывает экран и сбрасывает черновик панели.
