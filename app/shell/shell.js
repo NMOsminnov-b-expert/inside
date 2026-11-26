@@ -2,7 +2,7 @@ import { $, esc } from '../kernel/dom.js';
 import { testDataOn, setTestDataOn } from '../kernel/testData.js';
 import { createScope } from '../kernel/scope.js';
 import { MENU_HREF, ARCHIVE_HREF, DOCS_HREF, DICTS_HREF, INST_HREF, OSMOTR_HREF, INSPECTIONS_HREF, SCANS_HREF, ANALYTICS_HREF } from '../kernel/router.js';
-import { session, seesEverything, myInstitutions, ROLES, roleLabel } from '../kernel/session.js';
+import { session, seesEverything, seesInspectors, myInstitutions, ROLES, roleLabel } from '../kernel/session.js';
 import { registerPersisted } from '../kernel/persist.js';
 import { scanCounts } from '../kernel/scanQueue.js';
 import { mountGoto } from './goto.js';
@@ -116,7 +116,8 @@ function bindNav() {
   // Осмотрщику панель регионалов не нужна — у него свой пункт.
   const rmBtn = $('[data-nav="insp"]');
   if (rmBtn) {
-    const syncRm = () => { rmBtn.hidden = session.state.role === 'insp'; };
+    // Экран «Регионалы» — только региональному менеджеру и администратору (kernel/session.js seesInspectors).
+    const syncRm = () => { rmBtn.hidden = !seesInspectors(); };
     syncRm();
     session.subscribe(syncRm);
   }

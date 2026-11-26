@@ -1553,10 +1553,11 @@ body[data-page="inspections"] .ip-stop-more{grid-column:1/-1;display:flex;flex-d
   padding:6px 0 2px 30px;border-top:1px solid var(--line-soft);font-size:12px}
 body[data-page="inspections"] .ip-sum-oc{margin:0;color:var(--ink);overflow-wrap:anywhere}
 body[data-page="inspections"] .ip-sum-ois{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:4px;width:100%}
-body[data-page="inspections"] .ip-sum-ois li{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:0 8px}
-body[data-page="inspections"] .ip-sum-ois small{grid-column:1;color:var(--muted);overflow-wrap:anywhere}
-body[data-page="inspections"] .ip-sum-ois em{grid-column:2;grid-row:1;font-style:normal;color:var(--muted);white-space:nowrap}
-body[data-page="inspections"] .ip-sum-oi{font-weight:600}
+/* Сводка в узкой карточке маршрута — одной колонкой: ОИ, под ним состояние (ФИО длинные), ниже сведения. */
+body[data-page="inspections"] .ip-sum-ois li{display:flex;flex-direction:column;gap:1px;min-width:0}
+body[data-page="inspections"] .ip-sum-ois small{order:3;color:var(--muted);overflow-wrap:anywhere}
+body[data-page="inspections"] .ip-sum-ois em{order:2;font-style:normal;color:var(--muted);overflow-wrap:anywhere}
+body[data-page="inspections"] .ip-sum-oi{order:1;font-weight:600;overflow-wrap:anywhere}
 .ip-pin.hl span{transform:scale(1.25);box-shadow:0 0 0 4px rgba(22,104,201,.35),0 1px 4px rgba(0,0,0,.35)}
 .ip-pin span{transition:transform .12s}
 @media (prefers-reduced-motion:reduce){.ip-pin span{transition:none}}
@@ -1809,6 +1810,11 @@ body[data-page="inspections"] .ip-stops-head .ip-route-sum{display:inline;font-s
 body[data-page="inspections"] .ip-stops .ip-empty{padding:6px 2px}
 body[data-page="inspections"] .ip-radd{display:flex;flex-direction:column;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--line-soft)}
 body[data-page="inspections"] .ip-radd-h{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font-size:13px}
+/* Вкладки «Просрочено / Без даты / Предложения» сжимаются вместе с карточкой маршрута: без этого их ширина
+   (около 340 px) распирала колонку, и в суженной карточке правый край строк и кнопок срезался. */
+body[data-page="inspections"] .ip-route-side, body[data-page="inspections"] .ip-radd{min-width:0}
+body[data-page="inspections"] .ip-radd-h .ip-route-mode{display:flex;max-width:100%;min-width:0}
+body[data-page="inspections"] .ip-radd-h .ip-route-mode button{flex:1 1 auto;min-width:0;padding:0 8px;overflow:hidden;text-overflow:ellipsis}
 body[data-page="inspections"] .ip-radd-h .ip-route-mode b{font-weight:600;color:var(--muted);margin-left:2px}
 body[data-page="inspections"] .ip-radd-list{max-height:none}
 body[data-page="inspections"] .ip-radd-act{display:flex;justify-content:flex-end;gap:6px;position:sticky;bottom:0;padding:6px 0;background:var(--panel)}
@@ -1839,10 +1845,12 @@ body[data-page="inspections"] .ip-inst-pill{display:inline-flex;align-items:cent
 body[data-page="inspections"] .ip-inst-pill span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body[data-page="inspections"] .ip-inst-pill button{border:0;background:transparent;width:22px;height:22px;border-radius:6px;cursor:pointer;color:inherit;font-size:15px}
 body[data-page="inspections"] .ip-inst-pill button:hover{background:var(--blue-100,var(--fill-hover))}
-body[data-page="inspections"] .ip-topline .ip-jump{position:relative;flex:1 1 auto;min-width:200px;max-width:520px;height:32px;margin-left:auto;padding:0 6px 0 10px;gap:8px;
+body[data-page="inspections"] .ip-topline .ip-jump{position:relative;flex:1 1 auto;min-width:120px;max-width:520px;height:32px;margin-left:auto;padding:0 6px 0 10px;gap:8px;
   border:1px solid var(--line);background:var(--panel)}
 body[data-page="inspections"] .ip-topline .ip-jump:focus-within{border-color:var(--blue-600);box-shadow:0 0 0 3px var(--blue-50)}
-body[data-page="inspections"] .ip-topline .ip-jump .isearch{height:30px;flex:1 1 auto;border:0;background:transparent;box-shadow:none}
+body[data-page="inspections"] .ip-topline .ip-jump .isearch{height:30px;flex:1 1 auto;min-width:0;border:0;background:transparent;box-shadow:none}
+body[data-page="inspections"] .ip-topline .ip-jump .isearch input{min-width:0;width:100%;text-overflow:ellipsis}
+body[data-page="inspections"] .ip-topline .ip-jump{overflow:visible}
 body[data-page="inspections"] .ip-topline .ip-jump-list{top:calc(100% + 8px);border:0;box-shadow:var(--lift);border-radius:12px}
 body[data-page="inspections"] .ip-topline .ip-bell{width:34px;height:34px;justify-content:center}
 body[data-page="inspections"] .ip-topline .ip-bell .ip-unread{top:0;right:-2px}
@@ -1856,3 +1864,9 @@ body[data-page="inspections"] .on-route .ip-grip-route-card{left:calc(var(--rp-w
 body[data-page="inspections"] .ip-tbl col.c-docs{width:52px}
 body[data-page="inspections"] .ip-sections .itab .ip-tab-n{font-weight:600;font-size:11.5px;color:var(--muted);margin-left:3px}
 body[data-page="inspections"] .ip-sections .itab.on .ip-tab-n{color:var(--blue-700)}
+
+/* Личная карточка: история закрепления за регионалами. */
+body[data-page="inspections"] .ip-mlog{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:3px;font-size:13px}
+/* Средние экраны (до 1400 px): верхняя строка не помещалась до меню пользователя — поиск уходил под колокольчик. */
+@media (max-width:1400px){body[data-page="inspections"] .ip-topline .ip-slice .select{width:120px}
+  body[data-page="inspections"] .ip-topline .ip-sections .itab{padding:0 7px}}

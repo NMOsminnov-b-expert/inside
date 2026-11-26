@@ -164,7 +164,7 @@ def run(t):
     t.wait_for('.ip-facets [data-ip-ff="due"], .ip-facets [data-ip-ff="cov"]')
     t.ck(pg.locator('.ip-grouped tr.ip-grp').count() >= 1, '«К назначению» не сгруппировано по месту выезда')
     # «Кого назначить»: щелчок подставляет человека, отмеченное в панели не сбрасывается
-    pg.locator('tr[data-ip-row] td:nth-child(4)').first.click()
+    pg.locator('tr[data-ip-row] td:nth-child(3)').first.click()
     t.wait_for('.ip-rank-b')
     if pg.locator('[data-ip-f-whole]').count() and not pg.locator('[data-ip-f-whole]').is_disabled():
         pg.uncheck('[data-ip-f-whole]')
@@ -264,6 +264,8 @@ def run(t):
     # С 16.11.2026 — веб-страница осмотрщика (#/osmotr, главная «Сегодня»).
     t.ck(t.wait_until("() => location.hash === '#/osmotr' && !!document.querySelector('.om-app[data-v=\"today\"]')"),
          '«Осмотры (осмотрщики)» открыли не страницу осмотрщика: %s' % pg.evaluate('location.hash'))
+    # Экран «Регионалы» закрыт осмотрщику (26.11.2026) — дальше снова «любая роль».
+    pg.evaluate("async () => (await import('./app/kernel/session.js')).session.set({ role: 'any' })")
 
     # --- поля ввода одного вида ---------------------------------------------------------
     # Замечание пользователя 12.10.2026 «стили боксов для ввода данных разные» и «у

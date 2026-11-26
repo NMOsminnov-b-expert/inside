@@ -21,14 +21,16 @@
   * ЦОД изменил состав досрочного направления после назначения — у назначения нет пометки «состав изменён», в панели нет
     «добавлены — … убраны — …», «Привести к составу» не отмечает ОИ направления; в «Подробностях назначения» нет раздела
     «Досрочно направлен»; в «Журнале» нет событий «досрочно направил» и «изменил досрочное направление»;
-  * срок, выбранный в панели, теряется по «Назначить» (перерисовка сбрасывала черновик).
+  * срок, выбранный в панели, теряется по «Назначить» (перерисовка сбрасывала черновик);
+  * экран «Регионалы» (с личными данными осмотрщиков) открыт ролям, кроме регионального менеджера и администратора,
+    или виден их пункт меню; регионалу экран не открывается (ответ пользователя 26.11.2026).
 """
 NAME = 'экран регионала: аудит 24.11 (досрочные, сортировка, уведомления, срок)'
 
 TOUCHES = ('app/pages/inspections/inspections.js', 'app/pages/inspections/model.js', 'app/pages/inspections/notify.js',
            'app/pages/inspections/assignPane.js', 'app/pages/inspections/inspections.css', 'app/kernel/earlyInspection.js',
            'app/kernel/statusStamp.js', 'app/kernel/inspections.js', 'app/pages/inspection/tasks.js', 'app/kernel/session.js',
-           'app/pages/inspections/detail.js', 'app/pages/inspections/stats.js')
+           'app/pages/inspections/detail.js', 'app/pages/inspections/stats.js', 'app/shell/shell.js')
 
 K = "(await import('./app/kernel/inspections.js'))"
 REC = "(await import('./app/kernel/registry.js')).getType('civil').records.loadRecord(id)"
@@ -232,3 +234,16 @@ def run(t):
     pg.click('[data-ip-section="history"]')
     t.ck(t.wait_until("() => document.querySelectorAll('.k-earlySent').length > 0 && document.querySelectorAll('.k-earlyEdited').length > 0"),
          'в «Журнале» нет событий досрочного направления')
+
+    # --- доступ к экрану по роли (26.11.2026) ---
+    ROLE = "async (r) => (await import('./app/kernel/session.js')).session.set({ role: r })"
+    pg.evaluate(ROLE, 'cod')
+    t.ck(t.wait_until("() => document.querySelector('.ip-denied') && !document.querySelector('.ip-topline')"),
+         'под ролью «оператор ЦОД» экран «Регионалы» открыт')
+    t.ck(t.wait_until("() => { const b = document.querySelector('[data-nav=insp]'); return !b || b.hidden; }"),
+         'под ролью «оператор ЦОД» виден пункт меню «Регионалы»')
+    pg.evaluate(ROLE, 'rm')
+    t.ck(t.wait_until("() => !document.querySelector('.ip-denied') && !!document.querySelector('[data-ip-section]')"),
+         'региональному менеджеру экран «Регионалы» не открылся после смены роли')
+    t.ck(pg.evaluate("() => !document.querySelector('[data-nav=insp]').hidden"), 'региональному менеджеру не виден пункт меню «Регионалы»')
+    pg.evaluate(ROLE, 'any')
