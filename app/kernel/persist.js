@@ -396,7 +396,12 @@ export function saveNow({ leaving = false } = {}) {
     const text = JSON.stringify({ v: VERSION, data, mine: mine(), ...(Object.keys(legacy).length ? { legacy } : {}) });
     // Граница — в байтах (UTF-8), а не в символах: кириллица занимает по два.
     if (new Blob([text]).size > MAX_BYTES) {
-      fail('size', `Данных больше ${MAX_BYTES / 1024 / 1024} МБ — в браузере они больше не сохраняются.`);
+      // Что разрослось — три самые тяжёлые части (26.11.2026: предел сработал у пользователя, а не в чистом браузере;
+      // без названия части не понять, чьи данные чистить).
+      const mb = (x) => `${(new Blob([JSON.stringify(x)]).size / 1024 / 1024).toFixed(1)} МБ`;
+      const parts = [...Object.entries(data), ['личные правки', mine()], ...(Object.keys(legacy).length ? [['прежний формат', legacy]] : [])]
+        .map(([k, v]) => [k, v, new Blob([JSON.stringify(v)]).size]).sort((a, b) => b[2] - a[2]).slice(0, 3);
+      fail('size', `Данных больше ${MAX_BYTES / 1024 / 1024} МБ — в браузере они больше не сохраняются. Больше всего: ${parts.map(([k, v]) => `«${k}» ${mb(v)}`).join(', ')}.`);
       return false;
     }
     localStorage.setItem(KEY, text);
