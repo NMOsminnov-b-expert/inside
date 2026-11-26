@@ -888,9 +888,9 @@ body[data-page="inspections"] .ip-note-dot{display:inline-block;width:8px;height
 body[data-page="inspections"] .ip-note-dot.off{background:var(--danger)}
 body[data-page="inspections"] .ip-note-dot.warn{background:var(--amber-600)}
 body[data-page="inspections"] .ip-note-dot.ok{background:var(--teal-600)}
-body[data-page="inspections"] .ip-notesec .ip-note-kinds .ip-person-name{display:flex;align-items:center;gap:8px}
-body[data-page="inspections"] .ip-notesec .ip-note-kinds .ip-person-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;text-align:left;justify-items:start}
-body[data-page="inspections"] .ip-notesec .ip-note-kinds .ip-person-load{justify-self:end}
+body[data-page="inspections"] .ip-notesec .ip-note-kinds .ip-person-name, body[data-page="inspections"] .ip-todaysec .ip-note-kinds .ip-person-name{display:flex;align-items:center;gap:8px}
+body[data-page="inspections"] .ip-notesec .ip-note-kinds .ip-person-main, body[data-page="inspections"] .ip-todaysec .ip-note-kinds .ip-person-main{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;text-align:left;justify-items:start}
+body[data-page="inspections"] .ip-notesec .ip-note-kinds .ip-person-load, body[data-page="inspections"] .ip-todaysec .ip-note-kinds .ip-person-load{justify-self:end}
 body[data-page="inspections"] .ip-note-kinds .ip-person-main:disabled{opacity:.5;cursor:default}
 body[data-page="inspections"] .ip-notesec .ip-people-head .ip-check{margin-top:4px}
 body[data-page="inspections"] .ip-note-day h3{margin:4px 0 6px;font-size:11px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;color:var(--ink-label)}
@@ -1632,9 +1632,12 @@ body[data-page="inspections"] .ip-picked-days li{grid-template-columns:minmax(0,
 body[data-page="inspections"] .ip-picked-days .ell{white-space:normal;overflow:visible;text-overflow:clip;line-height:1.3}
 
 /* «Сегодня» регионала: блоки утреннего обхода сеткой, строка — кнопка перехода (решение 05.11.2026). */
-/* Колонками, а не рядами (26.11.2026): длинный список растягивал ряд, под короткими блоками были пустоты, а нижние блоки уходили за край. */
-body[data-page="inspections"] .ip-today-grid{display:block;columns:340px;column-gap:12px}
-body[data-page="inspections"] .ip-today-grid > .ip-today-b{break-inside:avoid;margin:0 0 12px}
+/* «Сегодня» — разделами (26.11.2026: «Уходи от карточек! Нужны нормальные разделы!»): слева группы и разделы с
+   числами, справа — список выбранного порциями. */
+body[data-page="inspections"] .ip-today-secs .ip-today-g{display:flex;align-items:center;gap:6px;margin:10px 0 2px;padding:0 10px;
+  font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+body[data-page="inspections"] .ip-today-secs .ip-today-g:first-child{margin-top:2px}
+body[data-page="inspections"] .ip-today-secs .ip-today-g b{font-weight:700;color:var(--ink)}
 body[data-page="inspections"] .ip-today-b{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel, #fff);min-width:0}
 body[data-page="inspections"] .ip-today-b h3{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:13px;font-weight:600}
 body[data-page="inspections"] .ip-today-b h3 .btn{margin-left:auto}
@@ -1647,7 +1650,7 @@ body[data-page="inspections"] .ip-today-row:focus-visible{outline:2px solid var(
 body[data-page="inspections"] .ip-today-a{font-size:12.5px;font-weight:600;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 body[data-page="inspections"] .ip-today-s{grid-column:1;font-size:11.5px;color:var(--muted);min-width:0;overflow-wrap:anywhere}
 body[data-page="inspections"] .ip-today-c{grid-column:2;grid-row:1 / span 2;align-self:center;font-size:11.5px;color:var(--muted);text-align:right;white-space:nowrap}
-body[data-page="inspections"] .ip.ip-todaysec{grid-template-columns:minmax(0,1fr)}
+/* «Сегодня» разделами — раскладка как у «Уведомлений»: список разделов слева (общее правило .ip-peoplesec). */
 
 /* Часть описи у назначения (решение 06.11.2026 «Нужны оба варианта»). */
 body[data-page="inspections"] .ip-invpart{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:center;gap:6px 8px;margin:2px 0 10px 26px}

@@ -71,11 +71,15 @@ def run(t):
     t.wait_until("async () => %s.docRequestsOf('civil', 'oc-cv-b91').some((r) => r.state === 'review')" % DQ)
 
     # --- регионал на «Сегодня» ---
-    t.open('#/inspections?s=today', wait='.ip-today-b')
+    t.open('#/inspections?s=today', wait='[data-ip-today-sec]')
     if pg.locator('.ip-slice [data-ip-mode="all"][aria-pressed="false"]').count():
         pg.click('.ip-slice [data-ip-mode="all"]')
-    t.ck(t.wait_until("() => !!document.querySelector('.ip-today-b[aria-label=\"Запросы ЦОД на проверке\"] [data-ip-dq]')"), 'на «Сегодня» нет запросов ЦОД на проверке')
+    # «Сегодня» разделами (26.11.2026): раздел «Запросы ЦОД на проверке», запрос — строкой, форма — у открытого.
+    pg.click('[data-ip-today-sec="dq"]')
     rid = pg.evaluate("async () => %s.docRequestsOf('civil', 'oc-cv-b91').find((r) => r.state === 'review').id" % DQ)
+    t.ck(t.wait_until("(id) => !!document.querySelector('[data-ip-today-open=\"' + id + '\"]')", rid), 'на «Сегодня» нет запросов ЦОД на проверке')
+    pg.click('[data-ip-today-open="%s"]' % rid)
+    t.wait_for('[data-ip-dq="%s"]' % rid)
     li = '[data-ip-dq="%s"]' % rid
     pg.fill(li + ' [data-ip-dq-row="0"] [data-ip-dq-k="no"]', '7-а')
     pg.dispatch_event(li + ' [data-ip-dq-row="0"] [data-ip-dq-k="no"]', 'change')
@@ -90,6 +94,8 @@ def run(t):
     t.ck(made and made[0] == 'site' and made[2] == 'u-chk-1' and '№ 7-а' in made[3], 'подтверждение не создало запрос «Документы на месте»: %s' % made)
     gid = pg.evaluate("async () => %s.docRequestsOf('civil', 'oc-cv-1').find((r) => r.state === 'review').id" % DQ)
     gli = '[data-ip-dq="%s"]' % gid
+    t.wait_for('[data-ip-today-open="%s"]' % gid)
+    pg.click('[data-ip-today-open="%s"]' % gid)
     t.wait_for(gli)
     pg.click(gli + ' [data-ip-dq-no]')
     pg.click(gli + ' [data-ip-dq-refuse]')

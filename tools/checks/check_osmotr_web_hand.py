@@ -107,12 +107,16 @@ def run(t):
 
     # --- «Сегодня» регионала: блоки «Осмотр не состоялся» и «Сдано с причиной» ---
     pg.set_viewport_size({'width': 1440, 'height': 900})
-    t.open('#/inspections?s=today', wait='.ip-today-b')
+    t.open('#/inspections?s=today', wait='[data-ip-today-sec]')
     if pg.locator('.ip-slice [data-ip-mode="all"][aria-pressed="false"]').count():
         pg.click('.ip-slice [data-ip-mode="all"]')
-    t.ck(t.wait_until("() => !!document.querySelector('.ip-today-b[aria-label=\"Осмотр не состоялся\"]')"), 'на «Сегодня» нет блока «Осмотр не состоялся»')
-    t.ck(t.wait_until("([r]) => (document.querySelector('.ip-today-b[aria-label=\"Сдано с причиной\"]') || {}).textContent?.includes(r)", [OWN]),
-         'на «Сегодня» нет блока «Сдано с причиной» с причиной')
+    # «Сегодня» разделами (26.11.2026): разделы «Осмотр не состоялся» и «Сдано неполным».
+    t.ck(t.wait_until("() => !document.querySelector('[data-ip-today-sec=\"failed\"]').disabled"), 'на «Сегодня» нет раздела «Осмотр не состоялся»')
+    pg.click('[data-ip-today-sec="failed"]')
+    t.ck(t.wait_until("() => document.querySelectorAll('.ip-today [data-ip-note]').length > 0"), 'раздел «Осмотр не состоялся» пуст')
+    pg.click('[data-ip-today-sec="handed"]')
+    t.ck(t.wait_until("([r]) => (document.querySelector('.ip-today .ip-card-body') || {}).textContent?.includes(r)", [OWN]),
+         'на «Сегодня» в «Сдано неполным» нет причины')
 
     # --- вечерний отчёт: «Осмотрен» — только законченный ---
     pg.set_viewport_size({'width': 400, 'height': 860})

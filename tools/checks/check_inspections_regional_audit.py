@@ -7,7 +7,8 @@
 перевода на осмотр, по иным метрикам)»; направить досрочно — «поиском ЕНИ в поиске сверху с переходом… на карточку».
 
 Что ловит сценарий:
-  * досрочно направленный объект без назначения не виден в «Сегодня → Досрочно направлены» или строка не ведёт в очередь;
+  * «Сегодня» не разделами (слева разделы с числами); запросы ЦОД — не строкой, форма у всех сразу; поиск раздела не отбирает;
+  * досрочно направленный объект без назначения не виден в «Сегодня → Досрочные без назначения» или строка не ведёт в очередь;
   * нет уведомления «Досрочно направлен на осмотр»; после отзыва — нет «Досрочное направление отозвано»;
   * «Отметить прочитанными эти» при выбранном виде отмечает и уведомления других видов;
   * в очереди нет отбора «Статус ОЦ» или он пропускает другие статусы; нет порядка «Направлены позже» / «Без группировки»
@@ -76,7 +77,25 @@ def run(t):
     # --- «Сегодня»: досрочно направленные без назначения ---
     t.open('#/inspections', wait='[data-ip-section]')
     pg.click('[data-ip-section="today"]')
-    t.ck(t.wait_until("(k) => !!document.querySelector('[data-ip-today-q=\"' + k + '\"]')", 'civil|' + a), 'в «Сегодня» нет блока «Досрочно направлены» с объектом')
+    # «Сегодня» разделами (26.11.2026: «Уходи от карточек! Нужны нормальные разделы!»): слева разделы с числами.
+    t.wait_for('[data-ip-today-sec="early"]')
+    secs = pg.eval_on_selector_all('[data-ip-today-sec]', 'els => els.map((e) => e.dataset.ipTodaySec)')
+    t.ck(secs[:3] == ['dq', 'mv', 'early'] and 'fresh' in secs, 'разделы «Сегодня» не те или не в том порядке: %s' % secs)
+    dqn = int(pg.inner_text('[data-ip-today-sec="dq"] b') or 0)
+    if dqn:
+        pg.click('[data-ip-today-sec="dq"]')
+        t.ck(t.wait_until("() => document.querySelectorAll('[data-ip-today-open]').length > 0 && !document.querySelector('[data-ip-dq-ok]')"),
+             'запросы ЦОД в «Сегодня» — не строкой: форма разбора открыта у всех')
+        pg.locator('[data-ip-today-open]').first.click()
+        t.ck(t.wait_until("() => document.querySelectorAll('[data-ip-dq-ok]').length === 1"), 'открытый запрос ЦОД не показал форму разбора')
+    pg.click('[data-ip-today-sec="early"]')
+    t.ck(t.wait_until("(k) => !!document.querySelector('[data-ip-today-q=\"' + k + '\"]')", 'civil|' + a), 'в «Сегодня → Досрочные без назначения» нет объекта')
+    n_early = pg.locator('[data-ip-today-q]').count()
+    if n_early > 5:
+        pg.fill('[data-ip-q]', 'нет-такого-адреса-xyz')
+        t.ck(t.wait_until("() => document.querySelectorAll('[data-ip-today-q]').length === 0"), 'поиск в разделе «Сегодня» не отбирает строки')
+        pg.fill('[data-ip-q]', '')
+        t.wait_until("(k) => !!document.querySelector('[data-ip-today-q=\"' + k + '\"]')", 'civil|' + a)
     pg.click('[data-ip-today-q="civil|%s"]' % a)
     t.ck(t.wait_until("(k) => !!document.querySelector('tr.cur[data-ip-row=\"' + k + '\"], .ip-pane .ip-early')", 'civil|' + a), 'строка «Досрочно направлены» не открыла объект в очереди')
 

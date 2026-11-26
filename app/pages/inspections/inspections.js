@@ -86,6 +86,7 @@ const view = {
   gridWidths: {},        // «Таблица»: ширины столбцов
   gridOrder: [],         // «Таблица»: порядок столбцов (перетаскиванием заголовка)
   notesKind: '',         // «Уведомления»: отбор по виду
+  todaySec: '',          // «Сегодня»: открытый раздел (dq, mv, early, hot, overdue, stalled, missed, failed, handed, trips, noMorning, away, fresh)
   notesUnread: false,    // «Уведомления»: только непрочитанные
   assignPerson: '',      // в «Назначениях»: осмотрщик (фильтр «Назначено» и подстановка в панель)
   histPerson: '',        // в «Истории»: осмотрщик
@@ -2528,6 +2529,7 @@ export function mountInspections(host) {
   // «Сегодня» регионала (решение пользователя 05.11.2026 по разбору 12.10: «Сегодня» — один экран
   // утреннего обхода: горящие, просроченные, отсутствия, уведомления). Каждая строка ведёт туда,
   // где с ней работают; пустой блок говорит, что всё в порядке.
+  let todayOpen = '';   // «Сегодня»: открытый для разбора запрос ЦОД или перенос
   function todaySection() {
     const read = readSet();
     const mine = myPeople();
@@ -2539,19 +2541,18 @@ export function mountInspections(host) {
     // Досрочно направленные ЦОД и ещё не назначенные — отдельным блоком (аудит 24.11.2026: на «Сегодня» их не было
     // видно); новые сверху.
     const earlyQ = queueBase(all).filter(objInSlice).filter((s) => s.early && s.cov.state === 'none')
-      .sort((a, b) => String(b.sentAt || '').localeCompare(String(a.sentAt || ''))).slice(0, 12);
+      .sort((a, b) => String(b.sentAt || '').localeCompare(String(a.sentAt || '')));
     const hot = queueBase(all).filter(objInSlice).filter((s) => s.deadline && s.deadline <= shiftD(todayD, 3))
-      .sort((a, b) => String(a.deadline).localeCompare(String(b.deadline))).slice(0, 12);
-    const late = notes.filter((n) => ['missed', 'overdue', 'stalled', 'noMorning', 'noEvening'].includes(n.kind) && noteInSlice(n, mine) && n.date <= todayD)
-      .slice(0, 12);
+      .sort((a, b) => String(a.deadline).localeCompare(String(b.deadline)));
+    const late = notes.filter((n) => ['missed', 'overdue', 'stalled', 'noMorning', 'noEvening'].includes(n.kind) && noteInSlice(n, mine) && n.date <= todayD);
     const away = active.map((p) => ({ p, ab: absenceOn(p.name, todayD), n: allAssignments().filter((a) => a.person === p.name && isLive(a) && a.plannedAt === todayD).length }))
       .filter((x) => x.ab);
     const trips = active.map((p) => ({ p, r: dayReport(p.name, todayD) })).filter((x) => x.r.trips);
-    const fresh = notes.filter((n) => !read.has(n.id) && noteInSlice(n, mine)).slice(0, 8);
+    const fresh = notes.filter((n) => !read.has(n.id) && noteInSlice(n, mine));
     // Исходы за неделю (аудит 17.11.2026): не состоялся — с причиной; сдано «неполным» — с причиной.
     const week = shiftD(todayD, -6);
-    const failedN = notes.filter((n) => n.kind === 'failed' && n.date >= week && noteInSlice(n, mine)).slice(0, 12);
-    const handN = notes.filter((n) => n.kind === 'handed' && / — неполный/.test(n.text) && n.date >= week && noteInSlice(n, mine)).slice(0, 12);
+    const failedN = notes.filter((n) => n.kind === 'failed' && n.date >= week && noteInSlice(n, mine));
+    const handN = notes.filter((n) => n.kind === 'handed' && / — неполный/.test(n.text) && n.date >= week && noteInSlice(n, mine));
     // Запросы переноса — ответ прямо здесь (решение 06.11.2026: «Регионал должен подтвердить перенос»).
     const moves = moveRequests().filter((a) => ofMine(a.person) && objInSlice(objOf(a.typeId, a.ocId)));
     const moveLi = (a) => `<li class="ip-today-move"><span class="ip-today-a">${esc((all.get(a.typeId + '|' + a.ocId) || {}).title || '—')}</span>
@@ -2581,28 +2582,66 @@ export function mountInspections(host) {
         <span class="ip-err" data-ip-dq-err role="alert"></span>
         <span class="ip-today-acts"><button type="button" class="btn btn-danger btn-sm" data-ip-dq-refuse>Отклонить запрос</button>
         <button type="button" class="btn btn-ghost btn-sm" data-ip-dq-cancel>Отмена</button></span></span>` : ''}</li>`;
-    const block = (title, n, body, empty, more = '') => `<section class="ip-today-b" aria-label="${esc(title)}">
-      <h3>${esc(title)} <b class="ip-today-n">${n}</b>${more}</h3>${n ? body : `<p class="ip-hint">${esc(empty)}</p>`}</section>`;
     const li = (attr, a, b, c = '') => `<li><button type="button" class="ip-today-row" ${attr}><span class="ip-today-a">${esc(a)}</span><span class="ip-today-s">${esc(b)}</span>${c ? `<span class="ip-today-c">${c}</span>` : ''}</button></li>`;
+    // «Сегодня» — разделами, а не карточками (пользователь 26.11.2026: «Уходи от карточек! Нужны нормальные разделы!»;
+    // «Оно все поломается если будет 100500 граф в каждом блоке»): слева — разделы четырёх групп с числами (наверху
+    // все четыре: требует действия, сроки, люди сегодня, уведомления), справа — список выбранного порциями, как в
+    // «Журнале»; запросы ЦОД и переносы — с формой в строке.
+    const noteRow = (n) => li(`data-ip-note="${esc(n.id)}"`, n.person || 'объект', n.text, n.date === todayD ? 'сегодня' : fmtDate(n.date));
+    const byKind = (k) => late.filter((n) => n.kind === k);
+    const noMorning = byKind('noMorning').filter((n) => n.date === todayD);
+    const sec = (key, group, title, list, row, empty, text) => ({ key, group, title, list, row, empty, text });
+    const objTitle = (x) => (objOf(x.typeId, x.ocId) || {}).title || x.title || '—';
+    const dqRow = (r) => (todayOpen === r.id ? dqLi(r) : li(`data-ip-today-open="${esc(r.id)}"`, `Запрос № ${r.no} · ${objTitle(r)}`,
+      `ЦОД: ${r.by || '—'} · ${fmtDate(String(r.at).slice(0, 10))} · документов ${r.rows.length}`, 'разобрать'));
+    const mvRow = (a) => (todayOpen === a.id ? moveLi(a) : li(`data-ip-today-open="${esc(a.id)}"`, objTitle(a),
+      `${a.person} · ${a.moveReq.from ? fmtDate(a.moveReq.from) : 'без даты'} → ${fmtDate(a.moveReq.date)} · ${a.moveReq.reason}`, 'ответить'));
+    // Поиск по разделу: адрес, ЕНИ, учреждение, ФИО, текст.
+    const sText = (s0) => [s0.title, s0.eniAll || s0.eni, s0.institution, s0.typeLabel].join(' ');
+    const nText = (n) => [n.person, n.text].join(' ');
+    const SECS = [
+      sec('dq', 'Требует действия', 'Запросы ЦОД на проверке', dqs, dqRow, 'Запросов ЦОД на проверке нет.', (r) => [objTitle(r), r.by, r.no, ...r.rows.map((x) => x.type)].join(' ')),
+      sec('mv', 'Требует действия', 'Запрошен перенос', moves, mvRow, 'Запросов переноса нет.', (a) => [objTitle(a), a.person, a.moveReq.reason].join(' ')),
+      sec('early', 'Требует действия', 'Досрочные без назначения', earlyQ, (s) => li(`data-ip-today-q="${esc(s.typeId + '|' + s.id)}"`, s.title,
+        [s.typeLabel, s.sentAt ? `направлен ${fmtDate(s.sentAt)}` : ''].filter(Boolean).join(' · ')), 'Досрочно направленных без назначения нет.', sText),
+      sec('hot', 'Сроки', 'Горит срок', hot, (s) => li(`data-ip-today-q="${esc(s.typeId + '|' + s.id)}"`, s.title, `${s.deadline < todayD ? 'срок прошёл' : 'срок'} ${fmtDate(s.deadline)}`, covWord(s)),
+        'Объектов со сроком в ближайшие три дня и свободными ОИ нет.', sText),
+      sec('overdue', 'Сроки', 'Срок объекта прошёл', byKind('overdue'), noteRow, 'Объектов с прошедшим сроком нет.', nText),
+      sec('stalled', 'Сроки', 'Назначение зависло', byKind('stalled'), noteRow, 'Зависших назначений нет.', nText),
+      sec('missed', 'Сроки', 'Пропущен выезд', byKind('missed'), noteRow, 'Пропущенных выездов нет.', nText),
+      sec('failed', 'Сроки', 'Осмотр не состоялся · 7 дн.', failedN, noteRow, 'За неделю все осмотры состоялись.', nText),
+      sec('handed', 'Сроки', 'Сдано неполным · 7 дн.', handN, noteRow, 'За неделю неполных сдач нет.', nText),
+      sec('trips', 'Люди сегодня', 'Выезжают', trips, ({ p, r }) => li(`data-ip-today-day="${esc(p.name)}"`, p.name, `${r.trips} ${r.trips === 1 ? 'выезд' : r.trips < 5 ? 'выезда' : 'выездов'}`,
+        r.morning ? `утренний ${esc(reportTime(r.morning.at))}` : r.missingMorning ? '<b class="ip-late">нет утреннего</b>' : 'утренний ещё не сдан'), 'На сегодня выездов не назначено.', (x) => x.p.name),
+      sec('noMorning', 'Люди сегодня', 'Без утреннего отчёта', noMorning, noteRow, 'Утренние отчёты сданы.', nText),
+      sec('away', 'Люди сегодня', 'Отсутствуют', away, ({ p, ab, n }) => li(`data-ip-today-p="${esc(p.name)}"`, p.name, absenceLabel(ab.kind) + (ab.to && ab.to !== todayD ? ` до ${fmtDate(ab.to)}` : ''),
+        n ? `<b class="ip-late">выездов на сегодня ${n} — переназначить</b>` : ''), 'Все осмотрщики на месте.', (x) => x.p.name),
+      sec('fresh', 'Уведомления', 'Новые уведомления', fresh, (n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`), 'Непрочитанных уведомлений нет.', nText),
+    ];
+    // Открыт выбранный раздел; не выбран или пуст — первый непустой (сверху — то, что требует действия).
+    const cur = SECS.find((x) => x.key === view.todaySec && x.list.length) || SECS.find((x) => x.list.length) || SECS[0];
+    const groups = [...new Set(SECS.map((x) => x.group))];
+    const aside = `<aside class="ip-people" aria-label="Разделы «Сегодня»">
+      <ul class="ip-people-list ip-note-kinds ip-today-secs">
+        ${groups.map((g) => `<li class="ip-today-g" role="presentation">${esc(g)} <b>${SECS.filter((x) => x.group === g).reduce((s, x) => s + x.list.length, 0)}</b></li>
+          ${SECS.filter((x) => x.group === g).map((x) => `<li class="ip-person ${x === cur ? 'on' : ''}"><button class="ip-person-main" data-ip-today-sec="${x.key}" ${x.list.length ? '' : 'disabled'} aria-current="${x === cur}">
+            <span class="ip-person-name">${esc(x.title)}</span><span class="ip-person-load"><span><b>${x.list.length}</b></span></span></button></li>`).join('')}`).join('')}
+      </ul>
+    </aside>`;
+    const q = (view.q || '').trim().toLowerCase();
+    const found = q ? cur.list.filter((x) => String(cur.text(x) || '').toLowerCase().includes(q)) : cur.list;
+    const shown = found.slice(0, Math.max(view.shown, STEP));
     const wd = WDL[new Date(todayD + 'T00:00:00').getDay()];
     const card = `<section class="ip-work ip-card ip-today" aria-label="Сегодня">
       <header class="ip-card-head">
-        <div class="ip-card-title"><h1>Сегодня</h1><p class="ip-card-contacts">${esc(wd)}, ${esc(fmtDate(todayD))}${[view.peopleMode === 'mine' ? 'мои осмотрщики' : '', view.region, view.inst ? `учреждение «${view.inst}»` : ''].filter(Boolean).map((x) => ' · ' + esc(x)).join('')}</p></div>
+        <div class="ip-card-title"><h1>${esc(cur.title)}</h1><p class="ip-card-contacts">Сегодня, ${esc(wd)}, ${esc(fmtDate(todayD))} · ${cur.list.length}${[view.peopleMode === 'mine' ? 'мои осмотрщики' : '', view.region, view.inst ? `учреждение «${view.inst}»` : ''].filter(Boolean).map((x) => ' · ' + esc(x)).join('')}</p></div>
+        ${cur.key === 'fresh' ? '<div class="ip-head-act"><button type="button" class="btn btn-ghost btn-sm" data-ip-section="notes">Все уведомления</button></div>' : ''}
       </header>
-      <div class="ip-card-body ip-today-grid">
-        ${dqs.length ? block('Запросы ЦОД на проверке', dqs.length, `<ul class="ip-today-list">${dqs.map(dqLi).join('')}</ul>`, '') : ''}
-        ${moves.length ? block('Запрошен перенос', moves.length, `<ul class="ip-today-list">${moves.map(moveLi).join('')}</ul>`, '') : ''}
-        ${earlyQ.length ? block('Досрочно направлены', earlyQ.length, `<ul class="ip-today-list">${earlyQ.map((s) => li(`data-ip-today-q="${esc(s.typeId + '|' + s.id)}"`, s.title, [s.typeLabel, s.sentAt ? `направлен ${fmtDate(s.sentAt)}` : ''].filter(Boolean).join(' · '), 'не назначен')).join('')}</ul>`, '') : ''}
-        ${block('Горит срок', hot.length, `<ul class="ip-today-list">${hot.map((s) => li(`data-ip-today-q="${esc(s.typeId + '|' + s.id)}"`, s.title, `${s.deadline < todayD ? 'срок прошёл' : 'срок'} ${fmtDate(s.deadline)}`, covWord(s))).join('')}</ul>`, 'Объектов со сроком в ближайшие три дня и свободными ОИ нет.')}
-        ${block('Пропущено и просрочено', late.length, `<ul class="ip-today-list">${late.map((n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`, n.date === todayD ? 'сегодня' : fmtDate(n.date))).join('')}</ul>`, 'Пропусков отчётов и выездов нет.')}
-        ${block('Отсутствуют сегодня', away.length, `<ul class="ip-today-list">${away.map(({ p, ab, n }) => li(`data-ip-today-p="${esc(p.name)}"`, p.name, absenceLabel(ab.kind) + (ab.to && ab.to !== todayD ? ` до ${fmtDate(ab.to)}` : ''), n ? `<b class="ip-late">выездов на сегодня ${n} — переназначить</b>` : '')).join('')}</ul>`, 'Все осмотрщики на месте.')}
-        ${block('Выезды сегодня', trips.length, `<ul class="ip-today-list">${trips.map(({ p, r }) => li(`data-ip-today-day="${esc(p.name)}"`, p.name, `${r.trips} ${r.trips === 1 ? 'выезд' : r.trips < 5 ? 'выезда' : 'выездов'}`, r.morning ? `утренний ${esc(reportTime(r.morning.at))}` : r.missingMorning ? '<b class="ip-late">нет утреннего</b>' : 'утренний ещё не сдан')).join('')}</ul>`, 'На сегодня выездов не назначено.')}
-        ${failedN.length ? block('Осмотр не состоялся', failedN.length, `<ul class="ip-today-list">${failedN.map((n) => li(`data-ip-note="${esc(n.id)}"`, n.person || 'объект', n.text, n.date === todayD ? 'сегодня' : fmtDate(n.date))).join('')}</ul>`, '') : ''}
-        ${handN.length ? block('Сдано с причиной', handN.length, `<ul class="ip-today-list">${handN.map((n) => li(`data-ip-note="${esc(n.id)}"`, n.person || 'объект', n.text, n.date === todayD ? 'сегодня' : fmtDate(n.date))).join('')}</ul>`, '') : ''}
-        ${block('Новые уведомления', fresh.length, `<ul class="ip-today-list">${fresh.map((n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`)).join('')}</ul>`, 'Непрочитанных уведомлений нет.', ' <button type="button" class="btn btn-ghost btn-sm" data-ip-section="notes">Все уведомления</button>')}
-      </div>
+      ${cur.list.length > 5 ? `<div class="itoolbar ip-toolbar">${search('Адрес, ЕНИ, учреждение, ФИО, текст')}${q ? `<span class="ip-hint">найдено ${found.length}</span>` : ''}</div>` : ''}
+      <div class="ip-card-body">${found.length ? `<ul class="ip-today-list">${shown.map(cur.row).join('')}</ul>${more(shown.length, found.length)}`
+    : `<p class="ip-hint ip-empty">${esc(q ? 'Под поиск ничего не нашлось.' : cur.empty)}</p>`}</div>
     </section>`;
-    return { cls: 'ip-todaysec', html: card };
+    return { cls: 'ip-peoplesec ip-todaysec', html: aside + card };
   }
 
   // Пробег дня по дорогам (OSRM/OSM) — дописывается в отчёт дня, когда сервис ответит.
@@ -2627,7 +2666,8 @@ export function mountInspections(host) {
     const count = (k) => base.filter((n) => n.kind === k).length;
     const unreadN = base.filter((n) => !read.has(n.id)).length;
     const relDay = (iso) => (iso === todayD ? 'Сегодня' : iso === shiftD(todayD, -1) ? 'Вчера' : iso > todayD ? `${WDL[new Date(iso + 'T00:00:00').getDay()]}, ${fmtDate(iso)} — впереди` : `${WDL[new Date(iso + 'T00:00:00').getDay()]}, ${fmtDate(iso)}`);
-    const days = [...new Set(list.map((n) => n.date))];
+    const page = list.slice(0, Math.max(view.shown, STEP));
+    const days = [...new Set(page.map((n) => n.date))];
     const aside = `<aside class="ip-people" aria-label="Отбор уведомлений">
       <div class="ip-people-head">
         <label class="ip-check"><input type="checkbox" data-ip-notes-unread ${view.notesUnread ? 'checked' : ''}> Только непрочитанные · ${unreadN}</label>
@@ -2643,14 +2683,14 @@ export function mountInspections(host) {
         <div class="ip-card-title"><h1>Уведомления</h1><p class="ip-card-contacts">${list.length} · непрочитанных ${list.filter((n) => !read.has(n.id)).length}${view.peopleMode === 'mine' ? ' · мои осмотрщики' : ''}</p></div>
         <div class="ip-head-act">${unreadN ? `<button class="btn btn-ghost btn-sm" data-ip-notes-readall>${view.notesKind ? 'Отметить прочитанными эти' : 'Отметить все прочитанными'}</button>` : ''}</div>
       </header>
-      <div class="ip-card-body">${list.length ? days.map((d) => `<section class="ip-note-day"><h3>${esc(relDay(d))}</h3><ul class="ip-notes">${list.filter((n) => n.date === d).map((n) => {
+      <div class="ip-card-body">${list.length ? days.map((d) => `<section class="ip-note-day"><h3>${esc(relDay(d))}</h3><ul class="ip-notes">${page.filter((n) => n.date === d).map((n) => {
         const k = noteKind(n.kind);
         return `<li><button class="ip-note ${read.has(n.id) ? '' : 'unread'}" data-ip-note="${esc(n.id)}">
           <i class="ip-note-dot ${k.tone}" aria-hidden="true"></i>
           <span class="ip-note-k">${esc(k.label)}</span>
           <span class="ip-note-who">${esc(n.person || 'объект')}</span>
           <span class="ip-note-t">${esc(n.text)}</span></button></li>`;
-      }).join('')}</ul></section>`).join('') : `<p class="ip-hint ip-empty">${view.notesUnread ? 'Непрочитанных уведомлений нет.' : 'Уведомлений нет.'}</p>`}</div>
+      }).join('')}</ul></section>`).join('') + more(page.length, list.length) : `<p class="ip-hint ip-empty">${view.notesUnread ? 'Непрочитанных уведомлений нет.' : 'Уведомлений нет.'}</p>`}</div>
     </section>`;
     return { cls: 'ip-peoplesec ip-notesec', html: aside + card };
   }
@@ -3328,7 +3368,7 @@ export function mountInspections(host) {
   });
   scope.on('click', '[data-ip-norm-take]', (e, b) => { setNorm(b.dataset.ipNormTake, { perM2: Math.round(+b.dataset.v * 1000) / 1000 }); redraw(); });
   // Уведомления: отборы, прочитано, переход к причине.
-  scope.on('click', '[data-ip-notes-kind]', (e, b) => { view.notesKind = b.dataset.ipNotesKind; redraw(); });
+  scope.on('click', '[data-ip-notes-kind]', (e, b) => { view.notesKind = b.dataset.ipNotesKind; view.shown = STEP; redraw(); });
   // «Сегодня»: объект — в очередь «К назначению» на нём; осмотрщик — его выезды.
   scope.on('click', '[data-ip-today-q]', (e, b) => {
     const k = b.dataset.ipTodayQ;
@@ -3339,6 +3379,10 @@ export function mountInspections(host) {
     render();
   });
   scope.on('click', '[data-ip-today-p]', (e, b) => nav({ section: 'people', person: b.dataset.ipTodayP, personTab: 'trips' }));
+  // «Сегодня»: раздел слева — его список справа.
+  scope.on('click', '[data-ip-today-sec]', (e, b) => { view.todaySec = b.dataset.ipTodaySec; view.q = ''; todayOpen = ''; detail = []; resetList(); render(); });
+  // Запрос ЦОД или перенос — форма разбора у открытой строки, остальные строкой.
+  scope.on('click', '[data-ip-today-open]', (e, b) => { todayOpen = b.dataset.ipTodayOpen; redraw(); });
   scope.on('click', '[data-ip-today-day]', (e, b) => { nav({ section: 'assign', center: 'grid' }); openPday(b.dataset.ipTodayDay, todayD); });
   scope.on('click', '[data-ip-move-ok]', (e, b) => { decideMove(b.dataset.ipMoveOk, true); toast('Перенос разрешён', 'ok'); redraw(); });
   // Отказ — с обязательной причиной (пользователь 09.11.2026: «Да, обязательна»): поле прямо в строке, без окна.

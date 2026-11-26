@@ -38,7 +38,11 @@ def run(t):
     t.ck(a['now'] == a['today'], 'запрос переноса сразу сменил дату: %s' % a)
     t.open('#/inspections?s=today', wait='.ip-today')
     pg.click('.ip-slice [data-ip-mode="all"]')
-    t.ck(t.wait_for('[data-ip-move-ok="%s"]' % a['id']), 'запроса переноса нет в «Сегодня»')
+    # «Сегодня» разделами (26.11.2026): раздел «Запрошен перенос», запрос — строкой, ответ — у открытого.
+    pg.click('[data-ip-today-sec="mv"]')
+    t.ck(t.wait_for('[data-ip-today-open="%s"]' % a['id']), 'запроса переноса нет в «Сегодня»')
+    pg.click('[data-ip-today-open="%s"]' % a['id'])
+    t.wait_for('[data-ip-move-ok="%s"]' % a['id'])
     t.ck('Запрошен перенос выезда' in pg.evaluate("async () => { const N = await import('./app/pages/inspections/notify.js'); return N.NOTE_KINDS.map((k) => k.label).join('|'); }"),
          'нет вида уведомления о переносе')
     pg.click('[data-ip-move-ok="%s"]' % a['id'])
