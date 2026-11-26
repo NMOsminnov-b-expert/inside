@@ -16,6 +16,7 @@ import { assign, unassign, isLive, eventsOf, deadlineOf, workdayOf, inventoryHol
 import { objectContents, todayIso, stateLabel, EVENT_LABELS, freeOiIds, earlyScopeOf, earlyDrift } from './model.js';
 import { PART_KINDS, partValues, partLabel } from '../../kernel/inventories.js';
 import { earlyOf } from '../../kernel/earlyInspection.js';
+import { docRequestsOf } from '../../kernel/docRequests.js';
 
 const fmtDate = (iso) => (iso ? iso.slice(0, 10).split('-').reverse().join('.') : '');
 
@@ -222,6 +223,7 @@ export function paneHTML({ mode, people, person, date = '', target, targets = []
         назначил ${esc(prev.by || '—')} ${esc(fmtDate(prev.at))}</p>` : ''}
       ${others.length ? `<p class="ip-pane-meta">Ещё назначено: ${othersText(others)}</p>` : ''}
       ${early && early.state === 'sent' ? earlyHTML(early, c, prev && prev.early ? earlyDrift(target.typeId, target.ocId) : null) : ''}
+      ${docReqHTML(target)}
     </header>
     <div class="ip-pane-body">
       ${whoWhen(people, (prev && prev.person) || person, date || (prev && prev.plannedAt), plan, [target])}
@@ -323,6 +325,15 @@ function invPartsOf(root) {
 }
 
 export { unassign };
+
+// Запрос ЦОД «Запросить документы» на проверке у регионала — виден при назначении объекта (пользователь 26.11.2026:
+// «Эта вещь показывается при назначении обьекта»); «Разобрать» — к форме запроса в «Сегодня».
+function docReqHTML(target) {
+  const list = docRequestsOf(target.typeId, target.ocId).filter((r) => r.state === 'review');
+  return list.map((r) => `<div class="ip-early ip-dq-pane" role="note"><b>Запрос ЦОД № ${esc(String(r.no))} на проверке</b>
+    <span>получить на месте — ${r.rows.length} док.: ${esc(r.rows.map((x) => x.type).join(', '))}${r.note ? ` · ${esc(r.note)}` : ''}</span>
+    <span><button type="button" class="btn btn-ghost btn-sm" data-ip-dq-goto="${esc(r.id)}">Разобрать</button></span></div>`).join('');
+}
 
 // Досрочное направление (kernel/earlyInspection.js) — кто направил, что осмотреть, комментарий ЦОД; статус карточки при
 // назначении не меняется.

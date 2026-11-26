@@ -2568,13 +2568,24 @@ export function mountInspections(host) {
     // Запросы ЦОД «Запросить документы» — проверка регионалом (пользователь 23.11.2026: «Регионал может и править и
     // менять и отклонять список»): строки правятся на месте, «Подтвердить» отправляет запрос на осмотр.
     const dqs = docRequestsToReview().filter((r) => objInSlice(objOf(r.typeId, r.ocId)) || !objOf(r.typeId, r.ocId));
-    const dqLi = (r) => `<li class="ip-today-dq" data-ip-dq="${esc(r.id)}"><span class="ip-today-a">Запрос № ${esc(String(r.no))} · ${esc((objOf(r.typeId, r.ocId) || {}).title || r.title || '—')}</span>
-      <span class="ip-today-s">ЦОД: ${esc(r.by || '—')} · ${esc(fmtDate(String(r.at).slice(0, 10)))}${r.note ? ` · ${esc(r.note)}` : ''}</span>
+    // Каждый документ — блоком с подписями всех полей (пользователь 26.11.2026: «глянь формат документа. Надо все поля
+    // видеть. И крестики уехали»); из запроса — в карточку объекта и к назначению («Нужно уметь перейти в карточку»).
+    // «К назначению» — только у объекта, который стоит в очереди (иначе экран снимал отборы и открывал другой объект).
+    const inQueueKeys = new Set(queueBase(all).map((x) => x.typeId + '|' + x.id));
+    const dqField = (k, label, v, wide = false) => `<label class="field ip-dq-f ${wide ? 'wide' : ''}"><span>${label}</span>
+        <input class="input" data-ip-dq-k="${k}" value="${esc(v || '')}" autocomplete="off" ${k === 'date' ? 'type="date"' : ''}></label>`;
+    const dqLi = (r) => `<li class="ip-today-dq" data-ip-dq="${esc(r.id)}">
+      <span class="ip-today-a">ЦОД просит получить на месте — ${r.rows.length} ${r.rows.length === 1 ? 'документ' : r.rows.length < 5 ? 'документа' : 'документов'}</span>
+      <span class="ip-today-s">Запрос № ${esc(String(r.no))} · ${esc((objOf(r.typeId, r.ocId) || {}).title || r.title || '—')}</span>
+      <span class="ip-today-s">${esc(r.by || '—')} · ${esc(fmtDate(String(r.at).slice(0, 10)))}</span>
+      ${r.note ? `<span class="ip-dq-note">${esc(r.note)}</span>` : ''}
+      <span class="ip-dq-links"><a class="btn btn-ghost btn-sm" href="${esc(build({ typeId: r.typeId, ocId: r.ocId }))}">Карточка объекта</a>
+        ${inQueueKeys.has(r.typeId + '|' + r.ocId) ? `<button type="button" class="btn btn-ghost btn-sm" data-ip-today-q="${esc(r.typeId + '|' + r.ocId)}">К назначению</button>` : ''}</span>
       <span class="ip-dq-rows">${r.rows.map((x, i) => `<span class="ip-dq-row" data-ip-dq-row="${i}">
-        <input class="input" data-ip-dq-k="type" value="${esc(x.type)}" aria-label="Вид документа" placeholder="Вид документа">
-        <input class="input" data-ip-dq-k="no" value="${esc(x.no)}" aria-label="Номер" placeholder="№">
-        <span class="ip-dq-who" title="${esc(docReqRowLabel(x))}">${esc(x.party ? x.party.name : x.note || '')}</span>
-        <button type="button" class="isearch-clear" data-ip-dq-del="${i}" aria-label="Убрать строку ${esc(x.type)}" title="Убрать">×</button></span>`).join('')}</span>
+        <span class="ip-dq-rh"><b>Документ ${i + 1}</b>${x.party ? ` · <span title="${esc(docReqRowLabel(x))}">участник: ${esc(x.party.name || '—')}</span>` : ''}
+          <button type="button" class="isearch-clear ip-dq-x" data-ip-dq-del="${i}" aria-label="Убрать документ ${esc(x.type)}" title="Убрать">×</button></span>
+        ${dqField('type', 'Вид документа', x.type, true)}${dqField('no', '№', x.no)}${dqField('date', 'Дата', x.date)}
+        ${dqField('issuer', 'Кем выдан', x.issuer, true)}${dqField('note', 'Примечание', x.note, true)}</span>`).join('')}</span>
       <span class="ip-today-acts"><button type="button" class="btn btn-ghost btn-sm" data-ip-dq-add>+ документ</button>
         <button type="button" class="btn btn-primary btn-sm" data-ip-dq-ok>Подтвердить</button>
         <button type="button" class="btn btn-ghost btn-sm" data-ip-dq-no aria-expanded="${dqRefusing === r.id}">Отклонить</button></span>
@@ -3447,6 +3458,8 @@ export function mountInspections(host) {
     view.todaySlice = !v || (was && was.dim === dim && was.val === val) ? null : { sec: view.todaySec || (scope.$('[data-ip-today-sec][aria-current="true"]') || {}).dataset?.ipTodaySec, dim, val };
     view.q = ''; view.shown = STEP; redraw();
   });
+  // Из панели назначения — к форме запроса ЦОД в «Сегодня».
+  scope.on('click', '[data-ip-dq-goto]', (e, b) => { view.section = 'today'; view.todaySec = 'dq'; view.todaySlice = null; view.q = ''; todayOpen = b.dataset.ipDqGoto; detail = []; resetList(); render(); });
   // Запрос ЦОД или перенос — форма разбора у открытой строки, остальные строкой.
   scope.on('click', '[data-ip-today-open]', (e, b) => { todayOpen = b.dataset.ipTodayOpen; redraw(); });
   scope.on('click', '[data-ip-today-day]', (e, b) => { nav({ section: 'assign', center: 'grid' }); openPday(b.dataset.ipTodayDay, todayD); });
@@ -3457,8 +3470,9 @@ export function mountInspections(host) {
   const dqRows = (li) => {
     const r = docRequestsToReview().find((x) => x.id === li.dataset.ipDq);
     if (!r) return null;
+    // Все поля строки (вид, №, дата, кем выдан, примечание); участник — из запроса.
     return [...li.querySelectorAll('[data-ip-dq-row]')].map((row) => ({ ...r.rows[+row.dataset.ipDqRow],
-      type: row.querySelector('[data-ip-dq-k="type"]').value, no: row.querySelector('[data-ip-dq-k="no"]').value }));
+      ...Object.fromEntries([...row.querySelectorAll('[data-ip-dq-k]')].map((el) => [el.dataset.ipDqK, el.value.trim()])) }));
   };
   // change приходит и при уходе фокуса: перерисовка внутри него ломает уход фокуса (NotFoundError) — сохраняем после.
   scope.on('change', '[data-ip-dq-k]', (e, el) => { const li = dqOf(el); const rows = dqRows(li); if (rows) setTimeout(() => updateDocRequest(li.dataset.ipDq, { rows }), 0); });
