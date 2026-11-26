@@ -86,6 +86,7 @@ const view = {
   gridWidths: {},        // «Таблица»: ширины столбцов
   gridOrder: [],         // «Таблица»: порядок столбцов (перетаскиванием заголовка)
   notesKind: '',         // «Уведомления»: отбор по виду
+  todaySlice: null,      // «Сегодня»: строка разреза сводки { sec, dim, val } — её список
   todaySec: '',          // «Сегодня»: открытый раздел (dq, mv, early, hot, overdue, stalled, missed, failed, handed, trips, noMorning, away, fresh)
   notesUnread: false,    // «Уведомления»: только непрочитанные
   assignPerson: '',      // в «Назначениях»: осмотрщик (фильтр «Назначено» и подстановка в панель)
@@ -2618,28 +2619,84 @@ export function mountInspections(host) {
         n ? `<b class="ip-late">выездов на сегодня ${n} — переназначить</b>` : ''), 'Все осмотрщики на месте.', (x) => x.p.name),
       sec('fresh', 'Уведомления', 'Новые уведомления', fresh, (n) => li(`data-ip-note="${esc(n.id)}"`, noteKind(n.kind).label, `${n.person || 'объект'} · ${n.text}`), 'Непрочитанных уведомлений нет.', nText),
     ];
+    // Сводка разрезами, затем список (пользователь 26.11.2026: «Цель — не утопить в данных, а показать сводку, если
+    // уже человек клацает по сводке, тогда уже детализацию… А оттуда уже к решению задачи»): у раздела — разрезы по
+    // осмотрщикам, областям, дням с числом и полоской доли; строка разреза открывает узкий список именно этих записей,
+    // по дням; строка списка ведёт к решению (форма запроса или переноса, назначение, осмотрщик).
+    const regionByKey = (k) => { const s0 = k && all.get(k); return (s0 && regionOf(s0)) || 'без области'; };
+    const dayOf2 = (iso) => (iso ? String(iso).slice(0, 10) : '');
+    const dayWord = (iso) => (!iso ? 'без даты' : iso === todayD ? 'сегодня' : iso === shiftD(todayD, -1) ? 'вчера' : fmtDate(iso));
+    const D_PERSON = ['person', 'По осмотрщикам'];
+    const D_REGION = ['region', 'По областям'];
+    const D_DAY = ['day', 'По дням'];
+    const D_INST = ['inst', 'По учреждениям'];
+    const DIM_ONE = { person: 'Осмотрщик', region: 'Область', day: 'День', inst: 'Учреждение' };
+    const noteF = { person: (n) => n.person || 'без осмотрщика', region: (n) => regionByKey(n.obj), day: (n) => n.date };
+    const objF = (dayFn) => ({ region: (s0) => regionOf(s0) || 'без области', inst: (s0) => s0.institution || 'без учреждения', day: dayFn });
+    const FACETS = {
+      dq: { dims: [D_REGION, D_DAY], f: { region: (r) => regionByKey(r.typeId + '|' + r.ocId), day: (r) => dayOf2(r.at) } },
+      mv: { dims: [D_PERSON, D_REGION, D_DAY], f: { person: (a) => a.person, region: (a) => regionByKey(a.typeId + '|' + a.ocId), day: (a) => a.moveReq.date } },
+      early: { dims: [D_REGION, D_INST, D_DAY], f: objF((s0) => dayOf2(s0.sentAt)) },
+      hot: { dims: [D_REGION, D_INST, D_DAY], f: objF((s0) => s0.deadline) },
+      trips: { dims: [], f: {} }, away: { dims: [], f: {} },
+    };
+    const facetsOf = (x) => FACETS[x.key] || { dims: [D_PERSON, D_REGION, D_DAY], f: noteF };
     // Открыт выбранный раздел; не выбран или пуст — первый непустой (сверху — то, что требует действия).
     const cur = SECS.find((x) => x.key === view.todaySec && x.list.length) || SECS.find((x) => x.list.length) || SECS[0];
+    const fc = facetsOf(cur);
     const groups = [...new Set(SECS.map((x) => x.group))];
+    const urgent = new Set(['Требует действия', 'Сроки']);
     const aside = `<aside class="ip-people" aria-label="Разделы «Сегодня»">
       <ul class="ip-people-list ip-note-kinds ip-today-secs">
-        ${groups.map((g) => `<li class="ip-today-g" role="presentation">${esc(g)} <b>${SECS.filter((x) => x.group === g).reduce((s, x) => s + x.list.length, 0)}</b></li>
+        ${groups.map((g) => `<li class="ip-today-g" role="presentation">${esc(g)} <b>${SECS.filter((x) => x.group === g).reduce((s0, x) => s0 + x.list.length, 0)}</b></li>
           ${SECS.filter((x) => x.group === g).map((x) => `<li class="ip-person ${x === cur ? 'on' : ''}"><button class="ip-person-main" data-ip-today-sec="${x.key}" ${x.list.length ? '' : 'disabled'} aria-current="${x === cur}">
-            <span class="ip-person-name">${esc(x.title)}</span><span class="ip-person-load"><span><b>${x.list.length}</b></span></span></button></li>`).join('')}`).join('')}
+            <span class="ip-person-name">${esc(x.title)}</span><span class="ip-person-load"><span><b class="${x.list.length && urgent.has(g) ? 'ip-today-hot' : ''}">${x.list.length}</b></span></span></button></li>`).join('')}`).join('')}
       </ul>
     </aside>`;
+    // Небольшой раздел (до 8) или без разрезов — сразу список; иначе — сводка, список — по строке разреза.
+    const small = cur.list.length <= 8 || !fc.dims.length;
+    const sl = view.todaySlice && view.todaySlice.sec === cur.key && fc.f[view.todaySlice.dim] ? view.todaySlice : null;
+    const pick = sl ? cur.list.filter((x) => String(fc.f[sl.dim](x) || '') === sl.val) : cur.list;
+    const summary = small ? '' : fc.dims.map(([dim, title]) => {
+      const m = new Map();
+      cur.list.forEach((x) => { const v = String(fc.f[dim](x) || ''); m.set(v, (m.get(v) || 0) + 1); });
+      const rows = [...m.entries()].sort((a, b) => (dim === 'day' ? String(b[0]).localeCompare(String(a[0])) : b[1] - a[1]));
+      const max = Math.max(...rows.map((r) => r[1]));
+      const top = rows.slice(0, 8);
+      return `<section class="ip-tslice" aria-label="${esc(title)}"><h3>${esc(title)}</h3><ul>${top.map(([v, n]) => {
+        const on = sl && sl.dim === dim && sl.val === v;
+        return `<li><button type="button" class="ip-tslice-row ${on ? 'on' : ''}" data-ip-today-slice="${esc(dim + '|' + v)}" aria-pressed="${!!on}">
+          <span class="ip-tslice-l">${esc(dim === 'day' ? dayWord(v) : v || '—')}</span><b>${n}</b>
+          <span class="ip-tslice-bar" aria-hidden="true"><i style="width:${Math.max(4, Math.round((n / max) * 100))}%"></i></span></button></li>`;
+      }).join('')}</ul>${rows.length > 8 ? `<p class="ip-hint">и ещё ${rows.length - 8} — найдите поиском в списке</p>` : ''}</section>`;
+    }).join('');
+    const showList = small || sl || (view.q || '').trim();
     const q = (view.q || '').trim().toLowerCase();
-    const found = q ? cur.list.filter((x) => String(cur.text(x) || '').toLowerCase().includes(q)) : cur.list;
-    const shown = found.slice(0, Math.max(view.shown, STEP));
+    const found = q ? pick.filter((x) => String(cur.text(x) || '').toLowerCase().includes(q)) : pick;
+    const page = found.slice(0, Math.max(view.shown, STEP));
+    // Список — по дням (у разделов с датой), строки в две строчки.
+    const dayFn = fc.f.day;
+    const listHTML = !found.length ? `<p class="ip-hint ip-empty">${esc(q ? 'Под поиск ничего не нашлось.' : cur.empty)}</p>`
+      : dayFn && !(sl && sl.dim === 'day')
+        ? [...new Set(page.map((x) => dayOf2(dayFn(x))))].map((d) => `<section class="ip-note-day"><h3>${esc(dayWord(d))}</h3>
+            <ul class="ip-today-list">${page.filter((x) => dayOf2(dayFn(x)) === d).map(cur.row).join('')}</ul></section>`).join('')
+        : `<ul class="ip-today-list">${page.map(cur.row).join('')}</ul>`;
     const wd = WDL[new Date(todayD + 'T00:00:00').getDay()];
     const card = `<section class="ip-work ip-card ip-today" aria-label="Сегодня">
       <header class="ip-card-head">
-        <div class="ip-card-title"><h1>${esc(cur.title)}</h1><p class="ip-card-contacts">Сегодня, ${esc(wd)}, ${esc(fmtDate(todayD))} · ${cur.list.length}${[view.peopleMode === 'mine' ? 'мои осмотрщики' : '', view.region, view.inst ? `учреждение «${view.inst}»` : ''].filter(Boolean).map((x) => ' · ' + esc(x)).join('')}</p></div>
+        <div class="ip-card-title"><h1>${esc(cur.title)} <span class="ip-today-big">${cur.list.length}</span></h1><p class="ip-card-contacts">Сегодня, ${esc(wd)}, ${esc(fmtDate(todayD))}${[view.peopleMode === 'mine' ? 'мои осмотрщики' : '', view.region, view.inst ? `учреждение «${view.inst}»` : ''].filter(Boolean).map((x) => ' · ' + esc(x)).join('')}</p></div>
         ${cur.key === 'fresh' ? '<div class="ip-head-act"><button type="button" class="btn btn-ghost btn-sm" data-ip-section="notes">Все уведомления</button></div>' : ''}
       </header>
-      ${cur.list.length > 5 ? `<div class="itoolbar ip-toolbar">${search('Адрес, ЕНИ, учреждение, ФИО, текст')}${q ? `<span class="ip-hint">найдено ${found.length}</span>` : ''}</div>` : ''}
-      <div class="ip-card-body">${found.length ? `<ul class="ip-today-list">${shown.map(cur.row).join('')}</ul>${more(shown.length, found.length)}`
-    : `<p class="ip-hint ip-empty">${esc(q ? 'Под поиск ничего не нашлось.' : cur.empty)}</p>`}</div>
+      <div class="ip-card-body ip-today-body">
+        ${summary ? `<div class="ip-tslices">${summary}</div>
+          <div class="itoolbar ip-toolbar ip-today-q">${search('Найти в разделе: адрес, ЕНИ, учреждение, ФИО, текст')}</div>` : ''}
+        ${showList ? `<div class="ip-today-detail">
+          ${!small ? `<div class="ip-today-dh"><b>${sl ? esc(DIM_ONE[sl.dim]) + ': ' + esc(sl.dim === 'day' ? dayWord(sl.val) : sl.val) : 'Найдено'}</b> · ${found.length}
+            ${sl ? '<button type="button" class="btn btn-ghost btn-sm" data-ip-today-slice="">Снять отбор</button>' : ''}</div>` : ''}
+          ${small && pick.length > 5 ? `<div class="itoolbar ip-toolbar">${search('Адрес, ЕНИ, учреждение, ФИО, текст')}</div>` : ''}
+          ${listHTML}${found.length ? more(page.length, found.length) : ''}</div>`
+    : `<p class="ip-hint ip-today-pick">Выберите строку сводки — откроется список этих записей.</p>`}
+      </div>
     </section>`;
     return { cls: 'ip-peoplesec ip-todaysec', html: aside + card };
   }
@@ -3380,7 +3437,16 @@ export function mountInspections(host) {
   });
   scope.on('click', '[data-ip-today-p]', (e, b) => nav({ section: 'people', person: b.dataset.ipTodayP, personTab: 'trips' }));
   // «Сегодня»: раздел слева — его список справа.
-  scope.on('click', '[data-ip-today-sec]', (e, b) => { view.todaySec = b.dataset.ipTodaySec; view.q = ''; todayOpen = ''; detail = []; resetList(); render(); });
+  scope.on('click', '[data-ip-today-sec]', (e, b) => { view.todaySec = b.dataset.ipTodaySec; view.todaySlice = null; view.q = ''; todayOpen = ''; detail = []; resetList(); render(); });
+  // Строка разреза сводки — список этих записей; повторное нажатие или «Снять отбор» — сводка без списка.
+  scope.on('click', '[data-ip-today-slice]', (e, b) => {
+    const v = b.dataset.ipTodaySlice;
+    const [dim, ...rest] = v.split('|');
+    const val = rest.join('|');
+    const was = view.todaySlice;
+    view.todaySlice = !v || (was && was.dim === dim && was.val === val) ? null : { sec: view.todaySec || (scope.$('[data-ip-today-sec][aria-current="true"]') || {}).dataset?.ipTodaySec, dim, val };
+    view.q = ''; view.shown = STEP; redraw();
+  });
   // Запрос ЦОД или перенос — форма разбора у открытой строки, остальные строкой.
   scope.on('click', '[data-ip-today-open]', (e, b) => { todayOpen = b.dataset.ipTodayOpen; redraw(); });
   scope.on('click', '[data-ip-today-day]', (e, b) => { nav({ section: 'assign', center: 'grid' }); openPday(b.dataset.ipTodayDay, todayD); });

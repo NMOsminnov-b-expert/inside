@@ -65,3 +65,18 @@ def run(t):
     if t.ck(pg.locator('[data-ip-today-p="Айдай"]').count(), 'нет строки осмотрщика'):
         pg.locator('[data-ip-today-p="Айдай"]').first.click()
         t.ck(t.wait_until("() => /s=people/.test(location.hash) && /p=%D0%90/.test(location.hash)"), 'строка осмотрщика не ведёт к нему: %s' % pg.evaluate('location.hash'))
+
+    # Сводка разрезами, затем список (26.11.2026: «не утопить в данных, а показать сводку… тогда уже детализацию»).
+    t.open('#/inspections?s=today', wait='[data-ip-today-sec]')
+    big = pg.evaluate("() => [...document.querySelectorAll('[data-ip-today-sec]')].map((b) => [b.dataset.ipTodaySec, +b.querySelector('b').textContent]).find((x) => x[1] > 8 && !['trips', 'away'].includes(x[0]))")
+    if t.ck(big, 'в демо нет раздела «Сегодня» больше 8 записей — сводку нечем проверить'):
+        pg.click('[data-ip-today-sec="%s"]' % big[0])
+        t.ck(t.wait_until("() => document.querySelectorAll('.ip-tslice').length >= 2 && !document.querySelector('.ip-today-detail')"),
+             'большой раздел «Сегодня» открылся списком, а не сводкой')
+        pg.locator('[data-ip-today-slice]').first.click()
+        n = int(pg.locator('[data-ip-today-slice]').first.locator('b').inner_text())
+        t.wait_for('.ip-today-detail .ip-today-list > li')
+        t.ck(pg.locator('.ip-today-detail .ip-today-list > li').count() == n,
+             'строка сводки не открыла список своих записей (%d): %s' % (n, pg.evaluate("() => [document.querySelectorAll('.ip-today-detail .ip-today-list > li').length, (document.querySelector('.ip-today-dh') || {}).textContent]")))
+        pg.click('.ip-today-dh [data-ip-today-slice=""]')
+        t.ck(t.wait_until("() => !document.querySelector('.ip-today-detail')"), '«Снять отбор» не вернул сводку')

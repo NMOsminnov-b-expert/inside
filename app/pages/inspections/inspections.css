@@ -1638,6 +1638,31 @@ body[data-page="inspections"] .ip-today-secs .ip-today-g{display:flex;align-item
   font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
 body[data-page="inspections"] .ip-today-secs .ip-today-g:first-child{margin-top:2px}
 body[data-page="inspections"] .ip-today-secs .ip-today-g b{font-weight:700;color:var(--ink)}
+/* Сводка разрезами, затем список (26.11.2026: «не утопить в данных, а показать сводку… тогда уже детализацию»;
+   «Все сливается»): выбранный раздел и срочные числа заметнее, список узкий и по дням. */
+body[data-page="inspections"] .ip-todaysec .ip-person.on .ip-person-main{background:var(--blue-50);box-shadow:inset 3px 0 0 var(--blue-600);font-weight:600}
+body[data-page="inspections"] .ip-today-secs .ip-today-hot{color:var(--danger)}
+body[data-page="inspections"] .ip-today-big{margin-left:8px;font-size:22px;font-weight:700;color:var(--blue-700);vertical-align:-1px}
+body[data-page="inspections"] .ip-today-body{display:flex;flex-direction:column;gap:18px}
+body[data-page="inspections"] .ip-tslices{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:14px;max-width:1100px}
+body[data-page="inspections"] .ip-tslice{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:10px 10px 8px}
+body[data-page="inspections"] .ip-tslice h3{margin:0 0 6px;padding:0 6px;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--muted)}
+body[data-page="inspections"] .ip-tslice ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+body[data-page="inspections"] .ip-tslice-row{display:grid;grid-template-columns:minmax(0,1fr) auto;row-gap:4px;column-gap:10px;align-items:center;width:100%;
+  padding:6px 8px;border:1px solid transparent;border-radius:8px;background:transparent;font:inherit;font-size:13px;color:var(--ink);text-align:left;cursor:pointer;
+  transition:background-color .15s,transform .15s}
+body[data-page="inspections"] .ip-tslice-row:hover{background:var(--fill-hover);transform:scale(1.01)}
+body[data-page="inspections"] .ip-tslice-row.on{background:var(--blue-50);border-color:var(--blue-600)}
+body[data-page="inspections"] .ip-tslice-l{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+body[data-page="inspections"] .ip-tslice-row b{font-weight:700}
+body[data-page="inspections"] .ip-tslice-bar{grid-column:1 / -1;height:4px;border-radius:999px;background:var(--line-soft);overflow:hidden}
+body[data-page="inspections"] .ip-tslice-bar i{display:block;height:100%;border-radius:inherit;background:var(--blue-600)}
+body[data-page="inspections"] .ip-today-detail{max-width:760px;display:flex;flex-direction:column;gap:8px}
+body[data-page="inspections"] .ip-today-dh{display:flex;align-items:center;gap:8px;font-size:14px}
+body[data-page="inspections"] .ip-today-detail .ip-note-day h3{margin:8px 0 4px;font-size:12px;font-weight:700;color:var(--muted)}
+body[data-page="inspections"] .ip-today-detail .ip-today-list{background:var(--panel);border:1px solid var(--line-soft);border-radius:12px;padding:4px}
+body[data-page="inspections"] .ip-today-pick{margin:0}
+@media (prefers-reduced-motion:reduce){body[data-page="inspections"] .ip-tslice-row{transition:none}}
 body[data-page="inspections"] .ip-today-b{border:1px solid var(--line);border-radius:10px;padding:10px 12px;background:var(--panel, #fff);min-width:0}
 body[data-page="inspections"] .ip-today-b h3{display:flex;align-items:center;gap:8px;margin:0 0 6px;font-size:13px;font-weight:600}
 body[data-page="inspections"] .ip-today-b h3 .btn{margin-left:auto}
@@ -1875,3 +1900,4 @@ body[data-page="inspections"] .ip-mlog{list-style:none;margin:0;padding:0;displa
 /* Средние экраны (до 1400 px): верхняя строка не помещалась до меню пользователя — поиск уходил под колокольчик. */
 @media (max-width:1400px){body[data-page="inspections"] .ip-topline .ip-slice .select{width:120px}
   body[data-page="inspections"] .ip-topline .ip-sections .itab{padding:0 7px}}
+body[data-page="inspections"] .ip-today-q{max-width:760px}
